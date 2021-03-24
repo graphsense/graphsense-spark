@@ -12,7 +12,8 @@ Access to computed de-normalized views is subsequently provided by the
 [GraphSense REST][graphsense-rest] interface, which is used by the
 [graphsense-dashboard][graphsense-dashboard] component.
 
-This component is implemented in Scala using [Apache Spark][apache-spark].
+This component is implemented in [Scala][scala-lang] using
+[Apache Spark][apache-spark].
 
 ## Local Development Environment Setup
 
@@ -66,7 +67,8 @@ file and the `transformation` subdirectory.
 [graphsense-dashboard]: https://github.com/graphsense/graphsense-dashboard
 [graphsense-rest]: https://github.com/graphsense/graphsense-rest
 [graphsense-setup]: https://github.com/graphsense/graphsense-setup
-[java]: https://java.com
+[java]: https://adoptopenjdk.net
+[scala-lang]: https://www.scala-lang.org
 [scala-sbt]: http://www.scala-sbt.org
 [apache-spark]: https://spark.apache.org/downloads.html
-[apache-cassandra]: http://cassandra.apache.org/
+[apache-cassandra]: http://cassandra.apache.org
