@@ -1,3 +1,4 @@
+[![sbt test](https://github.com/graphsense/graphsense-ethereum-transformation/actions/workflows/sbt_test.yml/badge.svg)](https://github.com/graphsense/graphsense-ethereum-transformation/actions/workflows/sbt_test.yml)
 
 # GraphSense Ethereum Transformation Pipeline
 
