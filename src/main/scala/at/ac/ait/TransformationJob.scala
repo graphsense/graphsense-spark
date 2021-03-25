@@ -106,8 +106,8 @@ object TransformationJob {
     exchangeRates.show(5)
     //cassandra.store(conf.targetKeyspace(), "exchange_rates", exchangeRates)
 
-    val transactionsIds = transformation.computeTransactionIds(transactions)
-    transactionsIds.show(5)
+    val transactionIds = transformation.computeTransactionIds(transactions)
+    transactionIds.show(5)
     val addressIds = transformation.computeAddressIds(transactions)
     addressIds.show(5)
 
@@ -116,12 +116,13 @@ object TransformationJob {
       transformation
         .computeEncodedTransactions(
           transactions,
-          transactionsIds,
+          transactionIds,
           addressIds,
           exchangeRates
         )
         .persist()
     encodedTransactions.show(5)
+    encodedTransactions.sort("transactionId").filter(col("transactionId") < 10).show()
 
     println("Computing block transactions")
     val blockTransactions = transformation

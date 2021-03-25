@@ -32,7 +32,7 @@ case class TxSummary(
     totalOutput: Long
 )
 
-case class Currency(value: BigInt, eur: Float, usd: Float)
+case class Currency(value: BigInt, usd: Float, eur: Float)
 
 case class TxIdTime(height: Int, transactionId: Int, blockTimestamp: Int)
 case class AddressSummary(totalReceived: Currency, totalSpent: Currency)

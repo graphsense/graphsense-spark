@@ -174,6 +174,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .withColumnRenamed("toAddressId", "dstAddressId")
       .join(exchangeRates, Seq("height"), "left")
       .transform(toFiatCurrency("value"))
+      .drop("usd", "eur")
       .as[EncodedTransaction]
   }
 
@@ -198,6 +199,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         Seq("height"),
         "right"
       )
+      .sort("height")
       .as[BlockTransaction]
   }
 
@@ -262,8 +264,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         countDistinct("dstAddressId").cast(IntegerType).as("outDegree"),
         struct(
           sum(col("value.value")).as("value"),
-          sum(col("value.eur")).cast(FloatType).as("eur"),
-          sum(col("value.usd")).cast(FloatType).as("usd")
+          sum(col("value.usd")).cast(FloatType).as("usd"),
+          sum(col("value.eur")).cast(FloatType).as("eur")
         ).as("totalSpent")
       )
     val inStats = encodedTransactions
@@ -273,8 +275,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         countDistinct("srcAddressId").cast(IntegerType).as("inDegree"),
         struct(
           sum(col("value.value")).as("value"),
-          sum(col("value.eur")).cast(FloatType).as("eur"),
-          sum(col("value.usd")).cast(FloatType).as("usd")
+          sum(col("value.usd")).cast(FloatType).as("usd"),
+          sum(col("value.eur")).cast(FloatType).as("eur")
         ).as("totalReceived")
       )
     val txTimestamp = addressTransactions
@@ -329,8 +331,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         count(col("transactionId")) cast IntegerType as "noTransactions",
         struct(
           sum(col("value.value")).as("value"),
-          sum(col("value.eur")).cast(FloatType).as("eur"),
-          sum(col("value.usd")).cast(FloatType).as("usd")
+          sum(col("value.usd")).cast(FloatType).as("usd"),
+          sum(col("value.eur")).cast(FloatType).as("eur")
         ).as("value")
       )
       .join(
