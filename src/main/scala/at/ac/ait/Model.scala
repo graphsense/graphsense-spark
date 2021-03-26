@@ -24,16 +24,7 @@ case class TransactionId(
 
 // transformed schema data types
 
-case class TxSummary(
-    txHash: Array[Byte],
-    noInputs: Int,
-    noOutputs: Int,
-    totalInput: Long,
-    totalOutput: Long
-)
-
 case class Currency(value: BigInt, usd: Float, eur: Float)
-
 case class TxIdTime(height: Int, transactionId: Int, blockTimestamp: Int)
 case class AddressSummary(totalReceived: Currency, totalSpent: Currency)
 
@@ -136,7 +127,6 @@ case class Address(
 
 case class AddressTag(
     addressId: Int,
-    address: String,
     label: String,
     source: String,
     tagpackUri: String,
