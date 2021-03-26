@@ -21,7 +21,8 @@ import org.apache.spark.sql.functions.{
   substring,
   sum,
   to_date,
-  upper
+  upper,
+  when
 }
 import org.apache.spark.sql.types.{FloatType, IntegerType}
 
@@ -257,6 +258,20 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       encodedTransactions: Dataset[EncodedTransaction],
       addressTransactions: Dataset[AddressTransaction]
   ): Dataset[Address] = {
+
+    def zeroValueIfNull(columnName: String)(df: DataFrame): DataFrame = {
+      df.withColumn(
+          columnName,
+          when(
+            col(columnName).isNull,
+            struct(
+              lit(0).as("value"),
+              lit(0).cast(FloatType).as("usd"),
+              lit(0).cast(FloatType).as("eur")
+            )
+          ).otherwise(col(columnName))
+        )
+    }
     val outStats = encodedTransactions
       .groupBy("srcAddressId")
       .agg(
@@ -297,7 +312,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         Seq("firstTxId"),
         "left"
       )
-      .as("firstTx")
       .join(
         txTimestamp.toDF("lastTxId", "lastTx"),
         Seq("lastTxId"),
@@ -316,6 +330,9 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
       .na
       .fill(0, Seq("noIncomingTxs", "noOutgoingTxs", "inDegree", "outDegree"))
+      .transform(zeroValueIfNull("totalReceived"))
+      .transform(zeroValueIfNull("totalSpent"))
+      .sort("addressId")
       .as[Address]
   }
 
