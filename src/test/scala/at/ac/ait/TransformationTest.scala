@@ -4,7 +4,7 @@ import com.github.mrpowers.spark.fast.tests.{DataFrameComparer}
 import org.apache.spark.sql.{DataFrame, Dataset, Encoder, SparkSession}
 import org.apache.spark.sql.catalyst.ScalaReflection
 import org.apache.spark.sql.catalyst.ScalaReflection.universe.TypeTag
-import org.apache.spark.sql.functions.{col, hex, length, lit, lower, max, udf}
+import org.apache.spark.sql.functions.{col, length, lit, lower, max, udf}
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.scalatest.funsuite._
 
@@ -152,9 +152,10 @@ class TransformationTest
 
   val addressRelations =
     t.computeAddressRelations(
-      encodedTransactions,
-      addresses
-    )
+        encodedTransactions,
+        addresses
+      )
+      .sort("srcAddressId", "dstAddressId")
 
   note("Test address graph")
 
@@ -173,5 +174,29 @@ class TransformationTest
     val blockTransactionsRef =
       readTestData[BlockTransaction](refDir + "block_transactions.json")
     assertDataFrameEquality(blockTransactions, blockTransactionsRef)
+  }
+
+  test("Address transactions") {
+    val addressTransactionsRef =
+      readTestData[AddressTransaction](refDir + "address_transactions.csv")
+    assertDataFrameEquality(addressTransactions, addressTransactionsRef)
+  }
+
+  test("Address tags") {
+    val addressTagsRef =
+      readTestData[AddressTag](refDir + "address_tags.csv")
+    assertDataFrameEquality(addressTags, addressTagsRef)
+  }
+
+  test("Addresses") {
+    val addressesRef =
+      readTestData[Address](refDir + "addresses.json")
+    assertDataFrameEquality(addresses, addressesRef)
+  }
+
+  test("Address relations") {
+    val addressRelationsRef =
+      readTestData[AddressRelation](refDir + "address_relations.json")
+    assertDataFrameEquality(addressRelations, addressRelationsRef)
   }
 }
