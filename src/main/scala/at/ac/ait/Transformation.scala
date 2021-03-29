@@ -1,6 +1,6 @@
 package at.ac.ait
 
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, Encoder, SparkSession}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{
   col,
@@ -8,6 +8,7 @@ import org.apache.spark.sql.functions.{
   count,
   countDistinct,
   date_format,
+  floor,
   from_unixtime,
   hex,
   length,
@@ -40,6 +41,40 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         bucketSize
       )
     ).toDS()
+  }
+
+  def withIdGroup[T](
+      idColumn: String,
+      idGroupColumn: String,
+      size: Int = bucketSize
+  )(ds: Dataset[T]): DataFrame = {
+    ds.withColumn(idGroupColumn, floor(col(idColumn) / size).cast("int"))
+  }
+
+  def withSortedIdGroup[T: Encoder](
+      hashColumn: String,
+      prefixColumn: String
+  )(df: DataFrame): Dataset[T] = {
+    df.transform(withIdGroup(hashColumn, prefixColumn))
+      .as[T]
+      .sort(prefixColumn)
+  }
+
+  def withPrefix[T](
+      hashColumn: String,
+      hashPrefixColumn: String,
+      length: Int = 4
+  )(ds: Dataset[T]): DataFrame = {
+    ds.withColumn(hashPrefixColumn, substring(hex(col(hashColumn)), 0, length))
+  }
+
+  def withSortedPrefix[T: Encoder](
+      hashColumn: String,
+      prefixColumn: String
+  )(df: DataFrame): Dataset[T] = {
+    df.transform(withPrefix(hashColumn, prefixColumn))
+      .as[T]
+      .sort(prefixColumn)
   }
 
   def computeExchangeRates(
@@ -261,16 +296,16 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
 
     def zeroValueIfNull(columnName: String)(df: DataFrame): DataFrame = {
       df.withColumn(
-          columnName,
-          when(
-            col(columnName).isNull,
-            struct(
-              lit(0).as("value"),
-              lit(0).cast(FloatType).as("usd"),
-              lit(0).cast(FloatType).as("eur")
-            )
-          ).otherwise(col(columnName))
-        )
+        columnName,
+        when(
+          col(columnName).isNull,
+          struct(
+            lit(0).as("value"),
+            lit(0).cast(FloatType).as("usd"),
+            lit(0).cast(FloatType).as("eur")
+          )
+        ).otherwise(col(columnName))
+      )
     }
     val outStats = encodedTransactions
       .groupBy("srcAddressId")

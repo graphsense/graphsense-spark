@@ -113,7 +113,36 @@ class TransformationTest
       .persist()
 
   val transactionIds = t.computeTransactionIds(transactions)
+  val transactionIdsByTransactionIdGroup =
+    transactionIds.toDF.transform(
+      t.withSortedIdGroup[TransactionIdByTransactionIdGroup](
+        "transactionId",
+        "transactionIdGroup"
+      )
+    )
+  val transactionIdsByTransactionPrefix =
+    transactionIds.toDF.transform(
+      t.withSortedPrefix[TransactionIdByTransactionPrefix](
+        "transaction",
+        "transactionPrefix"
+      )
+    )
+
   val addressIds = t.computeAddressIds(transactions)
+  val addressIdsByAddressIdGroup =
+    addressIds.toDF.transform(
+      t.withSortedIdGroup[AddressIdByAddressIdGroup](
+        "addressId",
+        "addressIdGroup"
+      )
+    )
+  val addressIdsByAddressPrefix =
+    addressIds.toDF.transform(
+      t.withSortedPrefix[AddressIdByAddressPrefix](
+        "address",
+        "addressPrefix"
+      )
+    )
 
   val encodedTransactions =
     t.computeEncodedTransactions(
@@ -157,12 +186,32 @@ class TransformationTest
       )
       .sort("srcAddressId", "dstAddressId")
 
-  note("Test address graph")
+  note("Test lookup tables")
 
   test("Transaction IDs") {
     val transactionIdsRef =
       readTestData[TransactionId](refDir + "transactions_ids.csv")
     assertDataFrameEquality(transactionIds, transactionIdsRef)
+  }
+  test("Transaction IDs by ID group") {
+    val transactionIdsRef =
+      readTestData[TransactionIdByTransactionIdGroup](
+        refDir + "transactions_ids_by_id_group.csv"
+      )
+    assertDataFrameEquality(
+      transactionIdsByTransactionIdGroup,
+      transactionIdsRef
+    )
+  }
+  test("Transaction IDs by transaction prefix") {
+    val transactionIdsRef =
+      readTestData[TransactionIdByTransactionPrefix](
+        refDir + "transactions_ids_by_prefix.csv"
+      )
+    assertDataFrameEquality(
+      transactionIdsByTransactionPrefix,
+      transactionIdsRef
+    )
   }
 
   test("Address IDs") {
@@ -170,11 +219,29 @@ class TransformationTest
     assertDataFrameEquality(addressIds, addressIdsRef)
   }
 
+  test("Address IDs by ID Group") {
+    val addressIdsRef = readTestData[AddressIdByAddressIdGroup](
+      refDir + "address_ids_by_id_group.csv"
+    )
+    assertDataFrameEquality(addressIdsByAddressIdGroup, addressIdsRef)
+  }
+
+  test("Address IDs by address prefix") {
+    val addressIdsRef = readTestData[AddressIdByAddressPrefix](
+      refDir + "address_ids_by_prefix.csv"
+    )
+    assertDataFrameEquality(addressIdsByAddressPrefix, addressIdsRef)
+  }
+
+  note("Test blocks")
+
   test("Block transactions") {
     val blockTransactionsRef =
       readTestData[BlockTransaction](refDir + "block_transactions.json")
     assertDataFrameEquality(blockTransactions, blockTransactionsRef)
   }
+
+  note("Test address graph")
 
   test("Address transactions") {
     val addressTransactionsRef =

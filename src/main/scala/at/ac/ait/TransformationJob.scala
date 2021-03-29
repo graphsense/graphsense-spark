@@ -98,18 +98,66 @@ object TransformationJob {
     //  "configuration",
     //  configuration
     //)
+
     println("Computing exchange rates")
     val exchangeRates =
       transformation
         .computeExchangeRates(blocks, exchangeRatesRaw)
         .persist()
-    exchangeRates.show(5)
-    //cassandra.store(conf.targetKeyspace(), "exchange_rates", exchangeRates)
+    cassandra.store(conf.targetKeyspace(), "exchange_rates", exchangeRates)
 
-    val transactionIds = transformation.computeTransactionIds(transactions)
-    transactionIds.show(5)
+    val transactionIds =
+      transformation.computeTransactionIds(transactions).persist()
+    val transactionIdsByTransactionIdGroup =
+      transactionIds.toDF.transform(
+        transformation.withSortedIdGroup[TransactionIdByTransactionIdGroup](
+          "transactionId",
+          "transactionIdGroup"
+        )
+      )
+    cassandra.store(
+      conf.targetKeyspace(),
+      "transaction_ids_by_transaction_id_group",
+      transactionIdsByTransactionIdGroup
+    )
+    val transactionIdsByTransactionPrefix =
+      transactionIds.toDF.transform(
+        transformation.withSortedPrefix[TransactionIdByTransactionPrefix](
+          "transaction",
+          "transactionPrefix"
+        )
+      )
+    cassandra.store(
+      conf.targetKeyspace(),
+      "transaction_ids_by_transaction_prefix",
+      transactionIdsByTransactionPrefix
+    )
+
     val addressIds = transformation.computeAddressIds(transactions)
-    addressIds.show(5)
+    val addressIdsByAddressIdGroup =
+      addressIds.toDF.transform(
+        transformation.withSortedIdGroup[AddressIdByAddressIdGroup](
+          "addressId",
+          "addressIdGroup"
+        )
+      )
+    cassandra.store(
+      conf.targetKeyspace(),
+      "address_ids_by_address_id_group",
+      addressIdsByAddressIdGroup
+    )
+    val addressIdsByAddressPrefix =
+      addressIds.toDF.transform(
+        transformation.withSortedPrefix[AddressIdByAddressPrefix](
+          "address",
+          "addressPrefix"
+        )
+      )
+    cassandra.store(
+      conf.targetKeyspace(),
+      "address_ids_by_address_prefix",
+      addressIdsByAddressPrefix
+    )
 
     println("Encoding transactions")
     val encodedTransactions =
@@ -122,7 +170,10 @@ object TransformationJob {
         )
         .persist()
     encodedTransactions.show(5)
-    encodedTransactions.sort("transactionId").filter(col("transactionId") < 10).show()
+    encodedTransactions
+      .sort("transactionId")
+      .filter(col("transactionId") < 10)
+      .show()
 
     println("Computing block transactions")
     val blockTransactions = transformation

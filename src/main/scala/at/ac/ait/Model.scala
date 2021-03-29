@@ -1,25 +1,40 @@
 package at.ac.ait
 
+
+// lookup tables
+
+case class TransactionId(
+    transaction: Array[Byte],
+    transactionId: Int
+)
+
+case class TransactionIdByTransactionPrefix(
+    transactionPrefix: String,
+    transaction: Array[Byte],
+    transactionId: Int
+)
+
+case class TransactionIdByTransactionIdGroup(
+    transaction: Array[Byte],
+    transactionIdGroup: Int,
+    transactionId: Int
+)
+
 case class AddressId(
     address: Array[Byte],
     addressId: Int
 )
 
-case class AddressIdByAddress(
+case class AddressIdByAddressPrefix(
     addressPrefix: String,
     address: Array[Byte],
     addressId: Int
 )
 
-case class AddressByIdGroup(
+case class AddressIdByAddressIdGroup(
     addressIdGroup: Int,
     addressId: Int,
     address: Array[Byte]
-)
-
-case class TransactionId(
-    transaction: Array[Byte],
-    transactionId: Int
 )
 
 // transformed schema data types
@@ -103,7 +118,7 @@ case class EncodedTransaction(
 
 
 case class AddressTransaction(
-    //addressIdGroup: Int, // TODO
+    //addressIdGroup: Int,
     addressId: Int,
     transactionId: Int,
     value: BigInt,
