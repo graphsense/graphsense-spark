@@ -100,7 +100,7 @@ case class TagRaw(
 
 case class ExchangeRates(height: Int, eur: Float, usd: Float)
 
-case class BlockTransaction(height: Int, txs: Seq[Int])
+case class BlockTransaction(heightGroup: Int, height: Int, txs: Seq[Int])
 
 case class EncodedTransaction(
     transactionId: Int,
@@ -118,7 +118,7 @@ case class EncodedTransaction(
 
 
 case class AddressTransaction(
-    //addressIdGroup: Int,
+    addressIdGroup: Int,
     addressId: Int,
     transactionId: Int,
     value: BigInt,
@@ -127,8 +127,7 @@ case class AddressTransaction(
 )
 
 case class Address(
-    //addressPrefix: String,
-    //address: String,
+    addressIdGroup: Int,
     addressId: Int,
     noIncomingTxs: Int,
     noOutgoingTxs: Int,
@@ -151,9 +150,9 @@ case class AddressTag(
 )
 
 case class AddressRelation(
-    //srcAddressIdGroup: Int,
+    srcAddressIdGroup: Int,
     srcAddressId: Int,
-    //dstAddressIdGroup: Int,
+    dstAddressIdGroup: Int,
     dstAddressId: Int,
     srcProperties: AddressSummary,
     dstProperties: AddressSummary,

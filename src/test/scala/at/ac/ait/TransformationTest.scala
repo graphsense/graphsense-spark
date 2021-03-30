@@ -174,10 +174,12 @@ class TransformationTest
     .distinct()
     .count()
 
-  val addresses = t.computeAddresses(
-    encodedTransactions,
-    addressTransactions
-  )
+  val addresses = t
+    .computeAddresses(
+      encodedTransactions,
+      addressTransactions
+    )
+    .persist()
 
   val addressRelations =
     t.computeAddressRelations(

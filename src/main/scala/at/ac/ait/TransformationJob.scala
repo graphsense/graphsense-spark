@@ -178,14 +178,21 @@ object TransformationJob {
     println("Computing block transactions")
     val blockTransactions = transformation
       .computeBlockTransactions(blocks, encodedTransactions)
-    blockTransactions.filter($"height" > 46990).sort("height").show()
+    cassandra.store(
+      conf.targetKeyspace(),
+      "block_transactions",
+      blockTransactions
+    )
 
     println("Computing address transactions")
     val addressTransactions = transformation
       .computeAddressTransactions(encodedTransactions)
       .persist()
-    addressTransactions.show(25)
-    println(addressTransactions.count)
+    cassandra.store(
+      conf.targetKeyspace(),
+      "address_transactions",
+      addressTransactions
+    )
 
     println("Computing address tags")
     val addressTags =
@@ -196,46 +203,36 @@ object TransformationJob {
           "ETH"
         )
         .persist()
-    //cassandra.store(conf.targetKeyspace(), "address_tags", addressTags)
+    cassandra.store(conf.targetKeyspace(), "address_tags", addressTags)
     val noAddressTags = addressTags
       .select(col("label"))
       .withColumn("label", lower(col("label")))
       .distinct()
       .count()
-    println("Number of tags: " + noAddressTags)
-    addressTags.show()
 
     val addresses = transformation.computeAddresses(
       encodedTransactions,
       addressTransactions
     )
-    addresses.show(20)
+    cassandra.store(conf.targetKeyspace(), "addresses", addresses)
 
     val addressRelations =
       transformation.computeAddressRelations(
         encodedTransactions,
         addresses
       )
-    addressRelations.show(20, false)
+    cassandra.store(
+      conf.targetKeyspace(),
+      "address_incoming_relations",
+      addressRelations.sort("dstAddressId")
+    )
+    cassandra.store(
+      conf.targetKeyspace(),
+      "address_outgoing_relations",
+      addressRelations.sort("srcAddressId")
+    )
 
-    //cassandra.store(conf.targetKeyspace(), "block_transactions", blockTransactions)
     /*
-    println("Computing address IDs")
-    val addressIds =
-      transformation.computeAddressIds(regOutputs)
-
-    cassandra.store(
-      conf.targetKeyspace(),
-      "address_by_id_group",
-      addressByIdGroup
-    )
-
-    cassandra.store(
-      conf.targetKeyspace(),
-      "address_transactions",
-      addressTransactions
-    )
-
     println("Computing summary statistics")
     val summaryStatistics =
       transformation.summaryStatistics(
@@ -252,7 +249,7 @@ object TransformationJob {
       "summary_statistics",
       summaryStatistics
     )
-     */
+   */
     spark.stop()
   }
 }

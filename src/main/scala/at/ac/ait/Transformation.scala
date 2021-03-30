@@ -214,15 +214,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .as[EncodedTransaction]
   }
 
-//  def computeAddressByIdGroups(
-//      addressIds: Dataset[AddressId]
-//  ): Dataset[AddressByIdGroup] = {
-//    addressIds
-//      .select("addressId", "address")
-//      .transform(t.idGroup("addressId", "addressIdGroup"))
-//      .as[AddressByIdGroup]
-//  }
-
   def computeBlockTransactions(
       blocks: Dataset[Block],
       encodedTransactions: Dataset[EncodedTransaction]
@@ -235,6 +226,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         Seq("height"),
         "right"
       )
+      .transform(withIdGroup("height", "heightGroup"))
       .sort("height")
       .as[BlockTransaction]
   }
@@ -263,6 +255,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
 
     inputs
       .union(outputs)
+      .transform(withIdGroup("addressId", "addressIdGroup"))
       .sort("addressId", "transactionId")
       .as[AddressTransaction]
   }
@@ -367,6 +360,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .fill(0, Seq("noIncomingTxs", "noOutgoingTxs", "inDegree", "outDegree"))
       .transform(zeroValueIfNull("totalReceived"))
       .transform(zeroValueIfNull("totalSpent"))
+      .transform(withIdGroup("addressId", "addressIdGroup"))
       .sort("addressId")
       .as[Address]
   }
@@ -405,6 +399,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         Seq("dstAddressId"),
         "left"
       )
+      .transform(withIdGroup("srcAddressId", "srcAddressIdGroup"))
+      .transform(withIdGroup("dstAddressId", "dstAddressIdGroup"))
       .as[AddressRelation]
   }
 
