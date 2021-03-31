@@ -15,9 +15,9 @@ case class TransactionIdByTransactionPrefix(
 )
 
 case class TransactionIdByTransactionIdGroup(
-    transaction: Array[Byte],
     transactionIdGroup: Int,
-    transactionId: Int
+    transactionId: Int,
+    transaction: Array[Byte]
 )
 
 case class AddressId(
@@ -116,7 +116,6 @@ case class EncodedTransaction(
     blockTimestamp: Int
 )
 
-
 case class AddressTransaction(
     addressIdGroup: Int,
     addressId: Int,
@@ -176,7 +175,7 @@ case class Tag(
 
 case class SummaryStatistics(
     timestamp: Int,
-    noBlocks: Int,
+    noBlocks: Long,
     noTransactions: Long,
     noAddresses: Long,
     noAddressRelations: Long,

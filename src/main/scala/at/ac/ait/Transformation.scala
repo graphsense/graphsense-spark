@@ -434,10 +434,9 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .as[Tag]
   }
 
-  /*
   def summaryStatistics(
       lastBlockTimestamp: Int,
-      noBlocks: Int,
+      noBlocks: Long,
       noTransactions: Long,
       noAddresses: Long,
       noAddressRelations: Long,
@@ -454,5 +453,4 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
     ).toDS()
   }
- */
 }
