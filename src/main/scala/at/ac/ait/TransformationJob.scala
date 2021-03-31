@@ -1,7 +1,7 @@
 package at.ac.ait
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{col, lower}
+import org.apache.spark.sql.functions.{col, lower, max}
 import org.rogach.scallop._
 
 import at.ac.ait.storage._
@@ -59,7 +59,6 @@ object TransformationJob {
 
     val exchangeRatesRaw =
       cassandra.load[ExchangeRatesRaw](conf.rawKeyspace(), "exchange_rates")
-    exchangeRatesRaw.show(5) // TODO
 
     val blocks =
       cassandra.load[Block](conf.rawKeyspace(), "block")
@@ -68,36 +67,30 @@ object TransformationJob {
     val tagsRaw = cassandra
       .load[TagRaw](conf.tagKeyspace(), "tag_by_address")
 
-    println("blocks")
-    val noBlocks = blocks.count()
-    blocks.show(2)
-    blocks.printSchema
-    println("Number of blocks: " + noBlocks)
-    val lastBlockTimestamp = blocks
-      .filter(col("number") === noBlocks - 1)
-      .select(col("timestamp"))
-      .first()
-      .getInt(0)
-    println("Last timestamp: " + lastBlockTimestamp)
-    println("txs")
-    transactions.show(2)
-    transactions.printSchema
-    val noTransactions = transactions.count()
-    println("Number of transactions: " + noTransactions)
 
     val transformation = new Transformation(spark, conf.bucketSize())
 
-    //println("Store configuration")
-    //val configuration =
-    //  transformation.configuration(
-    //    conf.targetKeyspace(),
-    //    conf.bucketSize(),
-    //  )
-    //cassandra.store(
-    //  conf.targetKeyspace(),
-    //  "configuration",
-    //  configuration
-    //)
+    println("Store configuration")
+    val configuration =
+      transformation.configuration(
+        conf.targetKeyspace(),
+        conf.bucketSize()
+      )
+    cassandra.store(
+      conf.targetKeyspace(),
+      "configuration",
+      configuration
+    )
+
+    val noBlocks = blocks.count()
+    println("Number of blocks: " + noBlocks)
+    val lastBlockTimestamp = blocks
+      .select(max(col("timestamp")))
+      .first()
+      .getInt(0)
+    println("Last timestamp: " + lastBlockTimestamp)
+    val noTransactions = transactions.count()
+    println("Number of transactions: " + noTransactions)
 
     println("Computing exchange rates")
     val exchangeRates =
@@ -106,6 +99,7 @@ object TransformationJob {
         .persist()
     cassandra.store(conf.targetKeyspace(), "exchange_rates", exchangeRates)
 
+    println("Computing transaction IDs")
     val transactionIds =
       transformation.computeTransactionIds(transactions).persist()
     val transactionIdsByTransactionIdGroup =
@@ -133,7 +127,9 @@ object TransformationJob {
       transactionIdsByTransactionPrefix
     )
 
+    println("Computing address IDs")
     val addressIds = transformation.computeAddressIds(transactions)
+    val noAddresses = addressIds.count()
     val addressIdsByAddressIdGroup =
       addressIds.toDF.transform(
         transformation.withSortedIdGroup[AddressIdByAddressIdGroup](
@@ -169,11 +165,6 @@ object TransformationJob {
           exchangeRates
         )
         .persist()
-    encodedTransactions.show(5)
-    encodedTransactions
-      .sort("transactionId")
-      .filter(col("transactionId") < 10)
-      .show()
 
     println("Computing block transactions")
     val blockTransactions = transformation
@@ -214,13 +205,14 @@ object TransformationJob {
       encodedTransactions,
       addressTransactions
     )
-    cassandra.store(conf.targetKeyspace(), "addresses", addresses)
+    cassandra.store(conf.targetKeyspace(), "address", addresses)
 
     val addressRelations =
       transformation.computeAddressRelations(
         encodedTransactions,
         addresses
       )
+    val noAddressRelations = addressRelations.count()
     cassandra.store(
       conf.targetKeyspace(),
       "address_incoming_relations",
@@ -232,7 +224,6 @@ object TransformationJob {
       addressRelations.sort("srcAddressId")
     )
 
-    /*
     println("Computing summary statistics")
     val summaryStatistics =
       transformation.summaryStatistics(
@@ -249,7 +240,7 @@ object TransformationJob {
       "summary_statistics",
       summaryStatistics
     )
-   */
+
     spark.stop()
   }
 }
