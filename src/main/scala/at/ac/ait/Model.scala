@@ -1,6 +1,5 @@
 package at.ac.ait
 
-
 // lookup tables
 
 case class TransactionId(
@@ -39,7 +38,7 @@ case class AddressIdByAddressIdGroup(
 
 // transformed schema data types
 
-case class Currency(value: BigInt, usd: Float, eur: Float)
+case class Currency(value: BigInt, fiatValues: Seq[Float])
 case class TxIdTime(height: Int, transactionId: Int, blockTimestamp: Int)
 case class AddressSummary(totalReceived: Currency, totalSpent: Currency)
 
@@ -64,7 +63,7 @@ case class Block(
     gasLimit: Int,
     gasUsed: Int,
     timestamp: Int,
-    transactionCount: Short,
+    transactionCount: Short
 )
 
 case class Transaction(
@@ -80,10 +79,10 @@ case class Transaction(
     gas: Int,
     gasPrice: Long,
     input: Array[Byte],
-    blockTimestamp: Int,
+    blockTimestamp: Int
 )
 
-case class ExchangeRatesRaw(date: String, eur: Float, usd: Float)
+case class ExchangeRatesRaw(date: String, fiatValues: Option[Map[String, Float]])
 
 case class TagRaw(
     address: String,
@@ -98,7 +97,7 @@ case class TagRaw(
 
 // transformed schema tables
 
-case class ExchangeRates(height: Int, eur: Float, usd: Float)
+case class ExchangeRates(height: Int, fiatValues: Seq[Float])
 
 case class BlockTransaction(heightGroup: Int, height: Int, txs: Seq[Int])
 
@@ -109,7 +108,8 @@ case class EncodedTransaction(
     transactionIndex: Short,
     srcAddressId: Int,
     dstAddressId: Option[Int],
-    value: Currency,
+    value: BigInt,
+    fiatValues: Seq[Float],
     gas: Int,
     gasPrice: Long,
     input: Array[Byte],
@@ -179,10 +179,11 @@ case class SummaryStatistics(
     noTransactions: Long,
     noAddresses: Long,
     noAddressRelations: Long,
-    noTags: Long,
+    noTags: Long
 )
 
 case class Configuration(
     keyspaceName: String,
-    bucketSize: Int
+    bucketSize: Int,
+    fiatCurrencies: Seq[String]
 )

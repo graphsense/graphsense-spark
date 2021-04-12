@@ -67,14 +67,14 @@ object TransformationJob {
     val tagsRaw = cassandra
       .load[TagRaw](conf.tagKeyspace(), "tag_by_address")
 
-
     val transformation = new Transformation(spark, conf.bucketSize())
 
     println("Store configuration")
     val configuration =
       transformation.configuration(
         conf.targetKeyspace(),
-        conf.bucketSize()
+        conf.bucketSize(),
+        transformation.getFiatCurrencies(exchangeRatesRaw)
       )
     cassandra.store(
       conf.targetKeyspace(),
@@ -88,7 +88,6 @@ object TransformationJob {
       .select(max(col("timestamp")))
       .first()
       .getInt(0)
-    println("Last timestamp: " + lastBlockTimestamp)
     val noTransactions = transactions.count()
     println("Number of transactions: " + noTransactions)
 
@@ -201,6 +200,7 @@ object TransformationJob {
       .distinct()
       .count()
 
+    println("Computing address statistics")
     val addresses = transformation.computeAddresses(
       encodedTransactions,
       addressTransactions

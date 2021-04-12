@@ -3,6 +3,8 @@ package at.ac.ait
 import org.apache.spark.sql.{DataFrame, Dataset, Encoder, SparkSession}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{
+  array,
+  coalesce,
   col,
   collect_list,
   count,
@@ -14,33 +16,68 @@ import org.apache.spark.sql.functions.{
   length,
   lit,
   lower,
+  map_keys,
+  map_values,
   max,
   min,
   regexp_replace,
   row_number,
+  size,
   struct,
   substring,
   sum,
   to_date,
-  upper,
-  when
+  typedLit,
+  upper
 }
-import org.apache.spark.sql.types.{FloatType, IntegerType}
+import org.apache.spark.sql.types.{DecimalType, FloatType, IntegerType}
 
 class Transformation(spark: SparkSession, bucketSize: Int) {
 
   import spark.implicits._
 
+  private var noFiatCurrencies: Option[Int] = None
+
   def configuration(
       keyspaceName: String,
-      bucketSize: Int
+      bucketSize: Int,
+      fiatCurrencies: Seq[String]
   ) = {
     Seq(
       Configuration(
         keyspaceName,
-        bucketSize
+        bucketSize,
+        fiatCurrencies
       )
     ).toDS()
+  }
+
+  def aggregateValues(
+      valueColumn: String,
+      fiatValueColumn: String,
+      length: Int,
+      groupColumns: String*
+  )(df: DataFrame): DataFrame = {
+    df.groupBy(groupColumns.head, groupColumns.tail: _*)
+      .agg(
+        struct(
+          sum(col(valueColumn)).as(valueColumn),
+          array(
+            (0 until length)
+              .map(i => sum(col(fiatValueColumn).getItem(i)).cast(FloatType)): _*
+          ).as(fiatValueColumn)
+        ).as(valueColumn)
+      )
+  }
+
+  def getFiatCurrencies(
+      exchangeRatesRaw: Dataset[ExchangeRatesRaw]
+  ): Seq[String] = {
+    val currencies =
+      exchangeRatesRaw.select(map_keys(col("fiatValues"))).distinct
+    if (currencies.count() > 1L)
+      throw new Exception("Non-unique map keys in raw exchange rates table")
+    currencies.rdd.map(r => r(0).asInstanceOf[Seq[String]]).collect()(0)
   }
 
   def withIdGroup[T](
@@ -99,10 +136,21 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         "WARNING: exchange rates not available for all blocks, filling missing values with 0"
       )
 
+    noFiatCurrencies = Some(
+      exchangeRates.select(size(col("fiatValues"))).distinct.first.getInt(0)
+    )
+
     blocksDate
       .join(exchangeRates, Seq("date"), "left")
-      .na
-      .fill(0)
+      // replace null values in column fiatValues
+      .withColumn("fiatValues", map_values(col("fiatValues")))
+      .withColumn(
+        "fiatValues",
+        coalesce(
+          col("fiatValues"),
+          typedLit(Array.fill[Float](noFiatCurrencies.get)(0))
+        )
+      )
       .drop("date")
       .sort("number")
       .withColumnRenamed("number", "height")
@@ -152,7 +200,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .filter(col("rowNumber") === 1)
       .sort("blockNumber", "transactionIndex", "isFromAddress")
       .select("address")
-      .map(_ getAs [Array[Byte]] ("address"))
+      .map(_.getAs[Array[Byte]]("address"))
       .rdd
       .zipWithIndex()
       .map { case ((a, id)) => AddressId(a, id.toInt) }
@@ -165,13 +213,19 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       addressIds: Dataset[AddressId],
       exchangeRates: Dataset[ExchangeRates]
   ): Dataset[EncodedTransaction] = {
-    def toFiatCurrency(valueColumn: String)(df: DataFrame) = {
+    def toFiatCurrency(valueColumn: String, fiatValueColumn: String)(
+        df: DataFrame
+    ) = {
+      // see `transform_values` in Spark 3
       df.withColumn(
-        valueColumn,
-        struct(
-          col(valueColumn),
-          (col(valueColumn) / 1e18 * col("usd")).cast(FloatType).as("usd"),
-          (col(valueColumn) / 1e18 * col("eur")).cast(FloatType).as("eur")
+        fiatValueColumn,
+        array(
+          (0 until noFiatCurrencies.get)
+            .map(
+              i =>
+                (col(valueColumn) / 1e18 * col(fiatValueColumn).getItem(i))
+                  .cast(FloatType)
+            ): _*
         )
       )
     }
@@ -209,8 +263,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .withColumnRenamed("fromAddressId", "srcAddressId")
       .withColumnRenamed("toAddressId", "dstAddressId")
       .join(exchangeRates, Seq("height"), "left")
-      .transform(toFiatCurrency("value"))
-      .drop("usd", "eur")
+      .transform(toFiatCurrency("value", "fiatValues"))
       .as[EncodedTransaction]
   }
 
@@ -238,7 +291,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("srcAddressId").as("addressId"),
         col("transactionId"),
-        col("value")("value").as("value"),
+        col("value"),
         col("height"),
         col("blockTimestamp")
       )
@@ -248,7 +301,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("dstAddressId").as("addressId"),
         col("transactionId"),
-        col("value")("value").as("value"),
+        col("value"),
         col("height"),
         col("blockTimestamp")
       )
@@ -286,42 +339,58 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       encodedTransactions: Dataset[EncodedTransaction],
       addressTransactions: Dataset[AddressTransaction]
   ): Dataset[Address] = {
-
     def zeroValueIfNull(columnName: String)(df: DataFrame): DataFrame = {
       df.withColumn(
         columnName,
-        when(
-          col(columnName).isNull,
+        coalesce(
+          col(columnName),
           struct(
-            lit(0).as("value"),
-            lit(0).cast(FloatType).as("usd"),
-            lit(0).cast(FloatType).as("eur")
+            lit(0).cast(DecimalType(38, 0)).as("value"),
+            typedLit(Array.fill[Float](noFiatCurrencies.get)(0))
+              .as("fiatValues")
           )
-        ).otherwise(col(columnName))
+        )
       )
     }
     val outStats = encodedTransactions
       .groupBy("srcAddressId")
       .agg(
         count("transactionId").cast(IntegerType).as("noOutgoingTxs"),
-        countDistinct("dstAddressId").cast(IntegerType).as("outDegree"),
-        struct(
-          sum(col("value.value")).as("value"),
-          sum(col("value.usd")).cast(FloatType).as("usd"),
-          sum(col("value.eur")).cast(FloatType).as("eur")
-        ).as("totalSpent")
+        countDistinct("dstAddressId").cast(IntegerType).as("outDegree")
       )
+      .join(
+        encodedTransactions.toDF.transform(
+          aggregateValues(
+            "value",
+            "fiatValues",
+            noFiatCurrencies.get,
+            "srcAddressId"
+          )
+        ),
+        Seq("srcAddressId"),
+        "left"
+      )
+      .withColumnRenamed("value", "TotalSpent")
     val inStats = encodedTransactions
       .groupBy("dstAddressId")
       .agg(
         count("transactionId").cast(IntegerType).as("noIncomingTxs"),
-        countDistinct("srcAddressId").cast(IntegerType).as("inDegree"),
-        struct(
-          sum(col("value.value")).as("value"),
-          sum(col("value.usd")).cast(FloatType).as("usd"),
-          sum(col("value.eur")).cast(FloatType).as("eur")
-        ).as("totalReceived")
+        countDistinct("srcAddressId").cast(IntegerType).as("inDegree")
       )
+      .join(
+        encodedTransactions.toDF
+          .transform(
+            aggregateValues(
+              "value",
+              "fiatValues",
+              noFiatCurrencies.get,
+              "dstAddressId"
+            )
+          ),
+        Seq("dstAddressId"),
+        "left"
+      )
+      .withColumnRenamed("value", "TotalReceived")
     val txTimestamp = addressTransactions
       .select(
         col("transactionId"),
@@ -374,12 +443,20 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .filter(col("value").isNotNull)
       .groupBy("srcAddressId", "dstAddressId")
       .agg(
-        count(col("transactionId")) cast IntegerType as "noTransactions",
-        struct(
-          sum(col("value.value")).as("value"),
-          sum(col("value.usd")).cast(FloatType).as("usd"),
-          sum(col("value.eur")).cast(FloatType).as("eur")
-        ).as("value")
+        count(col("transactionId")) cast IntegerType as "noTransactions"
+      )
+      .join(
+        encodedTransactions.toDF.transform(
+          aggregateValues(
+            "value",
+            "fiatValues",
+            noFiatCurrencies.get,
+            "srcAddressId",
+            "dstAddressId"
+          )
+        ),
+        Seq("srcAddressId", "dstAddressId"),
+        "left"
       )
       .join(
         addresses
@@ -440,7 +517,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       noTransactions: Long,
       noAddresses: Long,
       noAddressRelations: Long,
-      noTags: Long,
+      noTags: Long
   ) = {
     Seq(
       SummaryStatistics(

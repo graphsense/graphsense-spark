@@ -44,8 +44,7 @@ CREATE TABLE transaction (
 
 CREATE TABLE exchange_rates (
     date text PRIMARY KEY,
-    eur float,
-    usd float
+    fiat_values map<text, float>
 );
 
 DROP KEYSPACE IF EXISTS tagpacks;

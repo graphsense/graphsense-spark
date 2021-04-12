@@ -5,10 +5,9 @@ USE eth_transformed;
 
 // custom data types
 
-CREATE TYPE value (
-    value bigint,
-    eur float,
-    usd float
+CREATE TYPE currency (
+    value varint,
+    fiat_values list<float>
 );
 
 CREATE TYPE tx_id_time (
@@ -18,16 +17,15 @@ CREATE TYPE tx_id_time (
 );
 
 CREATE TYPE address_summary (
-    total_received FROZEN <value>,
-    total_spent FROZEN <value>
+    total_received FROZEN <currency>,
+    total_spent FROZEN <currency>
 );
 
 // transformed schema
 
 CREATE TABLE exchange_rates (
     height int PRIMARY KEY,
-    usd float,
-    eur float
+    fiat_values list<float>
 );
 
 CREATE TABLE transaction_ids_by_transaction_id_group (
@@ -82,8 +80,8 @@ CREATE TABLE address (
     no_outgoing_txs int,
     first_tx FROZEN <tx_id_time>,
     last_tx FROZEN <tx_id_time>,
-    total_received frozen <value>,
-    total_spent frozen <value>,
+    total_received FROZEN <currency>,
+    total_spent FROZEN <currency>,
     in_degree int,
     out_degree int,
     PRIMARY KEY (address_id_group, address_id)
@@ -107,7 +105,7 @@ CREATE TABLE address_incoming_relations (
     src_address_id int,
     src_properties FROZEN <address_summary>,
     no_transactions int,
-    value frozen <value>,
+    value FROZEN <currency>,
     PRIMARY KEY (dst_address_id_group, dst_address_id, src_address_id)
 );
 
@@ -117,7 +115,7 @@ CREATE TABLE address_outgoing_relations (
     dst_address_id int,
     dst_properties FROZEN <address_summary>,
     no_transactions int,
-    value frozen <value>,
+    value frozen <currency>,
     PRIMARY KEY (src_address_id_group, src_address_id, dst_address_id)
 );
 
@@ -148,4 +146,5 @@ CREATE TABLE summary_statistics (
 CREATE TABLE configuration (
     keyspace_name text PRIMARY KEY,
     bucket_size int,
+    fiat_currencies list<text>
 );
