@@ -1,8 +1,13 @@
 package at.ac.ait
 
-import com.github.mrpowers.spark.fast.tests.{DataFrameComparer}
-import org.apache.spark.sql.{DataFrame, Dataset, Encoder, SparkSession}
-import org.apache.spark.sql.catalyst.ScalaReflection
+import com.github.mrpowers.spark.fast.tests.DataFrameComparer
+import org.apache.spark.sql.{
+  DataFrame,
+  Dataset,
+  Encoder,
+  Encoders,
+  SparkSession
+}
 import org.apache.spark.sql.catalyst.ScalaReflection.universe.TypeTag
 import org.apache.spark.sql.functions.{col, length, lit, lower, max, udf}
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
@@ -24,9 +29,8 @@ class TransformationTest
     with SparkSessionTestWrapper
     with DataFrameComparer {
 
-  def readTestData[A: Encoder: TypeTag](file: String): Dataset[A] = {
-    // https://docs.databricks.com/spark/latest/faq/schema-from-case-class.html
-    val schema = ScalaReflection.schemaFor[A].dataType.asInstanceOf[StructType]
+  def readTestData[T <: Product: Encoder: TypeTag](file: String): Dataset[T] = {
+    val schema = Encoders.product[T].schema
     // spark.read.csv cannot read BinaryTaype, read BinaryType as StringType and cast to ByteArray
     val newSchema = StructType(
       schema.map(
@@ -57,22 +61,26 @@ class TransformationTest
           )
         )
       }
-      .as[A]
+      .as[T]
   }
 
-  def setNullableStateForAllColumns[A](ds: Dataset[A]): DataFrame = {
-    val df = ds.toDF()
-    val schema = StructType(
-      df.schema.map(
-        x => StructField(x.name, x.dataType, true)
-      )
-    )
-    df.sqlContext.createDataFrame(df.rdd, schema)
+def setNullableStateForAllColumns[T](ds: Dataset[T], nullable: Boolean = true): DataFrame = {
+    def set(st: StructType): StructType = {
+      StructType(st.map {
+        case StructField(name, dataType, _, metadata) =>
+          val newDataType = dataType match {
+            case t: StructType => set(t)
+            case _ => dataType
+          }
+          StructField(name, newDataType, nullable = nullable, metadata)
+      })
+    }
+    ds.sqlContext.createDataFrame(ds.toDF.rdd, set(ds.schema))
   }
 
-  def assertDataFrameEquality[A](
-      actualDS: Dataset[A],
-      expectedDS: Dataset[A]
+  def assertDataFrameEquality[T](
+      actualDS: Dataset[T],
+      expectedDS: Dataset[T]
   ): Unit = {
     val colOrder = expectedDS.columns map col
     assertSmallDataFrameEquality(
@@ -94,7 +102,7 @@ class TransformationTest
   val transactions =
     readTestData[Transaction](inputDir + "test_transactions.csv")
   val exchangeRatesRaw =
-    readTestData[ExchangeRatesRaw](inputDir + "test_exchange_rates.csv")
+    readTestData[ExchangeRatesRaw](inputDir + "test_exchange_rates.json")
   val attributionTags = readTestData[TagRaw](inputDir + "test_tags.json")
 
   val noBlocks = blocks.count.toInt
@@ -233,6 +241,14 @@ class TransformationTest
       refDir + "address_ids_by_prefix.csv"
     )
     assertDataFrameEquality(addressIdsByAddressPrefix, addressIdsRef)
+  }
+
+  note("Test exchange rates")
+
+  test("Exchange rates") {
+    val exchangeRatesRef =
+      readTestData[ExchangeRates](refDir + "exchange_rates.json")
+    assertDataFrameEquality(exchangeRates, exchangeRatesRef)
   }
 
   note("Test blocks")
