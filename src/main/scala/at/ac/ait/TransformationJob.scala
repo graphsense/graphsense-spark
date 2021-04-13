@@ -207,6 +207,7 @@ object TransformationJob {
     )
     cassandra.store(conf.targetKeyspace(), "address", addresses)
 
+    println("Computing address relations")
     val addressRelations =
       transformation.computeAddressRelations(
         encodedTransactions,
