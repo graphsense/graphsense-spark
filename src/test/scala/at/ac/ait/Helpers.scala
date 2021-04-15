@@ -1,3 +1,59 @@
 package at.ac.ait
 
-case object Helpers
+import org.apache.spark.sql.{DataFrame, Dataset, Encoder, Encoders, SparkSession}
+import org.apache.spark.sql.catalyst.ScalaReflection.universe.TypeTag
+import org.apache.spark.sql.functions.{col, length, lit, udf}
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
+
+case object Helpers {
+  def readTestData[T <: Product: Encoder: TypeTag](spark:SparkSession, file:String): Dataset[T] = {
+    val schema = Encoders.product[T].schema
+    // spark.read.csv cannot read BinaryTaype, read BinaryType as StringType and cast to ByteArray
+    val newSchema = StructType(
+      schema.map(
+        x =>
+          if (x.dataType.toString == "BinaryType")
+            StructField(x.name, StringType, true)
+          else StructField(x.name, x.dataType, true)
+      )
+    )
+    val binaryColumns = schema.flatMap(
+      x => if (x.dataType.toString == "BinaryType") Some(x.name) else None
+    )
+    val hexStringToByteArray = udf(
+      (x: String) => x.grouped(2).toArray map { Integer.parseInt(_, 16).toByte }
+    )
+
+    val fileSuffix = file.toUpperCase.split("\\.").last
+    val df =
+      if (fileSuffix == "JSON") spark.read.schema(newSchema).json(file)
+      else spark.read.schema(newSchema).option("header", true).csv(file)
+
+    binaryColumns
+      .foldLeft(df) { (curDF, colName) =>
+        curDF.withColumn(
+          colName,
+          hexStringToByteArray(
+            col(colName).substr(lit(3), length(col(colName)) - 2)
+          )
+        )
+      }
+      .as[T]
+  }
+
+  def setNullableStateForAllColumns[T](ds: Dataset[T], nullable: Boolean = true): DataFrame = {
+    def set(st: StructType): StructType = {
+      StructType(st.map {
+        case StructField(name, dataType, _, metadata) =>
+          val newDataType = dataType match {
+            case t: StructType => set(t)
+            case _ => dataType
+          }
+          StructField(name, newDataType, nullable = nullable, metadata)
+      })
+    }
+    ds.sqlContext.createDataFrame(ds.toDF.rdd, set(ds.schema))
+  }
+
+
+}
