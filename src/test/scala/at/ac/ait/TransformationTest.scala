@@ -1,16 +1,9 @@
 package at.ac.ait
 
+import at.ac.ait.Helpers.{readTestData, setNullableStateForAllColumns}
 import com.github.mrpowers.spark.fast.tests.DataFrameComparer
-import org.apache.spark.sql.{
-  DataFrame,
-  Dataset,
-  Encoder,
-  Encoders,
-  SparkSession
-}
-import org.apache.spark.sql.catalyst.ScalaReflection.universe.TypeTag
-import org.apache.spark.sql.functions.{col, length, lit, lower, max, udf}
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.functions.{col, lower, max}
 import org.scalatest.funsuite._
 
 trait SparkSessionTestWrapper {
@@ -28,55 +21,6 @@ class TransformationTest
     extends AnyFunSuite
     with SparkSessionTestWrapper
     with DataFrameComparer {
-
-  def readTestData[T <: Product: Encoder: TypeTag](file: String): Dataset[T] = {
-    val schema = Encoders.product[T].schema
-    // spark.read.csv cannot read BinaryTaype, read BinaryType as StringType and cast to ByteArray
-    val newSchema = StructType(
-      schema.map(
-        x =>
-          if (x.dataType.toString == "BinaryType")
-            StructField(x.name, StringType, true)
-          else StructField(x.name, x.dataType, true)
-      )
-    )
-    val binaryColumns = schema.flatMap(
-      x => if (x.dataType.toString == "BinaryType") Some(x.name) else None
-    )
-    val hexStringToByteArray = udf(
-      (x: String) => x.grouped(2).toArray map { Integer.parseInt(_, 16).toByte }
-    )
-
-    val fileSuffix = file.toUpperCase.split("\\.").last
-    val df =
-      if (fileSuffix == "JSON") spark.read.schema(newSchema).json(file)
-      else spark.read.schema(newSchema).option("header", true).csv(file)
-
-    binaryColumns
-      .foldLeft(df) { (curDF, colName) =>
-        curDF.withColumn(
-          colName,
-          hexStringToByteArray(
-            col(colName).substr(lit(3), length(col(colName)) - 2)
-          )
-        )
-      }
-      .as[T]
-  }
-
-def setNullableStateForAllColumns[T](ds: Dataset[T], nullable: Boolean = true): DataFrame = {
-    def set(st: StructType): StructType = {
-      StructType(st.map {
-        case StructField(name, dataType, _, metadata) =>
-          val newDataType = dataType match {
-            case t: StructType => set(t)
-            case _ => dataType
-          }
-          StructField(name, newDataType, nullable = nullable, metadata)
-      })
-    }
-    ds.sqlContext.createDataFrame(ds.toDF.rdd, set(ds.schema))
-  }
 
   def assertDataFrameEquality[T](
       actualDS: Dataset[T],
@@ -98,12 +42,12 @@ def setNullableStateForAllColumns[T](ds: Dataset[T], nullable: Boolean = true): 
   val bucketSize: Int = 2
 
   // input data
-  val blocks = readTestData[Block](inputDir + "test_blocks.csv")
+  val blocks = readTestData[Block](spark, inputDir + "test_blocks.csv")
   val transactions =
-    readTestData[Transaction](inputDir + "test_transactions.csv")
+    readTestData[Transaction](spark, inputDir + "test_transactions.csv")
   val exchangeRatesRaw =
-    readTestData[ExchangeRatesRaw](inputDir + "test_exchange_rates.json")
-  val attributionTags = readTestData[TagRaw](inputDir + "test_tags.json")
+    readTestData[ExchangeRatesRaw](spark, inputDir + "test_exchange_rates.json")
+  val attributionTags = readTestData[TagRaw](spark, inputDir + "test_tags.json")
 
   val noBlocks = blocks.count.toInt
   val lastBlockTimestamp = blocks
@@ -200,12 +144,12 @@ def setNullableStateForAllColumns[T](ds: Dataset[T], nullable: Boolean = true): 
 
   test("Transaction IDs") {
     val transactionIdsRef =
-      readTestData[TransactionId](refDir + "transactions_ids.csv")
+      readTestData[TransactionId](spark, refDir + "transactions_ids.csv")
     assertDataFrameEquality(transactionIds, transactionIdsRef)
   }
   test("Transaction IDs by ID group") {
     val transactionIdsRef =
-      readTestData[TransactionIdByTransactionIdGroup](
+      readTestData[TransactionIdByTransactionIdGroup](spark,
         refDir + "transactions_ids_by_id_group.csv"
       )
     assertDataFrameEquality(
@@ -215,7 +159,7 @@ def setNullableStateForAllColumns[T](ds: Dataset[T], nullable: Boolean = true): 
   }
   test("Transaction IDs by transaction prefix") {
     val transactionIdsRef =
-      readTestData[TransactionIdByTransactionPrefix](
+      readTestData[TransactionIdByTransactionPrefix](spark,
         refDir + "transactions_ids_by_prefix.csv"
       )
     assertDataFrameEquality(
@@ -225,19 +169,19 @@ def setNullableStateForAllColumns[T](ds: Dataset[T], nullable: Boolean = true): 
   }
 
   test("Address IDs") {
-    val addressIdsRef = readTestData[AddressId](refDir + "address_ids.csv")
+    val addressIdsRef = readTestData[AddressId](spark, refDir + "address_ids.csv")
     assertDataFrameEquality(addressIds, addressIdsRef)
   }
 
   test("Address IDs by ID Group") {
-    val addressIdsRef = readTestData[AddressIdByAddressIdGroup](
+    val addressIdsRef = readTestData[AddressIdByAddressIdGroup](spark,
       refDir + "address_ids_by_id_group.csv"
     )
     assertDataFrameEquality(addressIdsByAddressIdGroup, addressIdsRef)
   }
 
   test("Address IDs by address prefix") {
-    val addressIdsRef = readTestData[AddressIdByAddressPrefix](
+    val addressIdsRef = readTestData[AddressIdByAddressPrefix](spark,
       refDir + "address_ids_by_prefix.csv"
     )
     assertDataFrameEquality(addressIdsByAddressPrefix, addressIdsRef)
@@ -247,7 +191,7 @@ def setNullableStateForAllColumns[T](ds: Dataset[T], nullable: Boolean = true): 
 
   test("Exchange rates") {
     val exchangeRatesRef =
-      readTestData[ExchangeRates](refDir + "exchange_rates.json")
+      readTestData[ExchangeRates](spark, refDir + "exchange_rates.json")
     assertDataFrameEquality(exchangeRates, exchangeRatesRef)
   }
 
@@ -255,7 +199,7 @@ def setNullableStateForAllColumns[T](ds: Dataset[T], nullable: Boolean = true): 
 
   test("Block transactions") {
     val blockTransactionsRef =
-      readTestData[BlockTransaction](refDir + "block_transactions.json")
+      readTestData[BlockTransaction](spark, refDir + "block_transactions.json")
     assertDataFrameEquality(blockTransactions, blockTransactionsRef)
   }
 
@@ -263,25 +207,33 @@ def setNullableStateForAllColumns[T](ds: Dataset[T], nullable: Boolean = true): 
 
   test("Address transactions") {
     val addressTransactionsRef =
-      readTestData[AddressTransaction](refDir + "address_transactions.csv")
+      readTestData[AddressTransaction](spark, refDir + "address_transactions.csv")
     assertDataFrameEquality(addressTransactions, addressTransactionsRef)
   }
 
   test("Address tags") {
     val addressTagsRef =
-      readTestData[AddressTag](refDir + "address_tags.csv")
+      readTestData[AddressTag](spark, refDir + "address_tags.csv")
     assertDataFrameEquality(addressTags, addressTagsRef)
   }
 
   test("Addresses") {
     val addressesRef =
-      readTestData[Address](refDir + "addresses.json")
+      readTestData[Address](spark, refDir + "addresses.json")
     assertDataFrameEquality(addresses, addressesRef)
   }
 
   test("Address relations") {
     val addressRelationsRef =
-      readTestData[AddressRelation](refDir + "address_relations.json")
+      readTestData[AddressRelation](spark, refDir + "address_relations.json")
     assertDataFrameEquality(addressRelations, addressRelationsRef)
+  }
+
+  test("check statistics") {
+    assert(blocks.count.toInt == 84, "expected 84 blocks")
+    assert(lastBlockTimestamp == 1438919571)
+    assert(transactions.count() == 10, "expected 10 transaction")
+    assert(addressIds.count() == 15, "expected 7 addresses")
+    assert(addressRelations.count() == 9, "expected 9 address relations")
   }
 }
