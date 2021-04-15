@@ -8,7 +8,7 @@ import org.apache.spark.sql.types.{StringType, StructField, StructType}
 case object Helpers {
   def readTestData[T <: Product: Encoder: TypeTag](spark:SparkSession, file:String): Dataset[T] = {
     val schema = Encoders.product[T].schema
-    // spark.read.csv cannot read BinaryTaype, read BinaryType as StringType and cast to ByteArray
+    // spark.read.csv cannot read BinaryType, read BinaryType as StringType and cast to ByteArray
     val newSchema = StructType(
       schema.map(
         x =>
