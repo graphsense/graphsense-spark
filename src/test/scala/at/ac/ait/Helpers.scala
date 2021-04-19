@@ -5,6 +5,18 @@ import org.apache.spark.sql.catalyst.ScalaReflection.universe.TypeTag
 import org.apache.spark.sql.functions.{col, length, lit, udf}
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
+trait SparkSessionTestWrapper {
+
+  lazy val spark: SparkSession = {
+    SparkSession
+      .builder()
+      .master("local")
+      .appName("Transformation Test")
+      .config("spark.sql.shuffle.partitions", "3")
+      .getOrCreate()
+  }
+}
+
 case object Helpers {
   def readTestData[T <: Product: Encoder: TypeTag](spark:SparkSession, file:String): Dataset[T] = {
     val schema = Encoders.product[T].schema
@@ -17,9 +29,9 @@ case object Helpers {
           else StructField(x.name, x.dataType, true)
       )
     )
-    val binaryColumns = schema.flatMap(
-      x => if (x.dataType.toString == "BinaryType") Some(x.name) else None
-    )
+
+    val binaryColumns = schema.collect{case x if x.dataType.toString == "BinaryType" => x.name}
+
     val hexStringToByteArray = udf(
       (x: String) => x.grouped(2).toArray map { Integer.parseInt(_, 16).toByte }
     )

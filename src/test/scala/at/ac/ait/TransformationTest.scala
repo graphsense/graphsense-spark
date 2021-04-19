@@ -2,20 +2,10 @@ package at.ac.ait
 
 import at.ac.ait.Helpers.{readTestData, setNullableStateForAllColumns}
 import com.github.mrpowers.spark.fast.tests.DataFrameComparer
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.{col, lower, max}
 import org.scalatest.funsuite._
 
-trait SparkSessionTestWrapper {
-
-  lazy val spark: SparkSession = {
-    SparkSession
-      .builder()
-      .master("local")
-      .appName("Transformation Test")
-      .getOrCreate()
-  }
-}
 
 class TransformationTest
     extends AnyFunSuite
@@ -103,6 +93,7 @@ class TransformationTest
         addressIds,
         exchangeRates
       )
+      .sort("height")
       .persist()
 
   val blockTransactions = t
@@ -193,6 +184,12 @@ class TransformationTest
     val exchangeRatesRef =
       readTestData[ExchangeRates](spark, refDir + "exchange_rates.json")
     assertDataFrameEquality(exchangeRates, exchangeRatesRef)
+  }
+
+  test("Encoded transactions") {
+    val encTransactionsRef =
+      readTestData[EncodedTransaction](spark, refDir + "encoded_transactions.json")
+    assertDataFrameEquality(encodedTransactions, encTransactionsRef)
   }
 
   note("Test blocks")

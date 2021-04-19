@@ -34,26 +34,19 @@ class ComplexGraphTransformationTest extends AnyFunSuite with SparkSessionTestWr
   private val t = new Transformation(spark, bucketSize)
 
   private val exchangeRates = t.computeExchangeRates(blocks, exRatesRaw).persist()
-
   private val txIds = t.computeTransactionIds(txs)
-
   private val addressIds = t.computeAddressIds(txs)
-
   private val encodedTxs = t.computeEncodedTransactions(txs, txIds, addressIds, exchangeRates)
-
   private val addressTransactions = t.computeAddressTransactions(encodedTxs)
-
   private val addresses = t.computeAddresses(encodedTxs, addressTransactions).persist()
-
   private val addressRelations = t.computeAddressRelations(encodedTxs, addresses)
     .sort("srcAddressId", "dstAddressId")
-
   private val lastBlockTimestamp = blocks
     .select(max(col("timestamp")))
     .first
     .getInt(0)
 
-  note("Test address graph")
+  note("Testing address graph:")
   test("Address transactions") {
     val addressTransactionsRef =
       readTestData[AddressTransaction](spark, refDir + "address_transactions.csv")
