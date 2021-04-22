@@ -6,7 +6,6 @@ import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.{col, lower, max}
 import org.scalatest.funsuite._
 
-
 class TransformationTest
     extends AnyFunSuite
     with SparkSessionTestWrapper
@@ -140,7 +139,8 @@ class TransformationTest
   }
   test("Transaction IDs by ID group") {
     val transactionIdsRef =
-      readTestData[TransactionIdByTransactionIdGroup](spark,
+      readTestData[TransactionIdByTransactionIdGroup](
+        spark,
         refDir + "transactions_ids_by_id_group.csv"
       )
     assertDataFrameEquality(
@@ -150,7 +150,8 @@ class TransformationTest
   }
   test("Transaction IDs by transaction prefix") {
     val transactionIdsRef =
-      readTestData[TransactionIdByTransactionPrefix](spark,
+      readTestData[TransactionIdByTransactionPrefix](
+        spark,
         refDir + "transactions_ids_by_prefix.csv"
       )
     assertDataFrameEquality(
@@ -160,19 +161,22 @@ class TransformationTest
   }
 
   test("Address IDs") {
-    val addressIdsRef = readTestData[AddressId](spark, refDir + "address_ids.csv")
+    val addressIdsRef =
+      readTestData[AddressId](spark, refDir + "address_ids.csv")
     assertDataFrameEquality(addressIds, addressIdsRef)
   }
 
   test("Address IDs by ID Group") {
-    val addressIdsRef = readTestData[AddressIdByAddressIdGroup](spark,
+    val addressIdsRef = readTestData[AddressIdByAddressIdGroup](
+      spark,
       refDir + "address_ids_by_id_group.csv"
     )
     assertDataFrameEquality(addressIdsByAddressIdGroup, addressIdsRef)
   }
 
   test("Address IDs by address prefix") {
-    val addressIdsRef = readTestData[AddressIdByAddressPrefix](spark,
+    val addressIdsRef = readTestData[AddressIdByAddressPrefix](
+      spark,
       refDir + "address_ids_by_prefix.csv"
     )
     assertDataFrameEquality(addressIdsByAddressPrefix, addressIdsRef)
@@ -188,7 +192,10 @@ class TransformationTest
 
   test("Encoded transactions") {
     val encTransactionsRef =
-      readTestData[EncodedTransaction](spark, refDir + "encoded_transactions.json")
+      readTestData[EncodedTransaction](
+        spark,
+        refDir + "encoded_transactions.json"
+      )
     assertDataFrameEquality(encodedTransactions, encTransactionsRef)
   }
 
@@ -204,7 +211,10 @@ class TransformationTest
 
   test("Address transactions") {
     val addressTransactionsRef =
-      readTestData[AddressTransaction](spark, refDir + "address_transactions.csv")
+      readTestData[AddressTransaction](
+        spark,
+        refDir + "address_transactions.csv"
+      )
     assertDataFrameEquality(addressTransactions, addressTransactionsRef)
   }
 
@@ -226,7 +236,7 @@ class TransformationTest
     assertDataFrameEquality(addressRelations, addressRelationsRef)
   }
 
-  test("check statistics") {
+  test("Check statistics") {
     assert(blocks.count.toInt == 84, "expected 84 blocks")
     assert(lastBlockTimestamp == 1438919571)
     assert(transactions.count() == 10, "expected 10 transaction")

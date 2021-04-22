@@ -1,6 +1,12 @@
 package at.ac.ait
 
-import org.apache.spark.sql.{DataFrame, Dataset, Encoder, Encoders, SparkSession}
+import org.apache.spark.sql.{
+  DataFrame,
+  Dataset,
+  Encoder,
+  Encoders,
+  SparkSession
+}
 import org.apache.spark.sql.catalyst.ScalaReflection.universe.TypeTag
 import org.apache.spark.sql.functions.{col, length, lit, udf}
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
@@ -18,7 +24,10 @@ trait SparkSessionTestWrapper {
 }
 
 case object Helpers {
-  def readTestData[T <: Product: Encoder: TypeTag](spark:SparkSession, file:String): Dataset[T] = {
+  def readTestData[T <: Product: Encoder: TypeTag](
+      spark: SparkSession,
+      file: String
+  ): Dataset[T] = {
     val schema = Encoders.product[T].schema
     // spark.read.csv cannot read BinaryType, read BinaryType as StringType and cast to ByteArray
     val newSchema = StructType(
@@ -30,7 +39,9 @@ case object Helpers {
       )
     )
 
-    val binaryColumns = schema.collect{case x if x.dataType.toString == "BinaryType" => x.name}
+    val binaryColumns = schema.collect {
+      case x if x.dataType.toString == "BinaryType" => x.name
+    }
 
     val hexStringToByteArray = udf(
       (x: String) => x.grouped(2).toArray map { Integer.parseInt(_, 16).toByte }
@@ -53,19 +64,21 @@ case object Helpers {
       .as[T]
   }
 
-  def setNullableStateForAllColumns[T](ds: Dataset[T], nullable: Boolean = true): DataFrame = {
+  def setNullableStateForAllColumns[T](
+      ds: Dataset[T],
+      nullable: Boolean = true
+  ): DataFrame = {
     def set(st: StructType): StructType = {
       StructType(st.map {
         case StructField(name, dataType, _, metadata) =>
           val newDataType = dataType match {
             case t: StructType => set(t)
-            case _ => dataType
+            case _             => dataType
           }
           StructField(name, newDataType, nullable = nullable, metadata)
       })
     }
     ds.sqlContext.createDataFrame(ds.toDF.rdd, set(ds.schema))
   }
-
 
 }

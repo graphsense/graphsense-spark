@@ -6,10 +6,15 @@ import org.apache.spark.sql.{Column, Dataset}
 import org.apache.spark.sql.functions.{col, max}
 import org.scalatest.funsuite.AnyFunSuite
 
-class ComplexGraphTransformationTest extends AnyFunSuite with SparkSessionTestWrapper
-  with DataFrameComparer {
+class ComplexGraphTransformationTest
+    extends AnyFunSuite
+    with SparkSessionTestWrapper
+    with DataFrameComparer {
 
-  def assertDataFrameEquality[T](actualDS: Dataset[T], expectedDS: Dataset[T]): Unit = {
+  def assertDataFrameEquality[T](
+      actualDS: Dataset[T],
+      expectedDS: Dataset[T]
+  ): Unit = {
     val colOrder: Array[Column] = expectedDS.columns.map(col)
 
     assertSmallDataFrameEquality(
@@ -25,21 +30,28 @@ class ComplexGraphTransformationTest extends AnyFunSuite with SparkSessionTestWr
   private val inDir = "src/test/resources/"
   private val refDir = "src/test/resources/reference_complexified/"
 
-
-  private val txs = readTestData[Transaction](spark, inDir + "test_transactions_complexified.csv")
+  private val txs = readTestData[Transaction](
+    spark,
+    inDir + "test_transactions_complexified.csv"
+  )
   private val blocks = readTestData[Block](spark, inDir + "test_blocks.csv")
-  private val exRatesRaw = readTestData[ExchangeRatesRaw](spark, inDir + "test_exchange_rates.json")
+  private val exRatesRaw =
+    readTestData[ExchangeRatesRaw](spark, inDir + "test_exchange_rates.json")
 
   private val bucketSize = 2
   private val t = new Transformation(spark, bucketSize)
 
-  private val exchangeRates = t.computeExchangeRates(blocks, exRatesRaw).persist()
+  private val exchangeRates =
+    t.computeExchangeRates(blocks, exRatesRaw).persist()
   private val txIds = t.computeTransactionIds(txs)
   private val addressIds = t.computeAddressIds(txs)
-  private val encodedTxs = t.computeEncodedTransactions(txs, txIds, addressIds, exchangeRates)
+  private val encodedTxs =
+    t.computeEncodedTransactions(txs, txIds, addressIds, exchangeRates)
   private val addressTransactions = t.computeAddressTransactions(encodedTxs)
-  private val addresses = t.computeAddresses(encodedTxs, addressTransactions).persist()
-  private val addressRelations = t.computeAddressRelations(encodedTxs, addresses)
+  private val addresses =
+    t.computeAddresses(encodedTxs, addressTransactions).persist()
+  private val addressRelations = t
+    .computeAddressRelations(encodedTxs, addresses)
     .sort("srcAddressId", "dstAddressId")
   private val lastBlockTimestamp = blocks
     .select(max(col("timestamp")))
@@ -49,7 +61,10 @@ class ComplexGraphTransformationTest extends AnyFunSuite with SparkSessionTestWr
   note("Testing address graph:")
   test("Address transactions") {
     val addressTransactionsRef =
-      readTestData[AddressTransaction](spark, refDir + "address_transactions.csv")
+      readTestData[AddressTransaction](
+        spark,
+        refDir + "address_transactions.csv"
+      )
     assertDataFrameEquality(addressTransactions, addressTransactionsRef)
   }
 
@@ -65,7 +80,7 @@ class ComplexGraphTransformationTest extends AnyFunSuite with SparkSessionTestWr
     assertDataFrameEquality(addressRelations, addressRelationsRef)
   }
 
-  test("check statistics") {
+  test("Check statistics") {
     assert(blocks.count.toInt == 84, "expected 84 blocks")
     assert(lastBlockTimestamp == 1438919571)
     assert(txs.count() == 10, "expected 10 transaction")
