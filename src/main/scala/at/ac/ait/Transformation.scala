@@ -114,6 +114,45 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .sort(prefixColumn)
   }
 
+  def withSecondaryIdGroup[T](
+      idColumn: String,
+      secondaryIdColumn: String,
+      windowOrderColumn: String,
+      skewedPartitionFactor: Float = 2.5f
+  )(ds: Dataset[T]): DataFrame = {
+    val partitionSize =
+      ds.select(col(idColumn)).groupBy(idColumn).count().persist()
+    val noPartitions = partitionSize.count()
+    val approxMedian = partitionSize
+      .sort(col("count").asc)
+      .select(col("count"))
+      .rdd
+      .zipWithIndex
+      .filter(_._2 == noPartitions / 2)
+      .map(_._1)
+      .first()
+      .getLong(0)
+    val window = Window.partitionBy(idColumn).orderBy(windowOrderColumn)
+    ds.withColumn(
+      secondaryIdColumn,
+      floor(
+        row_number().over(window) / (approxMedian * skewedPartitionFactor)
+      ).cast(IntegerType)
+    )
+  }
+
+  def computeSecondaryPartitionIdLookup[T: Encoder](
+      df: DataFrame,
+      primaryPartitionColumn: String,
+      secondaryPartitionColumn: String
+  ): Dataset[T] = {
+    df.groupBy(primaryPartitionColumn)
+      .agg(max(secondaryPartitionColumn).as("maxSecondaryId"))
+      // to save storage space, store only records with multiple secondary IDs
+      .filter(col("maxSecondaryId") > 0)
+      .as[T]
+  }
+
   def computeExchangeRates(
       blocks: Dataset[Block],
       exchangeRates: Dataset[ExchangeRatesRaw]
@@ -309,7 +348,14 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
     inputs
       .union(outputs)
       .transform(withIdGroup("addressId", "addressIdGroup"))
-      .sort("addressId", "transactionId")
+      .transform(
+        withSecondaryIdGroup(
+          "addressIdGroup",
+          "addressIdSecondaryGroup",
+          "transactionId"
+        )
+      )
+      .sort("addressId", "addressIdSecondaryGroup", "transactionId")
       .as[AddressTransaction]
   }
 
@@ -477,7 +523,21 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         "left"
       )
       .transform(withIdGroup("srcAddressId", "srcAddressIdGroup"))
+      .transform(
+        withSecondaryIdGroup(
+          "srcAddressIdGroup",
+          "srcAddressIdSecondaryGroup",
+          "srcAddressId"
+        )
+      )
       .transform(withIdGroup("dstAddressId", "dstAddressIdGroup"))
+      .transform(
+        withSecondaryIdGroup(
+          "dstAddressIdGroup",
+          "dstAddressIdSecondaryGroup",
+          "dstAddressId"
+        )
+      )
       .as[AddressRelation]
   }
 

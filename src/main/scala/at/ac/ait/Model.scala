@@ -118,11 +118,17 @@ case class EncodedTransaction(
 
 case class AddressTransaction(
     addressIdGroup: Int,
+    addressIdSecondaryGroup: Int,
     addressId: Int,
     transactionId: Int,
     value: BigInt,
     height: Int,
     blockTimestamp: Int
+)
+
+case class AddressTransactionSecondaryIds(
+    addressIdGroup: Int,
+    maxSecondaryId: Int
 )
 
 case class Address(
@@ -150,13 +156,25 @@ case class AddressTag(
 
 case class AddressRelation(
     srcAddressIdGroup: Int,
+    srcAddressIdSecondaryGroup: Int,
     srcAddressId: Int,
     dstAddressIdGroup: Int,
+    dstAddressIdSecondaryGroup: Int,
     dstAddressId: Int,
     srcProperties: AddressSummary,
     dstProperties: AddressSummary,
     noTransactions: Int,
     value: Currency
+)
+
+case class AddressOutgoingRelationSecondaryIds(
+    srcAddressIdGroup: Int,
+    maxSecondaryId: Int
+)
+
+case class AddressIncomingRelationSecondaryIds(
+    dstAddressIdGroup: Int,
+    maxSecondaryId: Int
 )
 
 case class Tag(

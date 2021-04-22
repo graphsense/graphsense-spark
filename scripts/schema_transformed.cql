@@ -65,12 +65,18 @@ CREATE TABLE block_transactions(
 
 CREATE TABLE address_transactions (
     address_id_group int,
+    address_id_secondary_group int,
     address_id int,
     transaction_id int,
     value varint,
     height int,
     block_timestamp int,
-    PRIMARY KEY (address_id_group, address_id, transaction_id)
+    PRIMARY KEY ((address_id_group, address_id_secondary_group), address_id, transaction_id)
+);
+
+CREATE TABLE address_transactions_secondary_ids (
+    address_id_group int PRIMARY KEY,
+    max_secondary_id int
 );
 
 CREATE TABLE address (
@@ -98,25 +104,36 @@ CREATE TABLE address_tags (
     PRIMARY KEY (address_id, label, source, tagpack_uri)
 );
 
-
 CREATE TABLE address_incoming_relations (
     dst_address_id_group int,
+    dst_address_id_secondary_group int,
     dst_address_id int,
     src_address_id int,
     src_properties FROZEN <address_summary>,
     no_transactions int,
     value FROZEN <currency>,
-    PRIMARY KEY (dst_address_id_group, dst_address_id, src_address_id)
+    PRIMARY KEY ((dst_address_id_group, dst_address_id_secondary_group), dst_address_id, src_address_id)
+);
+
+CREATE TABLE address_incoming_relations_secondary_ids (
+    dst_address_id_group int PRIMARY KEY,
+    max_secondary_id int
 );
 
 CREATE TABLE address_outgoing_relations (
     src_address_id_group int,
+    src_address_id_secondary_group int,
     src_address_id int,
     dst_address_id int,
     dst_properties FROZEN <address_summary>,
     no_transactions int,
     value frozen <currency>,
-    PRIMARY KEY (src_address_id_group, src_address_id, dst_address_id)
+    PRIMARY KEY ((src_address_id_group, src_address_id_secondary_group), src_address_id, dst_address_id)
+);
+
+CREATE TABLE address_outgoing_relations_secondary_ids (
+    src_address_id_group int PRIMARY KEY,
+    max_secondary_id int
 );
 
 CREATE TABLE tag_by_label (

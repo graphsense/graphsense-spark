@@ -183,6 +183,18 @@ object TransformationJob {
       "address_transactions",
       addressTransactions
     )
+    val addressTransactionsSecondaryIds =
+      transformation
+        .computeSecondaryPartitionIdLookup[AddressTransactionSecondaryIds](
+          addressTransactions.toDF,
+          "addressIdGroup",
+          "addressIdSecondaryGroup"
+        )
+    cassandra.store(
+      conf.targetKeyspace(),
+      "address_transactions_secondary_ids",
+      addressTransactionsSecondaryIds
+    )
 
     println("Computing address tags")
     val addressTags =
@@ -214,15 +226,42 @@ object TransformationJob {
         addresses
       )
     val noAddressRelations = addressRelations.count()
+
     cassandra.store(
       conf.targetKeyspace(),
       "address_incoming_relations",
-      addressRelations.sort("dstAddressId")
+      addressRelations.sort("dstAddressIdGroup", "dstAddressIdSecondaryGroup")
     )
     cassandra.store(
       conf.targetKeyspace(),
       "address_outgoing_relations",
-      addressRelations.sort("srcAddressId")
+      addressRelations.sort("srcAddressIdGroup", "srcAddressIdSecondaryGroup")
+    )
+
+    val addressIncomingRelationsSecondaryIds =
+      transformation
+        .computeSecondaryPartitionIdLookup[AddressIncomingRelationSecondaryIds](
+          addressRelations.toDF,
+          "dstAddressIdGroup",
+          "dstAddressIdSecondaryGroup"
+        )
+    val addressOutgoingRelationsSecondaryIds =
+      transformation
+        .computeSecondaryPartitionIdLookup[AddressOutgoingRelationSecondaryIds](
+          addressRelations.toDF,
+          "srcAddressIdGroup",
+          "srcAddressIdSecondaryGroup"
+        )
+
+    cassandra.store(
+      conf.targetKeyspace(),
+      "address_incoming_relations_secondary_ids",
+      addressIncomingRelationsSecondaryIds
+    )
+    cassandra.store(
+      conf.targetKeyspace(),
+      "address_outgoing_relations_secondary_ids",
+      addressOutgoingRelationsSecondaryIds
     )
 
     println("Computing summary statistics")
