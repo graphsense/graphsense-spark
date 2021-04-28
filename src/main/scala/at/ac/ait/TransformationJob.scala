@@ -36,6 +36,13 @@ object TransformationJob {
       noshort = true,
       descr = "Bucket size for Cassandra partitions"
     )
+    val prefixLength: ScallopOption[Int] = opt[Int](
+      "prefix-length",
+      required = false,
+      default = Some(4),
+      noshort = true,
+      descr = "Prefix length for Cassandra partitioning keys"
+    )
     verify()
   }
 
@@ -52,6 +59,7 @@ object TransformationJob {
     println("Tag keyspace:                  " + conf.tagKeyspace())
     println("Target keyspace:               " + conf.targetKeyspace())
     println("Bucket size:                   " + conf.bucketSize())
+    println("Prefix length:                 " + conf.prefixLength())
 
     import spark.implicits._
 
@@ -65,15 +73,16 @@ object TransformationJob {
     val transactions =
       cassandra.load[Transaction](conf.rawKeyspace(), "transaction")
     val tagsRaw = cassandra
-      .load[TagRaw](conf.tagKeyspace(), "tag_by_address")
+      .load[AddressTagRaw](conf.tagKeyspace(), "address_tag_by_address")
 
-    val transformation = new Transformation(spark, conf.bucketSize())
+    val transformation = new Transformation(spark, conf.bucketSize(), conf.prefixLength())
 
     println("Store configuration")
     val configuration =
       transformation.configuration(
         conf.targetKeyspace(),
         conf.bucketSize(),
+        conf.prefixLength(),
         transformation.getFiatCurrencies(exchangeRatesRaw)
       )
     cassandra.store(
@@ -117,7 +126,8 @@ object TransformationJob {
       transactionIds.toDF.transform(
         transformation.withSortedPrefix[TransactionIdByTransactionPrefix](
           "transaction",
-          "transactionPrefix"
+          "transactionPrefix",
+          conf.prefixLength()
         )
       )
     cassandra.store(
@@ -145,7 +155,8 @@ object TransformationJob {
       addressIds.toDF.transform(
         transformation.withSortedPrefix[AddressIdByAddressPrefix](
           "address",
-          "addressPrefix"
+          "addressPrefix",
+          conf.prefixLength()
         )
       )
     cassandra.store(

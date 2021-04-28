@@ -136,7 +136,7 @@ CREATE TABLE address_outgoing_relations_secondary_ids (
     max_secondary_id int
 );
 
-CREATE TABLE tag_by_label (
+CREATE TABLE address_tag_by_label (
     label_norm_prefix text,
     label_norm text,
     label text,
@@ -163,5 +163,6 @@ CREATE TABLE summary_statistics (
 CREATE TABLE configuration (
     keyspace_name text PRIMARY KEY,
     bucket_size int,
+    prefix_length int,
     fiat_currencies list<text>
 );

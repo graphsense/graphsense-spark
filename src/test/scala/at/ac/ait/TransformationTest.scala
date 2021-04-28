@@ -29,6 +29,7 @@ class TransformationTest
   val refDir = "src/test/resources/reference/"
 
   val bucketSize: Int = 2
+  val prefixLength: Int = 4
 
   // input data
   val blocks = readTestData[Block](spark, inputDir + "test_blocks.csv")
@@ -36,7 +37,7 @@ class TransformationTest
     readTestData[Transaction](spark, inputDir + "test_transactions.csv")
   val exchangeRatesRaw =
     readTestData[ExchangeRatesRaw](spark, inputDir + "test_exchange_rates.json")
-  val attributionTags = readTestData[TagRaw](spark, inputDir + "test_tags.json")
+  val attributionTags = readTestData[AddressTagRaw](spark, inputDir + "test_tags.json")
 
   val noBlocks = blocks.count.toInt
   val lastBlockTimestamp = blocks
@@ -47,7 +48,7 @@ class TransformationTest
 
   // transformation pipeline
 
-  val t = new Transformation(spark, bucketSize)
+  val t = new Transformation(spark, bucketSize, prefixLength)
 
   val exchangeRates =
     t.computeExchangeRates(blocks, exchangeRatesRaw)

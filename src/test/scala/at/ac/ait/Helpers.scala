@@ -19,6 +19,7 @@ trait SparkSessionTestWrapper {
       .master("local")
       .appName("Transformation Test")
       .config("spark.sql.shuffle.partitions", "3")
+      .config("spark.sql.session.timeZone", "UTC")
       .getOrCreate()
   }
 }

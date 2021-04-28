@@ -28,11 +28,12 @@ import org.apache.spark.sql.functions.{
   sum,
   to_date,
   typedLit,
+  unix_timestamp,
   upper
 }
 import org.apache.spark.sql.types.{DecimalType, FloatType, IntegerType}
 
-class Transformation(spark: SparkSession, bucketSize: Int) {
+class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
 
   import spark.implicits._
 
@@ -41,12 +42,14 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
   def configuration(
       keyspaceName: String,
       bucketSize: Int,
+      prefixLength: Int,
       fiatCurrencies: Seq[String]
   ) = {
     Seq(
       Configuration(
         keyspaceName,
         bucketSize,
+        prefixLength,
         fiatCurrencies
       )
     ).toDS()
@@ -107,9 +110,10 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
 
   def withSortedPrefix[T: Encoder](
       hashColumn: String,
-      prefixColumn: String
+      prefixColumn: String,
+      length: Int = 4
   )(df: DataFrame): Dataset[T] = {
-    df.transform(withPrefix(hashColumn, prefixColumn))
+    df.transform(withPrefix(hashColumn, prefixColumn, length))
       .as[T]
       .sort(prefixColumn)
   }
@@ -360,7 +364,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
   }
 
   def computeAddressTags(
-      tags: Dataset[TagRaw],
+      tags: Dataset[AddressTagRaw],
       addressIds: Dataset[AddressId],
       currency: String
   ): Dataset[AddressTag] = {
@@ -378,6 +382,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         Seq("address"),
         "inner"
       )
+      .drop("address")
+      .withColumn("lastmod", unix_timestamp(col("lastmod"), "yyyy-dd-MM").cast(IntegerType))
       .as[AddressTag]
   }
 
@@ -542,10 +548,10 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
   }
 
   def computeTagsByLabel(
-      tags: Dataset[TagRaw],
+      tags: Dataset[AddressTagRaw],
       addressTags: Dataset[AddressTag],
       currency: String,
-      prefixLength: Int = 3
+      prefixLength: Int = prefixLength
   ): Dataset[Tag] = {
     // check if addresses where used in transactions
     tags

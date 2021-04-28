@@ -1,5 +1,7 @@
 package at.ac.ait
 
+import java.sql.Date
+
 // lookup tables
 
 case class TransactionId(
@@ -82,15 +84,18 @@ case class Transaction(
     blockTimestamp: Int
 )
 
-case class ExchangeRatesRaw(date: String, fiatValues: Option[Map[String, Float]])
+case class ExchangeRatesRaw(
+    date: String,
+    fiatValues: Option[Map[String, Float]]
+)
 
-case class TagRaw(
+case class AddressTagRaw(
     address: String,
+    currency: String,
     label: String,
     source: String,
     tagpackUri: String,
-    currency: String,
-    lastmod: Int,
+    lastmod: Date,
     category: Option[String],
     abuse: Option[String]
 )
@@ -203,5 +208,6 @@ case class SummaryStatistics(
 case class Configuration(
     keyspaceName: String,
     bucketSize: Int,
+    prefixLength: Int,
     fiatCurrencies: Seq[String]
 )

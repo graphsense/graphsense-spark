@@ -28,21 +28,23 @@ class ComplexGraphTransformationTest
   import spark.implicits._
 
   private val inDir = "src/test/resources/"
-  private val refDir = "src/test/resources/reference_complexified/"
+  private val refDir = "src/test/resources/reference_complex/"
 
   private val txs = readTestData[Transaction](
     spark,
-    inDir + "test_transactions_complexified.csv"
+    inDir + "test_transactions_complex.csv"
   )
   private val blocks = readTestData[Block](spark, inDir + "test_blocks.csv")
-  private val exRatesRaw =
+  private val exchangeRatesRaw =
     readTestData[ExchangeRatesRaw](spark, inDir + "test_exchange_rates.json")
 
   private val bucketSize = 2
-  private val t = new Transformation(spark, bucketSize)
+  private val prefixLength = 4
+
+  private val t = new Transformation(spark, bucketSize, prefixLength)
 
   private val exchangeRates =
-    t.computeExchangeRates(blocks, exRatesRaw).persist()
+    t.computeExchangeRates(blocks, exchangeRatesRaw).persist()
   private val txIds = t.computeTransactionIds(txs)
   private val addressIds = t.computeAddressIds(txs)
   private val encodedTxs =
