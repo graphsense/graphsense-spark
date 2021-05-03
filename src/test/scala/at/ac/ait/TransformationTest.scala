@@ -37,7 +37,8 @@ class TransformationTest
     readTestData[Transaction](spark, inputDir + "test_transactions.csv")
   val exchangeRatesRaw =
     readTestData[ExchangeRatesRaw](spark, inputDir + "test_exchange_rates.json")
-  val attributionTags = readTestData[AddressTagRaw](spark, inputDir + "test_tags.json")
+  val attributionTags =
+    readTestData[AddressTagRaw](spark, inputDir + "test_tags.json")
 
   val noBlocks = blocks.count.toInt
   val lastBlockTimestamp = blocks
@@ -128,6 +129,14 @@ class TransformationTest
     t.computeAddressRelations(
         encodedTransactions,
         addresses
+      )
+      .sort("srcAddressId", "dstAddressId")
+
+  val addressRelationsTxLimit1 =
+    t.computeAddressRelations(
+        encodedTransactions,
+        addresses,
+        1
       )
       .sort("srcAddressId", "dstAddressId")
 
@@ -235,6 +244,12 @@ class TransformationTest
     val addressRelationsRef =
       readTestData[AddressRelation](spark, refDir + "address_relations.json")
     assertDataFrameEquality(addressRelations, addressRelationsRef)
+  }
+
+  test("Address relations with Tx Limit 1") {
+    val addressRelationsRef =
+      readTestData[AddressRelation](spark, refDir + "address_relations_txlimit1.json")
+    assertDataFrameEquality(addressRelationsTxLimit1, addressRelationsRef)
   }
 
   test("Check statistics") {

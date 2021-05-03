@@ -7,6 +7,7 @@ import org.apache.spark.sql.functions.{
   coalesce,
   col,
   collect_list,
+  collect_set,
   count,
   countDistinct,
   date_format,
@@ -29,7 +30,8 @@ import org.apache.spark.sql.functions.{
   to_date,
   typedLit,
   unix_timestamp,
-  upper
+  upper,
+  when
 }
 import org.apache.spark.sql.types.{DecimalType, FloatType, IntegerType}
 
@@ -383,7 +385,10 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
         "inner"
       )
       .drop("address")
-      .withColumn("lastmod", unix_timestamp(col("lastmod"), "yyyy-dd-MM").cast(IntegerType))
+      .withColumn(
+        "lastmod",
+        unix_timestamp(col("lastmod"), "yyyy-dd-MM").cast(IntegerType)
+      )
       .as[AddressTag]
   }
 
@@ -488,15 +493,25 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
 
   def computeAddressRelations(
       encodedTransactions: Dataset[EncodedTransaction],
-      addresses: Dataset[Address]
+      addresses: Dataset[Address],
+      transactionLimit: Int = 100
   ): Dataset[AddressRelation] = {
+    val window = Window.partitionBy("srcAddressId", "dstAddressId")
     encodedTransactions
       .filter(col("dstAddressId").isNotNull)
-      .filter(col("value").isNotNull)
-      .groupBy("srcAddressId", "dstAddressId")
-      .agg(
-        count(col("transactionId")) cast IntegerType as "noTransactions"
+      .withColumn(
+        "noTransactions",
+        count(col("transactionId")).over(window).cast(IntegerType)
       )
+      .groupBy("srcAddressId", "dstAddressId")
+      // aggregate to noTransactions and transactionIdList
+      .agg(
+        min("noTransactions").as("noTransactions"),
+        collect_set(
+          when(col("noTransactions") <= transactionLimit, col("transactionId"))
+        ).as("transactionIdList")
+      )
+      // join aggregated currency values
       .join(
         encodedTransactions.toDF.transform(
           aggregateValues(
@@ -510,6 +525,7 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
         Seq("srcAddressId", "dstAddressId"),
         "left"
       )
+      // join source address properties
       .join(
         addresses
           .select(
@@ -519,6 +535,7 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
         Seq("srcAddressId"),
         "left"
       )
+      // join destination address properties
       .join(
         addresses
           .select(
@@ -528,6 +545,7 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
         Seq("dstAddressId"),
         "left"
       )
+      // add partitioning columns for outgoing addresses
       .transform(withIdGroup("srcAddressId", "srcAddressIdGroup"))
       .transform(
         withSecondaryIdGroup(
@@ -536,6 +554,7 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
           "srcAddressId"
         )
       )
+      // add partitioning columns for incoming addresses
       .transform(withIdGroup("dstAddressId", "dstAddressIdGroup"))
       .transform(
         withSecondaryIdGroup(
