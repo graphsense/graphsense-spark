@@ -37,11 +37,42 @@ Download, install, and run [Apache Cassandra][apache-cassandra]
 
 ### Ingest Raw Block Data
 
-TODO
+Download und extract the [DataStax Bulk Loader][dsbulk], add the `bin`
+directory your `$PATH` variable, and ingest raw test data using
+
+    scripts/dsbulk_load.sh
+
+This should create a keyspace `eth_raw` (tables `exchange_rates`,
+`transaction`, `block`) and `tagpacks` (table `address_tag_by_address`).
+Check as follows
+
+    cqlsh localhost
+    cqlsh> USE eth_raw;
+    cqlsh:btc_raw> DESCRIBE tables;
+    cqlsh:btc_raw> USE tagpacks;
+    cqlsh:tagpacks> DESCRIBE tables;
 
 ## Execute Transformation Locally
 
-TODO
+Create the target keyspace for transformed data
+
+    cqlsh -f scripts/schema_transformed.cql
+
+Compile and test the implementation
+
+    sbt test
+
+Package the transformation pipeline
+
+    sbt package
+
+Run the transformation pipeline on localhost
+
+    ./submit.sh
+
+macOS only: make sure `gnu-getopt` is installed `brew install gnu-getopt`
+
+Check the running job using the local Spark UI at http://localhost:4040/jobs
 
 # Submit on a standalone Spark Cluster
 
@@ -57,8 +88,6 @@ Usage: submit.sh [-h] [-m MEMORY_GB] [-c CASSANDRA_HOST] [-s SPARK_MASTER]
 
 # Submit to an external standalone Spark Cluster using Docker
 
-TODO
-
 See the [GraphSense Setup][graphsense-setup] component, i.e., the README
 file and the `transformation` subdirectory.
 
@@ -71,5 +100,6 @@ file and the `transformation` subdirectory.
 [java]: https://adoptopenjdk.net
 [scala-lang]: https://www.scala-lang.org
 [scala-sbt]: http://www.scala-sbt.org
+[dsbulk]: https://github.com/datastax/dsbulk
 [apache-spark]: https://spark.apache.org/downloads.html
 [apache-cassandra]: http://cassandra.apache.org
