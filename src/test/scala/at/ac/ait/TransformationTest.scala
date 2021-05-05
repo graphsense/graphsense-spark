@@ -128,7 +128,8 @@ class TransformationTest
   val addressRelations =
     t.computeAddressRelations(
         encodedTransactions,
-        addresses
+        addresses,
+        addressTags
       )
       .sort("srcAddressId", "dstAddressId")
 
@@ -136,6 +137,7 @@ class TransformationTest
     t.computeAddressRelations(
         encodedTransactions,
         addresses,
+        addressTags,
         1
       )
       .sort("srcAddressId", "dstAddressId")

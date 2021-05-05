@@ -234,9 +234,9 @@ object TransformationJob {
     val addressRelations =
       transformation.computeAddressRelations(
         encodedTransactions,
-        addresses
+        addresses,
+        addressTags
       )
-/*
     val noAddressRelations = addressRelations.count()
 
     cassandra.store(
@@ -292,7 +292,7 @@ object TransformationJob {
       "summary_statistics",
       summaryStatistics
     )
-*/
+
     spark.stop()
   }
 }

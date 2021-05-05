@@ -52,8 +52,9 @@ class ComplexGraphTransformationTest
   private val addressTransactions = t.computeAddressTransactions(encodedTxs)
   private val addresses =
     t.computeAddresses(encodedTxs, addressTransactions).persist()
+  private val addressTags = spark.emptyDataset[AddressTag]
   private val addressRelations = t
-    .computeAddressRelations(encodedTxs, addresses)
+    .computeAddressRelations(encodedTxs, addresses, addressTags)
     .sort("srcAddressId", "dstAddressId")
   private val lastBlockTimestamp = blocks
     .select(max(col("timestamp")))

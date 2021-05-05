@@ -494,8 +494,25 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
   def computeAddressRelations(
       encodedTransactions: Dataset[EncodedTransaction],
       addresses: Dataset[Address],
+      addressTags: Dataset[AddressTag],
       transactionLimit: Int = 100
   ): Dataset[AddressRelation] = {
+
+    val aggValues = encodedTransactions.toDF.transform(
+      aggregateValues(
+        "value",
+        "fiatValues",
+        noFiatCurrencies.get,
+        "srcAddressId",
+        "dstAddressId"
+      )
+    )
+
+    val addressLabels = addressTags
+      .select("addressId")
+      .distinct
+      .withColumn("hasLabels", lit(true))
+
     val window = Window.partitionBy("srcAddressId", "dstAddressId")
     encodedTransactions
       .filter(col("dstAddressId").isNotNull)
@@ -513,15 +530,7 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
       )
       // join aggregated currency values
       .join(
-        encodedTransactions.toDF.transform(
-          aggregateValues(
-            "value",
-            "fiatValues",
-            noFiatCurrencies.get,
-            "srcAddressId",
-            "dstAddressId"
-          )
-        ),
+        aggValues,
         Seq("srcAddressId", "dstAddressId"),
         "left"
       )
@@ -545,6 +554,24 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
         Seq("dstAddressId"),
         "left"
       )
+      // join boolean column to indicate presence of src labels
+      .join(
+        addressLabels.select(
+          col("addressId").as("srcAddressId"),
+          col("hasLabels").as("hasSrcLabels")
+        ),
+        Seq("srcAddressId"),
+        "left"
+      )
+      // join boolean column to indicate presence of dst labels
+      .join(
+        addressLabels.select(
+          col("addressId").as("dstAddressId"),
+          col("hasLabels").as("hasDstLabels")
+        ),
+        Seq("dstAddressId"),
+        "left"
+      )
       // add partitioning columns for outgoing addresses
       .transform(withIdGroup("srcAddressId", "srcAddressIdGroup"))
       .transform(
@@ -563,6 +590,8 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
           "dstAddressId"
         )
       )
+      .na
+      .fill(false, Seq("hasSrcLabels", "hasDstLabels"))
       .as[AddressRelation]
   }
 

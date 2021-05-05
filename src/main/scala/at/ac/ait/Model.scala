@@ -168,6 +168,8 @@ case class AddressRelation(
     dstAddressId: Int,
     srcProperties: AddressSummary,
     dstProperties: AddressSummary,
+    hasSrcLabels: Boolean,
+    hasDstLabels: Boolean,
     noTransactions: Int,
     value: Currency,
     transactionIdList: Seq[Int]
