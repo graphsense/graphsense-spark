@@ -70,7 +70,7 @@ Run the transformation pipeline on localhost
 
     ./submit.sh
 
-macOS only: make sure `gnu-getopt` is installed `brew install gnu-getopt`
+macOS only: make sure `gnu-getopt` is installed (`brew install gnu-getopt`).
 
 Check the running job using the local Spark UI at http://localhost:4040/jobs
 
