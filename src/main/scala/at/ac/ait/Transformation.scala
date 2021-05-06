@@ -521,12 +521,12 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
         count(col("transactionId")).over(window).cast(IntegerType)
       )
       .groupBy("srcAddressId", "dstAddressId")
-      // aggregate to noTransactions and transactionIdList
+      // aggregate to number of transactions and list of transaction ids
       .agg(
         min("noTransactions").as("noTransactions"),
         collect_set(
           when(col("noTransactions") <= transactionLimit, col("transactionId"))
-        ).as("transactionIdList")
+        ).as("transactionIds")
       )
       // join aggregated currency values
       .join(

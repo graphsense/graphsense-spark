@@ -172,7 +172,7 @@ case class AddressRelation(
     hasDstLabels: Boolean,
     noTransactions: Int,
     value: Currency,
-    transactionIdList: Seq[Int]
+    transactionIds: Seq[Int]
 )
 
 case class AddressOutgoingRelationSecondaryIds(
