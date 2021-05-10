@@ -94,12 +94,12 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
   }
 
   def withSortedIdGroup[T: Encoder](
-      hashColumn: String,
-      prefixColumn: String
+      idColumn: String,
+      idGroupColumn: String
   )(df: DataFrame): Dataset[T] = {
-    df.transform(withIdGroup(hashColumn, prefixColumn))
+    df.transform(withIdGroup(idColumn, idGroupColumn))
       .as[T]
-      .sort(prefixColumn)
+      .sort(idGroupColumn)
   }
 
   def withPrefix[T](
@@ -389,7 +389,7 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
         "lastmod",
         unix_timestamp(col("lastmod"), "yyyy-dd-MM").cast(IntegerType)
       )
-      .as[AddressTag]
+      .transform(withSortedIdGroup[AddressTag]("addressId", "addressIdGroup"))
   }
 
   def computeAddresses(

@@ -94,6 +94,7 @@ CREATE TABLE address (
 );
 
 CREATE TABLE address_tags (
+    address_id_group int,
     address_id int,
     label text,
     source text,

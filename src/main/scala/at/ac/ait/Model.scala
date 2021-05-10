@@ -150,6 +150,7 @@ case class Address(
 )
 
 case class AddressTag(
+    addressIdGroup: Int,
     addressId: Int,
     label: String,
     source: String,
