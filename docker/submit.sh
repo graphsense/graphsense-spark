@@ -30,9 +30,9 @@ echo -en "Starting Spark job ...\n" \
   --conf spark.serializer="org.apache.spark.serializer.KryoSerializer" \
   --packages com.datastax.spark:spark-cassandra-connector_2.12:2.4.2,org.rogach:scallop_2.12:4.0.2 \
   target/scala-2.12/graphsense-ethereum-transformation_2.12-0.5.0-SNAPSHOT.jar \
-  --raw_keyspace "$RAW_KEYSPACE" \
-  --tag_keyspace "$TAG_KEYSPACE" \
-  --target_keyspace "$TGT_KEYSPACE" \
-  --bucket_size 50000
+  --raw-keyspace "$RAW_KEYSPACE" \
+  --tag-keyspace "$TAG_KEYSPACE" \
+  --target-keyspace "$TGT_KEYSPACE" \
+  --bucket-size 50000
 
 exit $?
