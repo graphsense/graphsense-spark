@@ -8,7 +8,7 @@ from cassandra.cluster import Cluster
 from random import sample, choice
 
 import logging
-logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S')
+logging.basicConfig(format="%(asctime)s %(levelname)-8s %(message)s", level=logging.INFO, datefmt="%Y-%m-%d %H:%M:%S")
 logging.getLogger("cassandra").setLevel(logging.CRITICAL)
 logging.getLogger("Cluster").setLevel(logging.CRITICAL)
 
@@ -88,7 +88,7 @@ class EthValidate(object):
 
     def _prepare_graphsense_data(self, session, address_id_group, address_id) -> dict:
         # TODO: get data from API when it's finished
-        result = session.execute(f"select * from {self.keyspace}.address where address_id_group = {address_id_group} and address_id = {address_id}")
+        result = session.execute(f"SELECT * FROM {self.keyspace}.address WHERE address_id_group = {address_id_group} AND address_id = {address_id}")
 
         r = result.current_rows[0]
         d = dict()
@@ -115,7 +115,7 @@ class EthValidate(object):
         return d
 
     def _get_sample_addresses(self, sample_size, session):
-        g = session.execute(f"select address_id_group from {self.keyspace}.address_ids_by_address_id_group per partition limit 1")
+        g = session.execute(f"SELECT address_id_group FROM {self.keyspace}.address_ids_by_address_id_group PER PARTITION LIMIT 1")
         groups = [row.address_id_group for row in g.current_rows]
 
         if len(groups) < 1:
@@ -132,7 +132,7 @@ class EthValidate(object):
 
         selected_addresses = []
         for (address_group, address_id) in selected_input:
-            res = session.execute(f"select * from {self.keyspace}.address_ids_by_address_id_group WHERE  address_id_group = {address_group} AND address_id={address_id}")
+            res = session.execute(f"SELECT * FROM {self.keyspace}.address_ids_by_address_id_group WHERE address_id_group = {address_group} AND address_id={address_id}")
             d = res.current_rows[0]
             hex_string = ''.join('{:02x}'.format(x) for x in d.address)
             selected_addresses.append((d.address_id_group, d.address_id, f"0x{hex_string}"))
@@ -174,12 +174,12 @@ class EthValidate(object):
 
 
 def main():
-    parser = ArgumentParser(description='Compare Graphsense addresses against etherscan.io', epilog='GraphSense - http://graphsense.info')
+    parser = ArgumentParser(description="Compare Graphsense addresses against etherscan.io", epilog="GraphSense - http://graphsense.info")
 
-    parser.add_argument('-d', '--db_nodes', dest='db_nodes', required=True, nargs='+', metavar="spark1 spark2", help="list of Cassandra nodes")
-    parser.add_argument('-k', '--keyspace', dest='keyspace', default="eth_transformed", metavar="eth_transformed", help='Cassandra keyspace to use')
-    parser.add_argument('-a', '--apikey', dest='apikey', help='etherscan.io apikey')
-    parser.add_argument('-s', '--samplesize', dest='samplesize', default="3", type=int, help='number of random addresses to be compared')
+    parser.add_argument("-d", "--db_nodes", dest="db_nodes", required=True, nargs="+", metavar="DB_NODE", help="list of Cassandra nodes")
+    parser.add_argument("-k", "--keyspace", dest="keyspace", default="eth_transformed", metavar="ETH_TRANSFORMED", help="Cassandra keyspace to use")
+    parser.add_argument("-a", "--apikey", dest="apikey", metavar="API_KEY", help="etherscan.io apikey")
+    parser.add_argument("-s", "--samplesize", dest="samplesize", default="3", type=int, metavar="SAMPLE_SIZE", help="number of random addresses to be compared")
 
     args = parser.parse_args()
 
@@ -188,5 +188,5 @@ def main():
     etherscan_comparer.validate(args.samplesize)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
