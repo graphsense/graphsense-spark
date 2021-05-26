@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from cassandra.cluster import Cluster
 from random import sample, choice
+from time import sleep
 
 import logging
 logging.basicConfig(format="%(asctime)s %(levelname)-8s %(message)s", level=logging.INFO, datefmt="%Y-%m-%d %H:%M:%S")
@@ -20,13 +21,38 @@ class EthValidate(object):
         self.keyspace = keyspace
         self.apikey = apikey
 
-    def get_normal_tx_rom_etherscan_api(self, adr: str, until: int, maxlength=10_000) -> pd.DataFrame:
-        endblock = self.etherscan.get_block_number_by_timestamp(until, "before")
+    def _get_from_es(self, adr: str, sb, eb, sort, offset=5000, blockstep=500_000):
+        res = []
 
+        fromblock = sb
+
+        while fromblock < eb:
+            toblock = min(fromblock+blockstep, eb)
+            page = 1
+
+            try:
+                while True:
+                    res.extend(self.etherscan.get_normal_txs_by_address_paginated(adr, page=page, startblock=fromblock, endblock=toblock, offset=offset, sort=sort))
+                    page += 1
+                    sleep(0.1)
+            except AssertionError as e:  # thrown by etherscan
+                if e.__str__().startswith("None"):
+                    raise ValueError(f"API threw error '{e}'. Please fix offset and blockstep size.")
+
+                pass  # etherscan api did not find any more results, which is fine
+
+            fromblock += blockstep
+
+        logging.info(f"Collected {len(res)} tx")
+        return res
+
+    def get_normal_tx_rom_etherscan_api(self, adr: str, endblock: int, maxlength=10_000) -> pd.DataFrame:
         r = self.etherscan.get_normal_txs_by_address(adr, 0, endblock, "asc")
 
-        if len(r) > maxlength:
-            logging.info(f"API returned its limit of {maxlength} transactions, please check manually if there are more.")
+        if len(r) >= maxlength:
+            logging.info(f"API returned its limit of {maxlength} transactions. Trying to retrieve _all_ tx now; this will take a while (and possible fail).")
+            startblock = r[0]["blockNumber"]
+            r = self._get_from_es(adr, int(startblock), int(endblock), "asc")
 
         for x in r:
             x["value"] = int(x["value"])
@@ -40,10 +66,10 @@ class EthValidate(object):
 
         return df
 
-    def _prepare_etherscan_reference(self, address, until) -> dict:
+    def _prepare_etherscan_reference(self, address, endblock) -> dict:
         result = dict()
 
-        ref_df = self.get_normal_tx_rom_etherscan_api(address, until)
+        ref_df = self.get_normal_tx_rom_etherscan_api(address, endblock)
 
         ref_df["txtype"] = np.where(ref_df["from"] == address, "OUT", "IN")
         ref_df.loc[ref_df["from"] == ref_df["to"], "txtype"] = "INOUT"
@@ -139,6 +165,18 @@ class EthValidate(object):
 
         return selected_addresses
 
+    def _prepare(self, address, session, batchsize=50_000):
+        prefix = address[2:6].upper()
+        res = session.execute(f"SELECT address_id from {self.keyspace}.address_ids_by_address_prefix WHERE address_prefix = '{prefix}' AND address={address.upper()} ")
+
+        if len(res.current_rows) == 0:
+            raise ValueError(f"{address} not found in database")
+
+        gs_id = res.current_rows[0][0]
+        gs_group = int(gs_id/batchsize)
+
+        return [(gs_group, gs_id, address)]
+
     def _compare(self, ref, act):
         errors = []
 
@@ -147,13 +185,18 @@ class EthValidate(object):
                 errors.append((key, "ref", ref[key], "act", act[key]))
         return errors
 
-    def validate(self, samples=10):
+    def validate(self, address, samples=10):
         cluster = Cluster(self.cluster_nodes)
         session = cluster.connect(self.keyspace)
 
-        random_addresses = self._get_sample_addresses(samples, session)
+        if address:
+            address = address.lower()
+            random_addresses = self._prepare(address, session)
+        else:
+            logging.info(f"selecting {samples} random addresses from database")
+            random_addresses = self._get_sample_addresses(samples, session)
 
-        logging.info(f"validating {len(random_addresses)} random addresses")
+        logging.info(f"validating {len(random_addresses)} addresses")
 
         for x in random_addresses:
             logging.info(x)
@@ -161,9 +204,9 @@ class EthValidate(object):
 
             actual = self._prepare_graphsense_data(session, group, gs_id)
 
-            last_ts = actual["last_timestamp"]
+            last_block = actual["last_block"]
 
-            reference = self._prepare_etherscan_reference(address, last_ts)
+            reference = self._prepare_etherscan_reference(address, last_block)
 
             match = self._compare(reference, actual)
 
@@ -180,12 +223,13 @@ def main():
     parser.add_argument("-k", "--keyspace", dest="keyspace", default="eth_transformed", metavar="ETH_TRANSFORMED", help="Cassandra keyspace to use")
     parser.add_argument("-a", "--apikey", dest="apikey", metavar="API_KEY", help="etherscan.io apikey")
     parser.add_argument("-s", "--samplesize", dest="samplesize", default="3", type=int, metavar="SAMPLE_SIZE", help="number of random addresses to be compared")
+    parser.add_argument("-e", "--address", dest="address", metavar="0xFA8E3920daF271daB92Be9B87d9998DDd94FEF08", help="a specific Ethereum address to validate")
 
     args = parser.parse_args()
 
     etherscan_comparer = EthValidate(args.apikey, cluster_addresses=args.db_nodes, keyspace=args.keyspace)
 
-    etherscan_comparer.validate(args.samplesize)
+    etherscan_comparer.validate(args.address, args.samplesize)
 
 
 if __name__ == "__main__":
