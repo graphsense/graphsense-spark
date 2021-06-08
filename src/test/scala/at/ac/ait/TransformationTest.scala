@@ -16,6 +16,7 @@ class TransformationTest
       expectedDS: Dataset[T]
   ): Unit = {
     val colOrder = expectedDS.columns map col
+    assert(actualDS.columns.sorted sameElements expectedDS.columns.sorted)
     assertSmallDataFrameEquality(
       setNullableStateForAllColumns(actualDS.select(colOrder: _*)),
       setNullableStateForAllColumns(expectedDS)
