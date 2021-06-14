@@ -1,6 +1,6 @@
-package at.ac.ait
+package info.graphsense
 
-import at.ac.ait.Helpers.{readTestData, setNullableStateForAllColumns}
+import Helpers.{readTestData, setNullableStateForAllColumns}
 import com.github.mrpowers.spark.fast.tests.DataFrameComparer
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.{col, lower, max}

@@ -1,10 +1,9 @@
-package at.ac.ait
+package info.graphsense
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.{col, lower, max}
 import org.rogach.scallop._
-
-import at.ac.ait.storage._
+import info.graphsense.storage.CassandraStorage
 
 object TransformationJob {
 
