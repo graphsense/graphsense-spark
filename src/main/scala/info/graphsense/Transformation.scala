@@ -156,6 +156,7 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
       .agg(max(secondaryPartitionColumn).as("maxSecondaryId"))
       // to save storage space, store only records with multiple secondary IDs
       .filter(col("maxSecondaryId") > 0)
+      .sort(primaryPartitionColumn)
       .as[T]
   }
 
