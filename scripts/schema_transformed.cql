@@ -42,13 +42,6 @@ CREATE TABLE transaction_ids_by_transaction_prefix (
     PRIMARY KEY (transaction_prefix, transaction)
 );
 
-CREATE TABLE address_ids_by_address_id_group (
-    address_id_group int,
-    address_id int,
-    address blob,
-    PRIMARY KEY (address_id_group, address_id)
-);
-
 CREATE TABLE address_ids_by_address_prefix (
     address_prefix text,
     address blob,
@@ -82,6 +75,7 @@ CREATE TABLE address_transactions_secondary_ids (
 CREATE TABLE address (
     address_id_group int,
     address_id int,
+    address blob,
     no_incoming_txs int,
     no_outgoing_txs int,
     first_tx FROZEN <tx_id_time>,

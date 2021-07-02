@@ -73,13 +73,6 @@ class TransformationTest
     )
 
   val addressIds = t.computeAddressIds(transactions)
-  val addressIdsByAddressIdGroup =
-    addressIds.toDF.transform(
-      t.withSortedIdGroup[AddressIdByAddressIdGroup](
-        "addressId",
-        "addressIdGroup"
-      )
-    )
   val addressIdsByAddressPrefix =
     addressIds.toDF.transform(
       t.withSortedPrefix[AddressIdByAddressPrefix](
@@ -122,7 +115,8 @@ class TransformationTest
   val addresses = t
     .computeAddresses(
       encodedTransactions,
-      addressTransactions
+      addressTransactions,
+      addressIds
     )
     .persist()
 
@@ -177,14 +171,6 @@ class TransformationTest
     val addressIdsRef =
       readTestData[AddressId](spark, refDir + "address_ids.csv")
     assertDataFrameEquality(addressIds, addressIdsRef)
-  }
-
-  test("Address IDs by ID Group") {
-    val addressIdsRef = readTestData[AddressIdByAddressIdGroup](
-      spark,
-      refDir + "address_ids_by_id_group.csv"
-    )
-    assertDataFrameEquality(addressIdsByAddressIdGroup, addressIdsRef)
   }
 
   test("Address IDs by address prefix") {

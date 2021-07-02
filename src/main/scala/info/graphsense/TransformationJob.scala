@@ -138,18 +138,6 @@ object TransformationJob {
     println("Computing address IDs")
     val addressIds = transformation.computeAddressIds(transactions)
     val noAddresses = addressIds.count()
-    val addressIdsByAddressIdGroup =
-      addressIds.toDF.transform(
-        transformation.withSortedIdGroup[AddressIdByAddressIdGroup](
-          "addressId",
-          "addressIdGroup"
-        )
-      )
-    cassandra.store(
-      conf.targetKeyspace(),
-      "address_ids_by_address_id_group",
-      addressIdsByAddressIdGroup
-    )
     val addressIdsByAddressPrefix =
       addressIds.toDF.transform(
         transformation.withSortedPrefix[AddressIdByAddressPrefix](
@@ -225,7 +213,8 @@ object TransformationJob {
     println("Computing address statistics")
     val addresses = transformation.computeAddresses(
       encodedTransactions,
-      addressTransactions
+      addressTransactions,
+      addressIds
     )
     cassandra.store(conf.targetKeyspace(), "address", addresses)
 

@@ -395,7 +395,8 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
 
   def computeAddresses(
       encodedTransactions: Dataset[EncodedTransaction],
-      addressTransactions: Dataset[AddressTransaction]
+      addressTransactions: Dataset[AddressTransaction],
+      addressIds: Dataset[AddressId]
   ): Dataset[Address] = {
     def zeroValueIfNull(columnName: String)(df: DataFrame): DataFrame = {
       df.withColumn(
@@ -487,6 +488,7 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
       .fill(0, Seq("noIncomingTxs", "noOutgoingTxs", "inDegree", "outDegree"))
       .transform(zeroValueIfNull("totalReceived"))
       .transform(zeroValueIfNull("totalSpent"))
+      .join(addressIds, Seq("addressId"), "left")
       .transform(withIdGroup("addressId", "addressIdGroup"))
       .sort("addressId")
       .as[Address]

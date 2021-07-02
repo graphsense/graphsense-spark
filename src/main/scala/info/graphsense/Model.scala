@@ -32,12 +32,6 @@ case class AddressIdByAddressPrefix(
     addressId: Int
 )
 
-case class AddressIdByAddressIdGroup(
-    addressIdGroup: Int,
-    addressId: Int,
-    address: Array[Byte]
-)
-
 // transformed schema data types
 
 case class Currency(value: BigInt, fiatValues: Seq[Float])
@@ -139,6 +133,7 @@ case class AddressTransactionSecondaryIds(
 case class Address(
     addressIdGroup: Int,
     addressId: Int,
+    address: Array[Byte],
     noIncomingTxs: Int,
     noOutgoingTxs: Int,
     firstTx: TxIdTime,
