@@ -46,7 +46,7 @@ object TransformationJob {
     val labelPrefixLength: ScallopOption[Int] = opt[Int](
       "label-prefix-length",
       required = false,
-      default = Some(5),
+      default = Some(3),
       noshort = true,
       descr = "Prefix length of tag labels for Cassandra partitioning keys"
     )
