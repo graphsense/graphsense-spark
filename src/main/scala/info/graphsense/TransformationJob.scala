@@ -36,12 +36,26 @@ object TransformationJob {
       noshort = true,
       descr = "Bucket size for Cassandra partitions"
     )
-    val prefixLength: ScallopOption[Int] = opt[Int](
-      "prefix-length",
+    val addressPrefixLength: ScallopOption[Int] = opt[Int](
+      "address-prefix-length",
       required = false,
       default = Some(4),
       noshort = true,
-      descr = "Prefix length for Cassandra partitioning keys"
+      descr = "Prefix length of address hashes for Cassandra partitioning keys"
+    )
+    val labelPrefixLength: ScallopOption[Int] = opt[Int](
+      "label-prefix-length",
+      required = false,
+      default = Some(5),
+      noshort = true,
+      descr = "Prefix length of tag labels for Cassandra partitioning keys"
+    )
+    val txPrefixLength: ScallopOption[Int] = opt[Int](
+      "tx-prefix-length",
+      required = false,
+      default = Some(4),
+      noshort = true,
+      descr = "Prefix length for tx hashes Cassandra partitioning keys"
     )
     verify()
   }
@@ -59,7 +73,9 @@ object TransformationJob {
     println("Tag keyspace:                  " + conf.tagKeyspace())
     println("Target keyspace:               " + conf.targetKeyspace())
     println("Bucket size:                   " + conf.bucketSize())
-    println("Prefix length:                 " + conf.prefixLength())
+    println("Address prefix length:         " + conf.addressPrefixLength())
+    println("Tx prefix length:              " + conf.txPrefixLength())
+    println("Label prefix length:           " + conf.labelPrefixLength())
 
     import spark.implicits._
 
@@ -82,7 +98,9 @@ object TransformationJob {
       transformation.configuration(
         conf.targetKeyspace(),
         conf.bucketSize(),
-        conf.prefixLength(),
+        conf.addressPrefixLength(),
+        conf.labelPrefixLength(),
+        conf.txPrefixLength(),
         transformation.getFiatCurrencies(exchangeRatesRaw)
       )
     cassandra.store(
@@ -127,7 +145,7 @@ object TransformationJob {
         transformation.withSortedPrefix[TransactionIdByTransactionPrefix](
           "transaction",
           "transactionPrefix",
-          conf.prefixLength()
+          conf.txPrefixLength()
         )
       )
     cassandra.store(
@@ -144,7 +162,7 @@ object TransformationJob {
         transformation.withSortedPrefix[AddressIdByAddressPrefix](
           "address",
           "addressPrefix",
-          conf.prefixLength()
+          conf.addressPrefixLength()
         )
       )
     cassandra.store(
@@ -215,7 +233,7 @@ object TransformationJob {
       addressTags,
       addressIds,
       "ETH",
-      conf.prefixLength()
+      conf.labelPrefixLength()
     )
     cassandra.store(
       conf.targetKeyspace(),

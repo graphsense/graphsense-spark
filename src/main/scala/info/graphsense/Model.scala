@@ -151,8 +151,8 @@ case class AddressTag(
     source: String,
     tagpackUri: String,
     lastmod: Int,
-    category: String,
-    abuse: String
+    category: Option[String],
+    abuse: Option[String]
 )
 
 case class AddressRelation(
@@ -207,6 +207,8 @@ case class SummaryStatistics(
 case class Configuration(
     keyspaceName: String,
     bucketSize: Int,
-    prefixLength: Int,
+    txPrefixLength: Int,
+    addressPrefixLength: Int,
+    labelPrefixLength: Int,
     fiatCurrencies: Seq[String]
 )

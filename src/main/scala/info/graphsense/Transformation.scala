@@ -44,14 +44,18 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
   def configuration(
       keyspaceName: String,
       bucketSize: Int,
-      prefixLength: Int,
+      addressPrefixLength: Int,
+      labelPrefixLength: Int,
+      txPrefixLength: Int,
       fiatCurrencies: Seq[String]
   ) = {
     Seq(
       Configuration(
         keyspaceName,
         bucketSize,
-        prefixLength,
+        addressPrefixLength,
+        labelPrefixLength,
+        txPrefixLength,
         fiatCurrencies
       )
     ).toDS()
@@ -376,7 +380,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .drop(col("currency"))
       .withColumn(
         "address",
-        // make uppercase and remove first two charcter from string (0x)
+        // make uppercase and remove first two characters from string (0x)
         upper(col("address")).substr(lit(3), length(col("address")) - 2)
       )
       .join(

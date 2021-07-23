@@ -162,6 +162,8 @@ CREATE TABLE summary_statistics (
 CREATE TABLE configuration (
     keyspace_name text PRIMARY KEY,
     bucket_size int,
-    prefix_length int,
+    address_prefix_length int,
+    label_prefix_length int,
+    tx_prefix_length int,
     fiat_currencies list<text>
 );
