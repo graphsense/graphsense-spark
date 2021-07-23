@@ -35,7 +35,7 @@ import org.apache.spark.sql.functions.{
 }
 import org.apache.spark.sql.types.{DecimalType, FloatType, IntegerType}
 
-class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
+class Transformation(spark: SparkSession, bucketSize: Int) {
 
   import spark.implicits._
 
@@ -601,17 +601,29 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
   def computeTagsByLabel(
       tags: Dataset[AddressTagRaw],
       addressTags: Dataset[AddressTag],
+      addressIds: Dataset[AddressId],
       currency: String,
-      prefixLength: Int = prefixLength
+      prefixLength: Int
   ): Dataset[Tag] = {
     // check if addresses where used in transactions
     tags
       .filter(col("currency") === currency)
+      .withColumn(
+        "address",
+        // make uppercase and remove first two characters from string (0x)
+        upper(col("address")).substr(lit(3), length(col("address")) - 2)
+      )
+      .join(
+        addressIds
+          .select(hex(col("address")).as("address"), col("addressId")),
+        Seq("address"),
+        "left"
+      )
       .join(
         addressTags
-          .select(col("address"))
+          .select(col("addressId"))
           .withColumn("activeAddress", lit(true)),
-        Seq("address"),
+        Seq("addressId"),
         "left"
       )
       .na
@@ -625,6 +637,11 @@ class Transformation(spark: SparkSession, bucketSize: Int, prefixLength: Int) {
         "labelNormPrefix",
         substring(col("labelNorm"), 0, prefixLength)
       )
+      .withColumn(
+        "lastmod",
+        unix_timestamp(col("lastmod"), "yyyy-dd-MM").cast(IntegerType)
+      )
+      .drop("addressId")
       .as[Tag]
   }
 

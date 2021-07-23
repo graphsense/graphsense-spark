@@ -3,6 +3,7 @@ package info.graphsense
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.{col, lower, max}
 import org.rogach.scallop._
+
 import info.graphsense.storage.CassandraStorage
 
 object TransformationJob {
@@ -74,7 +75,7 @@ object TransformationJob {
     val tagsRaw = cassandra
       .load[AddressTagRaw](conf.tagKeyspace(), "address_tag_by_address")
 
-    val transformation = new Transformation(spark, conf.bucketSize(), conf.prefixLength())
+    val transformation = new Transformation(spark, conf.bucketSize())
 
     println("Store configuration")
     val configuration =
@@ -209,6 +210,18 @@ object TransformationJob {
       .withColumn("label", lower(col("label")))
       .distinct()
       .count()
+    val addressTagsByLabel = transformation.computeTagsByLabel(
+      tagsRaw,
+      addressTags,
+      addressIds,
+      "ETH",
+      conf.prefixLength()
+    )
+    cassandra.store(
+      conf.targetKeyspace(),
+      "address_tag_by_label",
+      addressTagsByLabel
+    )
 
     println("Computing address statistics")
     val addresses = transformation.computeAddresses(
