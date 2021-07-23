@@ -50,7 +50,7 @@ class TransformationTest
 
   // transformation pipeline
 
-  val t = new Transformation(spark, bucketSize, prefixLength)
+  val t = new Transformation(spark, bucketSize)
 
   val exchangeRates =
     t.computeExchangeRates(blocks, exchangeRatesRaw)

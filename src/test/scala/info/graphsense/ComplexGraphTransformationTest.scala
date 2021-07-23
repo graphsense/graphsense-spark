@@ -39,9 +39,8 @@ class ComplexGraphTransformationTest
     readTestData[ExchangeRatesRaw](spark, inDir + "test_exchange_rates.json")
 
   private val bucketSize = 2
-  private val prefixLength = 4
 
-  private val t = new Transformation(spark, bucketSize, prefixLength)
+  private val t = new Transformation(spark, bucketSize)
 
   private val exchangeRates =
     t.computeExchangeRates(blocks, exchangeRatesRaw).persist()
