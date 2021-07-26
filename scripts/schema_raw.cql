@@ -4,8 +4,8 @@ USE eth_raw;
 
 CREATE TABLE block (
     block_group int,
-    number int,
-    hash blob,
+    block_number int,
+    block_hash blob,
     parent_hash blob,
     nonce blob,
     sha3_uncles blob,
