@@ -42,8 +42,8 @@ case class AddressSummary(totalReceived: Currency, totalSpent: Currency)
 
 case class Block(
     blockGroup: Int,
-    number: Int,
-    hash: Array[Byte],
+    blockNumber: Int,
+    blockHash: Array[Byte],
     parentHash: Array[Byte],
     nonce: Array[Byte],
     sha3_uncles: Array[Byte],
@@ -78,6 +78,20 @@ case class Transaction(
     blockTimestamp: Int
 )
 
+case class Receipt (
+     transactionHashPrefix: String,
+     transactionHash: Array[Byte],
+     gasUsed: Int
+)
+
+case class BalanceTrace(
+    fromAddress: Option[Array[Byte]],
+    toAddress: Option[Array[Byte]],
+    value: BigInt,
+    status: Int,
+    callType: Option[String]
+)
+
 case class ExchangeRatesRaw(
     date: String,
     fiatValues: Option[Map[String, Float]]
@@ -97,6 +111,15 @@ case class AddressTagRaw(
 // transformed schema tables
 
 case class ExchangeRates(height: Int, fiatValues: Seq[Float])
+
+case class GenesisTransfer(
+    address: Array[Byte],
+    value: BigInt
+)
+
+case class Balances(address: Array[Byte], balance: BigInt)
+
+case class BalancesWithPrefix(addressPrefix: String, address: Array[Byte], balance: BigInt)
 
 case class BlockTransaction(heightGroup: Int, height: Int, txs: Seq[Int])
 

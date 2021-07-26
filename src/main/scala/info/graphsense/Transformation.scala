@@ -11,6 +11,7 @@ import org.apache.spark.sql.functions.{
   count,
   countDistinct,
   date_format,
+  expr,
   floor,
   from_unixtime,
   hex,
@@ -176,7 +177,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
           "yyyy-MM-dd"
         )
       )
-      .select("number", "date")
+      .select("blockNumber", "date")
 
     val lastDateExchangeRates =
       exchangeRates.select(max(col("date"))).first.getString(0)
@@ -202,9 +203,51 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         )
       )
       .drop("date")
-      .sort("number")
-      .withColumnRenamed("number", "height")
+      .sort("blockNumber")
+      .withColumnRenamed("blockNumber", "height")
       .as[ExchangeRates]
+  }
+
+  def computeBalances(genesisTransfer: Dataset[GenesisTransfer], blocks: Dataset[Block],
+                      transactions: Dataset[Transaction], traces: Dataset[BalanceTrace],
+                      receipts: Dataset[Receipt]): Dataset[Balances] = {
+
+    val calltypes = Seq("delegatecall", "callcode", "staticcall")
+    val calltype_filter = (!col("callType").isin(calltypes:_*)) || col("callType").isNull
+
+    val debits = traces
+      .where(col("toAddress").isNotNull)
+      .where(col("status") === 1)
+      .where(calltype_filter)
+      .select(col("toAddress").as("address"), col("value"))
+
+    val credits = traces
+      .where(col("fromAddress").isNotNull)
+      .where(col("status") === 1)
+      .where(calltype_filter)
+      .withColumn("inverted_value", -col("value"))
+      .select(col("fromAddress").as("address"), col("inverted_value").as("value"))
+
+    val tx_fee_debits = transactions
+      .join(blocks, "blockNumber")
+      .drop("gasUsed")  // to avoid duplicate column names
+      .join(receipts).where($"hash" === $"transactionHash")
+      .withColumn("calculated_value", expr("(gasUsed * gasPrice)"))
+      .groupBy("miner").agg(sum("calculated_value").as("value"))
+      .select(col("miner").as("address"), col("value"))
+
+    val tx_fee_credits = transactions
+      .join(receipts).where($"hash" === $"transactionHash")
+      .withColumn("calculated_value", expr("-(gasUsed * gasPrice)"))
+      .select(col("fromAddress").as("address"), col("calculated_value").as("value"))
+
+    val rows = genesisTransfer.toDF().union(credits).union(debits)
+      .union(tx_fee_credits).union(tx_fee_debits)
+    //println(rows.explain(true))
+    //println(rows.queryExecution.sparkPlan)
+
+    rows.groupBy("address").agg(sum("value").as("balance")).as[Balances]
+
   }
 
   def computeTransactionIds(
@@ -325,7 +368,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .groupBy("height")
       .agg(collect_list("transactionId").as("txs"))
       .join(
-        blocks.select(col("number").as("height")),
+        blocks.select(col("blockNumber").as("height")),
         Seq("height"),
         "right"
       )

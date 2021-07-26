@@ -1,9 +1,9 @@
 package info.graphsense
 
+import com.datastax.spark.connector.ColumnName
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.{col, lower, max}
 import org.rogach.scallop._
-
 import info.graphsense.storage.CassandraStorage
 
 object TransformationJob {
@@ -90,6 +90,11 @@ object TransformationJob {
       cassandra.load[Transaction](conf.rawKeyspace(), "transaction")
     val tagsRaw = cassandra
       .load[AddressTagRaw](conf.tagKeyspace(), "address_tag_by_address")
+    val balanceTraces = cassandra.load[BalanceTrace](conf.rawKeyspace(), "trace",
+      Array("from_address", "to_address", "value", "status", "call_type").map(ColumnName(_)):_*)
+    val receipts = cassandra.load[Receipt](conf.rawKeyspace(), "receipt",
+      Array("transaction_hash_prefix","transaction_hash","gas_used").map(ColumnName(_)):_*)
+    val genesis_transfers = cassandra.load[GenesisTransfer](conf.rawKeyspace(), "genesis_transfer")
 
     val transformation = new Transformation(spark, conf.bucketSize())
 
@@ -290,6 +295,25 @@ object TransformationJob {
       "address_outgoing_relations_secondary_ids",
       addressOutgoingRelationsSecondaryIds
     )
+
+ println("Computing balances")
+    val balances = transformation.computeBalances(genesis_transfers, blocks, transactions,
+      balanceTraces, receipts)
+
+    val balancesByAddressPrefix = balances.toDF.transform(
+      transformation.withSortedPrefix[BalancesWithPrefix](
+        "address",
+        "addressPrefix",
+        conf.addressPrefixLength()
+      )
+    )
+    cassandra.store(
+      conf.targetKeyspace(),
+      "balances",
+      balancesByAddressPrefix
+    )
+    println("Number of balances: " + balancesByAddressPrefix.count())
+
 
     println("Computing summary statistics")
     val summaryStatistics =
