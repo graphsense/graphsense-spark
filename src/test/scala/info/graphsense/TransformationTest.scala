@@ -120,22 +120,13 @@ class TransformationTest
     )
     .persist()
 
-  val addressRelations =
-    t.computeAddressRelations(
-        encodedTransactions,
-        addresses,
-        addressTags
-      )
-      .sort("srcAddressId", "dstAddressId")
+  val addressRelations = t
+    .computeAddressRelations(encodedTransactions, addressTags)
+    .sort("srcAddressId", "dstAddressId")
 
-  val addressRelationsTxLimit1 =
-    t.computeAddressRelations(
-        encodedTransactions,
-        addresses,
-        addressTags,
-        1
-      )
-      .sort("srcAddressId", "dstAddressId")
+  val addressRelationsTxLimit1 = t
+    .computeAddressRelations(encodedTransactions, addressTags, 1)
+    .sort("srcAddressId", "dstAddressId")
 
   note("Test lookup tables")
 
@@ -237,7 +228,10 @@ class TransformationTest
 
   test("Address relations with Tx Limit 1") {
     val addressRelationsRef =
-      readTestData[AddressRelation](spark, refDir + "address_relations_txlimit1.json")
+      readTestData[AddressRelation](
+        spark,
+        refDir + "address_relations_txlimit1.json"
+      )
     assertDataFrameEquality(addressRelationsTxLimit1, addressRelationsRef)
   }
 

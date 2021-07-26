@@ -500,7 +500,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
 
   def computeAddressRelations(
       encodedTransactions: Dataset[EncodedTransaction],
-      addresses: Dataset[Address],
       addressTags: Dataset[AddressTag],
       transactionLimit: Int = 100
   ): Dataset[AddressRelation] = {
@@ -539,26 +538,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .join(
         aggValues,
         Seq("srcAddressId", "dstAddressId"),
-        "left"
-      )
-      // join source address properties
-      .join(
-        addresses
-          .select(
-            col("addressId").as("srcAddressId"),
-            struct("totalReceived", "totalSpent").as("srcProperties")
-          ),
-        Seq("srcAddressId"),
-        "left"
-      )
-      // join destination address properties
-      .join(
-        addresses
-          .select(
-            col("addressId").as("dstAddressId"),
-            struct("totalReceived", "totalSpent").as("dstProperties")
-          ),
-        Seq("dstAddressId"),
         "left"
       )
       // join boolean column to indicate presence of src labels

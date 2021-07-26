@@ -162,8 +162,6 @@ case class AddressRelation(
     dstAddressIdGroup: Int,
     dstAddressIdSecondaryGroup: Int,
     dstAddressId: Int,
-    srcProperties: AddressSummary,
-    dstProperties: AddressSummary,
     hasSrcLabels: Boolean,
     hasDstLabels: Boolean,
     noTransactions: Int,
