@@ -35,14 +35,13 @@ case class AddressIdByAddressPrefix(
 // transformed schema data types
 
 case class Currency(value: BigInt, fiatValues: Seq[Float])
-case class TxIdTime(height: Int, transactionId: Int, blockTimestamp: Int)
 case class AddressSummary(totalReceived: Currency, totalSpent: Currency)
 
 // raw schema tables
 
 case class Block(
-    blockGroup: Int,
-    blockNumber: Int,
+    blockIdGroup: Int,
+    blockId: Int,
     blockHash: Array[Byte],
     parentHash: Array[Byte],
     nonce: Array[Byte],
@@ -67,7 +66,7 @@ case class Transaction(
     hash: Array[Byte],
     nonce: Int,
     blockHash: Array[Byte],
-    blockNumber: Int,
+    blockId: Int,
     transactionIndex: Short,
     fromAddress: Array[Byte],
     toAddress: Option[Array[Byte]],
@@ -78,13 +77,13 @@ case class Transaction(
     blockTimestamp: Int
 )
 
-case class Receipt (
-     transactionHashPrefix: String,
-     transactionHash: Array[Byte],
-     gasUsed: Int
+case class Receipt(
+    transactionHashPrefix: String,
+    transactionHash: Array[Byte],
+    gasUsed: Int
 )
 
-case class BalanceTrace(
+case class Trace(
     fromAddress: Option[Array[Byte]],
     toAddress: Option[Array[Byte]],
     value: BigInt,
@@ -110,23 +109,27 @@ case class AddressTagRaw(
 
 // transformed schema tables
 
-case class ExchangeRates(height: Int, fiatValues: Seq[Float])
+case class ExchangeRates(blockId: Int, fiatValues: Seq[Float])
 
 case class GenesisTransfer(
     address: Array[Byte],
     value: BigInt
 )
 
-case class Balances(address: Array[Byte], balance: BigInt)
+case class Balance(address: Array[Byte], balance: BigInt)
 
-case class BalancesWithPrefix(addressPrefix: String, address: Array[Byte], balance: BigInt)
+case class BalanceWithPrefix(
+    addressPrefix: String,
+    address: Array[Byte],
+    balance: BigInt
+)
 
-case class BlockTransaction(heightGroup: Int, height: Int, txs: Seq[Int])
+case class BlockTransaction(blockIdGroup: Int, blockId: Int, txs: Seq[Int])
 
 case class EncodedTransaction(
     transactionId: Int,
     nonce: Int,
-    height: Int,
+    blockId: Int,
     transactionIndex: Short,
     srcAddressId: Int,
     dstAddressId: Option[Int],
@@ -144,7 +147,7 @@ case class AddressTransaction(
     addressId: Int,
     transactionId: Int,
     value: BigInt,
-    height: Int,
+    blockId: Int,
     blockTimestamp: Int
 )
 
@@ -159,8 +162,8 @@ case class Address(
     address: Array[Byte],
     noIncomingTxs: Int,
     noOutgoingTxs: Int,
-    firstTx: TxIdTime,
-    lastTx: TxIdTime,
+    firstTxId: Int,
+    lastTxId: Int,
     totalReceived: Currency,
     totalSpent: Currency,
     inDegree: Int,

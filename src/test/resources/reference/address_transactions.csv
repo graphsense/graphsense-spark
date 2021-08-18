@@ -1,4 +1,4 @@
-addressIdGroup,addressIdSecondaryGroup,addressId,transactionId,value,height,blockTimestamp
+addressIdGroup,addressIdSecondaryGroup,addressId,transactionId,value,blockId,blockTimestamp
 0,0,0,0,31337,46147,1438918233
 0,1,0,7,31337,46219,1438919461
 0,0,1,0,-31337,46147,1438918233

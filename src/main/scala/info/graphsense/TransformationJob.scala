@@ -90,11 +90,22 @@ object TransformationJob {
       cassandra.load[Transaction](conf.rawKeyspace(), "transaction")
     val tagsRaw = cassandra
       .load[AddressTagRaw](conf.tagKeyspace(), "address_tag_by_address")
-    val balanceTraces = cassandra.load[BalanceTrace](conf.rawKeyspace(), "trace",
-      Array("from_address", "to_address", "value", "status", "call_type").map(ColumnName(_)):_*)
-    val receipts = cassandra.load[Receipt](conf.rawKeyspace(), "receipt",
-      Array("transaction_hash_prefix","transaction_hash","gas_used").map(ColumnName(_)):_*)
-    val genesis_transfers = cassandra.load[GenesisTransfer](conf.rawKeyspace(), "genesis_transfer")
+    val balanceTraces = cassandra.load[Trace](
+      conf.rawKeyspace(),
+      "trace",
+      Array("from_address", "to_address", "value", "status", "call_type").map(
+        ColumnName(_)
+      ): _*
+    )
+    val receipts = cassandra.load[Receipt](
+      conf.rawKeyspace(),
+      "receipt",
+      Array("transaction_hash_prefix", "transaction_hash", "gas_used").map(
+        ColumnName(_)
+      ): _*
+    )
+    val genesisTransfers =
+      cassandra.load[GenesisTransfer](conf.rawKeyspace(), "genesis_transfer")
 
     val transformation = new Transformation(spark, conf.bucketSize())
 
@@ -296,12 +307,17 @@ object TransformationJob {
       addressOutgoingRelationsSecondaryIds
     )
 
- println("Computing balances")
-    val balances = transformation.computeBalances(genesis_transfers, blocks, transactions,
-      balanceTraces, receipts)
+    println("Computing balances")
+    val balances = transformation.computeBalances(
+      genesisTransfers,
+      blocks,
+      transactions,
+      balanceTraces,
+      receipts
+    )
 
     val balancesByAddressPrefix = balances.toDF.transform(
-      transformation.withSortedPrefix[BalancesWithPrefix](
+      transformation.withSortedPrefix[BalanceWithPrefix](
         "address",
         "addressPrefix",
         conf.addressPrefixLength()
@@ -313,7 +329,6 @@ object TransformationJob {
       balancesByAddressPrefix
     )
     println("Number of balances: " + balancesByAddressPrefix.count())
-
 
     println("Computing summary statistics")
     val summaryStatistics =

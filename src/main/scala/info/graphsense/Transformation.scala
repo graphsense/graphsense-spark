@@ -11,7 +11,6 @@ import org.apache.spark.sql.functions.{
   count,
   countDistinct,
   date_format,
-  expr,
   floor,
   from_unixtime,
   hex,
@@ -177,7 +176,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
           "yyyy-MM-dd"
         )
       )
-      .select("blockNumber", "date")
+      .select("blockId", "date")
 
     val lastDateExchangeRates =
       exchangeRates.select(max(col("date"))).first.getString(0)
@@ -203,59 +202,73 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         )
       )
       .drop("date")
-      .sort("blockNumber")
-      .withColumnRenamed("blockNumber", "height")
+      .sort("blockId")
       .as[ExchangeRates]
   }
 
-  def computeBalances(genesisTransfer: Dataset[GenesisTransfer], blocks: Dataset[Block],
-                      transactions: Dataset[Transaction], traces: Dataset[BalanceTrace],
-                      receipts: Dataset[Receipt]): Dataset[Balances] = {
+  def computeBalances(
+      genesisTransfers: Dataset[GenesisTransfer],
+      blocks: Dataset[Block],
+      transactions: Dataset[Transaction],
+      traces: Dataset[Trace],
+      receipts: Dataset[Receipt]
+  ): Dataset[Balance] = {
 
-    val calltypes = Seq("delegatecall", "callcode", "staticcall")
-    val calltype_filter = (!col("callType").isin(calltypes:_*)) || col("callType").isNull
+    val callTypes = Seq("delegatecall", "callcode", "staticcall")
+    val callTypeFilter = (!col("callType").isin(callTypes: _*)) ||
+                         col("callType").isNull
 
     val debits = traces
-      .where(col("toAddress").isNotNull)
-      .where(col("status") === 1)
-      .where(calltype_filter)
+      .filter(col("toAddress").isNotNull)
+      .filter(col("status") === 1)
+      .filter(callTypeFilter)
       .select(col("toAddress").as("address"), col("value"))
 
     val credits = traces
-      .where(col("fromAddress").isNotNull)
-      .where(col("status") === 1)
-      .where(calltype_filter)
-      .withColumn("inverted_value", -col("value"))
-      .select(col("fromAddress").as("address"), col("inverted_value").as("value"))
+      .filter(col("fromAddress").isNotNull)
+      .filter(col("status") === 1)
+      .filter(callTypeFilter)
+      .withColumn("invertedValue", -col("value"))
+      .select(
+        col("fromAddress").as("address"),
+        col("invertedValue").as("value")
+      )
 
-    val tx_fee_debits = transactions
-      .join(blocks, "blockNumber")
-      .drop("gasUsed")  // to avoid duplicate column names
-      .join(receipts).where($"hash" === $"transactionHash")
-      .withColumn("calculated_value", expr("(gasUsed * gasPrice)"))
-      .groupBy("miner").agg(sum("calculated_value").as("value"))
+    val txFeeDebits = transactions
+      .join(blocks, "blockId")
+      .drop("gasUsed") // to avoid duplicate column names
+      .join(receipts)
+      .filter(col("hash") === col("transactionHash"))
+      .withColumn("calculatedValue", col("gasUsed") * col("gasPrice"))
+      .groupBy("miner")
+      .agg(sum("calculatedValue").as("value"))
       .select(col("miner").as("address"), col("value"))
 
-    val tx_fee_credits = transactions
-      .join(receipts).where($"hash" === $"transactionHash")
-      .withColumn("calculated_value", expr("-(gasUsed * gasPrice)"))
-      .select(col("fromAddress").as("address"), col("calculated_value").as("value"))
+    val txFeeCredits = transactions
+      .join(receipts)
+      .filter(col("hash") === col("transactionHash"))
+      .withColumn("calculatedValue", -col("gasUsed") * col("gasPrice"))
+      .select(
+        col("fromAddress").as("address"),
+        col("calculatedValue").as("value")
+      )
 
-    val rows = genesisTransfer.toDF().union(credits).union(debits)
-      .union(tx_fee_credits).union(tx_fee_debits)
-    //println(rows.explain(true))
-    //println(rows.queryExecution.sparkPlan)
+    val rows = genesisTransfers
+      .toDF
+      .union(credits)
+      .union(debits)
+      .union(txFeeCredits)
+      .union(txFeeDebits)
 
-    rows.groupBy("address").agg(sum("value").as("balance")).as[Balances]
-
+    rows.groupBy("address").agg(sum("value").as("balance")).as[Balance]
   }
 
   def computeTransactionIds(
       transactions: Dataset[Transaction]
   ): Dataset[TransactionId] = {
     transactions
-      .select("blockNumber", "transactionIndex", "hash")
-      .sort("blockNumber", "transactionIndex")
+      .select("blockId", "transactionIndex", "hash")
+      .sort("blockId", "transactionIndex")
       .select("hash")
       .map(_.getAs[Array[Byte]]("hash"))
       .rdd
@@ -270,14 +283,14 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
     val fromAddress = transactions
       .select(
         col("fromAddress").as("address"),
-        col("blockNumber"),
+        col("blockId"),
         col("transactionIndex")
       )
       .withColumn("isFromAddress", lit(true))
     val toAddress = transactions
       .select(
         col("toAddress").as("address"),
-        col("blockNumber"),
+        col("blockId"),
         col("transactionIndex")
       )
       .withColumn("isFromAddress", lit(false))
@@ -285,13 +298,13 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
 
     val orderWindow = Window
       .partitionBy("address")
-      .orderBy("blockNumber", "transactionIndex", "isFromAddress")
+      .orderBy("blockId", "transactionIndex", "isFromAddress")
 
     fromAddress
       .union(toAddress)
       .withColumn("rowNumber", row_number().over(orderWindow))
       .filter(col("rowNumber") === 1)
-      .sort("blockNumber", "transactionIndex", "isFromAddress")
+      .sort("blockId", "transactionIndex", "isFromAddress")
       .select("address")
       .map(_.getAs[Array[Byte]]("address"))
       .rdd
@@ -352,10 +365,9 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         "toAddress",
         "fromAddress"
       )
-      .withColumnRenamed("blockNumber", "height")
       .withColumnRenamed("fromAddressId", "srcAddressId")
       .withColumnRenamed("toAddressId", "dstAddressId")
-      .join(exchangeRates, Seq("height"), "left")
+      .join(exchangeRates, Seq("blockId"), "left")
       .transform(toFiatCurrency("value", "fiatValues"))
       .as[EncodedTransaction]
   }
@@ -365,15 +377,15 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       encodedTransactions: Dataset[EncodedTransaction]
   ): Dataset[BlockTransaction] = {
     encodedTransactions
-      .groupBy("height")
+      .groupBy("blockId")
       .agg(collect_list("transactionId").as("txs"))
       .join(
-        blocks.select(col("blockNumber").as("height")),
-        Seq("height"),
+        blocks.select(col("blockId")),
+        Seq("blockId"),
         "right"
       )
-      .transform(withIdGroup("height", "heightGroup"))
-      .sort("height")
+      .transform(withIdGroup("blockId", "blockIdGroup"))
+      .sort("blockId")
       .as[BlockTransaction]
   }
 
@@ -385,7 +397,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("srcAddressId").as("addressId"),
         col("transactionId"),
         col("value"),
-        col("height"),
+        col("blockId"),
         col("blockTimestamp")
       )
       .withColumn("value", -col("value"))
@@ -395,7 +407,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("dstAddressId").as("addressId"),
         col("transactionId"),
         col("value"),
-        col("height"),
+        col("blockId"),
         col("blockTimestamp")
       )
 
@@ -497,12 +509,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         "left"
       )
       .withColumnRenamed("value", "TotalReceived")
-    val txTimestamp = addressTransactions
-      .select(
-        col("transactionId"),
-        struct("height", "transactionId", "blockTimestamp")
-      )
-      .dropDuplicates()
 
     addressTransactions
       .groupBy("addressId")
@@ -510,17 +516,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         min(col("transactionId")).as("firstTxId"),
         max(col("transactionId")).as("lastTxId")
       )
-      .join(
-        txTimestamp.toDF("firstTxId", "firstTx"),
-        Seq("firstTxId"),
-        "left"
-      )
-      .join(
-        txTimestamp.toDF("lastTxId", "lastTx"),
-        Seq("lastTxId"),
-        "left"
-      )
-      .drop("firstTxId", "lastTxId")
       .join(
         inStats.withColumnRenamed("dstAddressId", "addressId"),
         Seq("addressId"),

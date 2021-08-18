@@ -10,12 +10,6 @@ CREATE TYPE currency (
     fiat_values list<float>
 );
 
-CREATE TYPE tx_id_time (
-    height int,
-    transaction_id int,
-    block_timestamp int
-);
-
 CREATE TYPE address_summary (
     total_received FROZEN <currency>,
     total_spent FROZEN <currency>
@@ -24,7 +18,7 @@ CREATE TYPE address_summary (
 // transformed schema
 
 CREATE TABLE exchange_rates (
-    height int PRIMARY KEY,
+    block_id int PRIMARY KEY,
     fiat_values list<float>
 );
 
@@ -57,10 +51,10 @@ CREATE TABLE address_ids_by_address_prefix (
 );
 
 CREATE TABLE block_transactions(
-    height_group int,
-    height int,
+    block_id_group int,
+    block_id int,
     txs list<int>,
-    PRIMARY KEY (height_group, height)
+    PRIMARY KEY (block_id_group, block_id)
 );
 
 CREATE TABLE address_transactions (
@@ -83,8 +77,8 @@ CREATE TABLE address (
     address blob,
     no_incoming_txs int,
     no_outgoing_txs int,
-    first_tx FROZEN <tx_id_time>,
-    last_tx FROZEN <tx_id_time>,
+    first_tx_id int,
+    last_tx_id int,
     total_received FROZEN <currency>,
     total_spent FROZEN <currency>,
     in_degree int,

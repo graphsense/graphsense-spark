@@ -88,12 +88,12 @@ class TransformationTest
         addressIds,
         exchangeRates
       )
-      .sort("height")
+      .sort("blockId")
       .persist()
 
   val blockTransactions = t
     .computeBlockTransactions(blocks, encodedTransactions)
-    .sort("height")
+    .sort("blockId")
 
   val addressTransactions = t
     .computeAddressTransactions(encodedTransactions)

@@ -3,8 +3,8 @@ CREATE KEYSPACE IF NOT EXISTS eth_raw
 USE eth_raw;
 
 CREATE TABLE block (
-    block_group int,
-    block_number int,
+    block_id_group int,
+    block_id int,
     block_hash blob,
     parent_hash blob,
     nonce blob,
@@ -22,7 +22,7 @@ CREATE TABLE block (
     gas_used int,
     timestamp int,
     transaction_count smallint,
-    PRIMARY KEY (block_group, number)
+    PRIMARY KEY (block_id_group, block_id)
 );
 
 CREATE TABLE transaction (
@@ -30,7 +30,7 @@ CREATE TABLE transaction (
     hash blob,
     nonce int,
     block_hash blob,
-    block_number int,
+    block_id int,
     transaction_index smallint,
     from_address blob,
     to_address blob,
@@ -40,6 +40,48 @@ CREATE TABLE transaction (
     input blob,
     block_timestamp int,
     PRIMARY KEY (hash_prefix, hash)
+);
+
+CREATE TABLE trace (
+    block_id_group int,
+    block_id int,
+    transaction_hash blob,
+    transaction_index smallint,
+    from_address blob,
+    to_address blob,
+    value varint,
+    input blob,
+    output blob,
+    trace_type text,
+    call_type text,
+    reward_type text,
+    gas int,
+    gas_used bigint,
+    subtraces smallint,
+    trace_address text,
+    error text,
+    status smallint,
+    trace_id text,
+    PRIMARY KEY (block_id_group, block_id, trace_id)
+);
+
+CREATE TABLE receipt (
+    transaction_hash_prefix text,
+    transaction_hash blob,
+    transaction_index smallint,
+    block_hash blob,
+    block_id int,
+    cumulative_gas_used int,
+    gas_used bigint,
+    contract_address blob,
+    root blob, // 32 bytes of post-transaction stateroot - pre Byzantium, before block 4_370_000
+    status smallint, // either 1 (success) or 0 (failure) - post Byzantium
+    PRIMARY KEY (transaction_hash_prefix, transaction_hash)
+);
+
+CREATE TABLE genesis_transfer (
+    address blob PRIMARY KEY,
+    value varint
 );
 
 CREATE TABLE exchange_rates (
