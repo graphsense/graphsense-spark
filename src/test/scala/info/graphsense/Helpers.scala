@@ -8,7 +8,7 @@ import org.apache.spark.sql.{
   SparkSession
 }
 import org.apache.spark.sql.catalyst.ScalaReflection.universe.TypeTag
-import org.apache.spark.sql.functions.{col, length, lit, udf}
+import org.apache.spark.sql.functions.{col, length, lit, udf, when}
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
 trait SparkSessionTestWrapper {
@@ -57,8 +57,11 @@ case object Helpers {
       .foldLeft(df) { (curDF, colName) =>
         curDF.withColumn(
           colName,
-          hexStringToByteArray(
-            col(colName).substr(lit(3), length(col(colName)) - 2)
+          when(
+            col(colName).isNotNull,
+            hexStringToByteArray(
+              col(colName).substr(lit(3), length(col(colName)) - 2)
+            )
           )
         )
       }
