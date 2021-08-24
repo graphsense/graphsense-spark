@@ -150,10 +150,10 @@ CREATE TABLE summary_statistics (
 );
 
 CREATE TABLE balance (
-    address_prefix text,
-    address blob,
+    address_id_group int,
+    address_id int,
     balance varint,
-    PRIMARY KEY (address_prefix, address)
+    PRIMARY KEY (address_id_group, address_id)
 );
 
 CREATE TABLE configuration (
