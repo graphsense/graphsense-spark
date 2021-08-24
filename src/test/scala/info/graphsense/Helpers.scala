@@ -9,7 +9,12 @@ import org.apache.spark.sql.{
 }
 import org.apache.spark.sql.catalyst.ScalaReflection.universe.TypeTag
 import org.apache.spark.sql.functions.{col, length, lit, udf, when}
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.sql.types.{
+  ArrayType,
+  StringType,
+  StructField,
+  StructType
+}
 
 trait SparkSessionTestWrapper {
 
@@ -70,14 +75,16 @@ case object Helpers {
 
   def setNullableStateForAllColumns[T](
       ds: Dataset[T],
-      nullable: Boolean = true
+      nullable: Boolean = true,
+      containsNull: Boolean = true
   ): DataFrame = {
     def set(st: StructType): StructType = {
       StructType(st.map {
         case StructField(name, dataType, _, metadata) =>
           val newDataType = dataType match {
-            case t: StructType => set(t)
-            case _             => dataType
+            case t: StructType          => set(t)
+            case ArrayType(dataType, _) => ArrayType(dataType, containsNull)
+            case _                      => dataType
           }
           StructField(name, newDataType, nullable = nullable, metadata)
       })
