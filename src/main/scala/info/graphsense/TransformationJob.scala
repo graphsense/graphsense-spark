@@ -4,6 +4,7 @@ import com.datastax.spark.connector.ColumnName
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.{col, lower, max}
 import org.rogach.scallop._
+
 import info.graphsense.storage.CassandraStorage
 
 object TransformationJob {
@@ -94,6 +95,7 @@ object TransformationJob {
       conf.rawKeyspace(),
       "trace",
       Array(
+        "block_id_group",
         "block_id",
         "trace_id",
         "from_address",
