@@ -84,6 +84,9 @@ case class Receipt(
 )
 
 case class Trace(
+    blockIdGroup: Int,
+    blockId: Int,
+    traceId: String,
     fromAddress: Option[Array[Byte]],
     toAddress: Option[Array[Byte]],
     value: BigInt,
@@ -112,17 +115,12 @@ case class AddressTagRaw(
 case class ExchangeRates(blockId: Int, fiatValues: Seq[Float])
 
 case class GenesisTransfer(
+    addressId: Int,
     address: Array[Byte],
     value: BigInt
 )
 
-case class Balance(address: Array[Byte], balance: BigInt)
-
-case class BalanceWithPrefix(
-    addressPrefix: String,
-    address: Array[Byte],
-    balance: BigInt
-)
+case class Balance(addressIdGroup: Int, addressId: Int, balance: BigInt)
 
 case class BlockTransaction(blockIdGroup: Int, blockId: Int, txs: Seq[Int])
 

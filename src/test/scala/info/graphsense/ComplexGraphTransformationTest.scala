@@ -34,7 +34,11 @@ class ComplexGraphTransformationTest
     spark,
     inDir + "test_transactions_complex.csv"
   )
+  private val traces = readTestData[Trace](spark, inDir + "test_traces.csv")
+  private val genesisTransfers =
+    readTestData[GenesisTransfer](spark, inDir + "genesis_transfers.csv")
   private val blocks = readTestData[Block](spark, inDir + "test_blocks.csv")
+
   private val exchangeRatesRaw =
     readTestData[ExchangeRatesRaw](spark, inDir + "test_exchange_rates.json")
 
@@ -45,7 +49,7 @@ class ComplexGraphTransformationTest
   private val exchangeRates =
     t.computeExchangeRates(blocks, exchangeRatesRaw).persist()
   private val txIds = t.computeTransactionIds(txs)
-  private val addressIds = t.computeAddressIds(txs)
+  private val addressIds = t.computeAddressIds(genesisTransfers, traces)
   private val encodedTxs =
     t.computeEncodedTransactions(txs, txIds, addressIds, exchangeRates)
   private val addressTransactions = t.computeAddressTransactions(encodedTxs)
@@ -86,7 +90,7 @@ class ComplexGraphTransformationTest
     assert(blocks.count.toInt == 84, "expected 84 blocks")
     assert(lastBlockTimestamp == 1438919571)
     assert(txs.count() == 10, "expected 10 transaction")
-    assert(addressIds.count() == 7, "expected 7 addresses")
+    assert(addressIds.count() == 59, "expected 59 addresses")
     assert(addressRelations.count() == 9, "expected 9 address relations")
   }
 

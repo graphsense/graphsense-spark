@@ -36,6 +36,9 @@ class TransformationTest
   val blocks = readTestData[Block](spark, inputDir + "test_blocks.csv")
   val transactions =
     readTestData[Transaction](spark, inputDir + "test_transactions.csv")
+  val traces = readTestData[Trace](spark, inputDir + "test_traces.csv")
+  val genesisTransfers =
+    readTestData[GenesisTransfer](spark, inputDir + "genesis_transfers.csv")
   val exchangeRatesRaw =
     readTestData[ExchangeRatesRaw](spark, inputDir + "test_exchange_rates.json")
   val attributionTags =
@@ -72,14 +75,18 @@ class TransformationTest
       )
     )
 
-  val addressIds = t.computeAddressIds(transactions)
+  val addressIds = t
+    .computeAddressIds(genesisTransfers, traces)
+    .sort("addressId")
   val addressIdsByAddressPrefix =
-    addressIds.toDF.transform(
-      t.withSortedPrefix[AddressIdByAddressPrefix](
-        "address",
-        "addressPrefix"
+    addressIds.toDF
+      .transform(
+        t.withSortedPrefix[AddressIdByAddressPrefix](
+          "address",
+          "addressPrefix"
+        )
       )
-    )
+      .sort("addressId")
 
   val encodedTransactions =
     t.computeEncodedTransactions(
@@ -239,7 +246,7 @@ class TransformationTest
     assert(blocks.count.toInt == 84, "expected 84 blocks")
     assert(lastBlockTimestamp == 1438919571)
     assert(transactions.count() == 10, "expected 10 transaction")
-    assert(addressIds.count() == 15, "expected 15 addresses")
+    assert(addressIds.count() == 59, "expected 15 addresses")
     assert(addressRelations.count() == 9, "expected 9 address relations")
   }
 }

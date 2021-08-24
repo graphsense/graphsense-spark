@@ -22,13 +22,6 @@ CREATE TABLE exchange_rates (
     fiat_values list<float>
 );
 
-CREATE TABLE balances (
-    address_prefix text,
-    address blob,
-    balance varint,
-    PRIMARY KEY (address_prefix, address)
-);
-
 CREATE TABLE transaction_ids_by_transaction_id_group (
     transaction_id_group int,
     transaction_id int,
@@ -154,6 +147,13 @@ CREATE TABLE summary_statistics (
     no_addresses bigint,
     no_address_relations bigint,
     no_tags bigint
+);
+
+CREATE TABLE balance (
+    address_prefix text,
+    address blob,
+    balance varint,
+    PRIMARY KEY (address_prefix, address)
 );
 
 CREATE TABLE configuration (

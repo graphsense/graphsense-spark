@@ -90,10 +90,18 @@ object TransformationJob {
       cassandra.load[Transaction](conf.rawKeyspace(), "transaction")
     val tagsRaw = cassandra
       .load[AddressTagRaw](conf.tagKeyspace(), "address_tag_by_address")
-    val balanceTraces = cassandra.load[Trace](
+    val traces = cassandra.load[Trace](
       conf.rawKeyspace(),
       "trace",
-      Array("from_address", "to_address", "value", "status", "call_type").map(
+      Array(
+        "block_id",
+        "trace_id",
+        "from_address",
+        "to_address",
+        "value",
+        "status",
+        "call_type"
+      ).map(
         ColumnName(_)
       ): _*
     )
@@ -171,7 +179,7 @@ object TransformationJob {
     )
 
     println("Computing address IDs")
-    val addressIds = transformation.computeAddressIds(transactions)
+    val addressIds = transformation.computeAddressIds(genesisTransfers, traces)
     val noAddresses = addressIds.count()
     val addressIdsByAddressPrefix =
       addressIds.toDF.transform(
@@ -312,23 +320,12 @@ object TransformationJob {
       genesisTransfers,
       blocks,
       transactions,
-      balanceTraces,
-      receipts
+      traces,
+      receipts,
+      addressIds
     )
-
-    val balancesByAddressPrefix = balances.toDF.transform(
-      transformation.withSortedPrefix[BalanceWithPrefix](
-        "address",
-        "addressPrefix",
-        conf.addressPrefixLength()
-      )
-    )
-    cassandra.store(
-      conf.targetKeyspace(),
-      "balances",
-      balancesByAddressPrefix
-    )
-    println("Number of balances: " + balancesByAddressPrefix.count())
+    cassandra.store(conf.targetKeyspace(), "balance", balances)
+    println("Number of balances: " + balances.count())
 
     println("Computing summary statistics")
     val summaryStatistics =

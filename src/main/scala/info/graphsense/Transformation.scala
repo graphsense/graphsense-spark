@@ -211,12 +211,13 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       blocks: Dataset[Block],
       transactions: Dataset[Transaction],
       traces: Dataset[Trace],
-      receipts: Dataset[Receipt]
+      receipts: Dataset[Receipt],
+      addressIds: Dataset[AddressId]
   ): Dataset[Balance] = {
 
     val callTypes = Seq("delegatecall", "callcode", "staticcall")
     val callTypeFilter = (!col("callType").isin(callTypes: _*)) ||
-                         col("callType").isNull
+      col("callType").isNull
 
     val debits = traces
       .filter(col("toAddress").isNotNull)
@@ -253,14 +254,18 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("calculatedValue").as("value")
       )
 
-    val rows = genesisTransfers
-      .toDF
-      .union(credits)
-      .union(debits)
-      .union(txFeeCredits)
-      .union(txFeeDebits)
+    val rows =
+      Seq(credits, debits, txFeeCredits, txFeeDebits)
+        .reduce(_ union _)
+        .join(addressIds, Seq("address"), "full")
+        .drop("address")
+        .unionByName(genesisTransfers.drop("address"))
 
-    rows.groupBy("address").agg(sum("value").as("balance")).as[Balance]
+    rows
+      .groupBy("addressId")
+      .agg(sum("value").as("balance"))
+      .transform(withSortedIdGroup[Balance]("addressId", "addressIdGroup"))
+      .as[Balance]
   }
 
   def computeTransactionIds(
@@ -278,39 +283,56 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
   }
 
   def computeAddressIds(
-      transactions: Dataset[Transaction]
+      genesisTransfers: Dataset[GenesisTransfer],
+      traces: Dataset[Trace]
   ): Dataset[AddressId] = {
-    val fromAddress = transactions
+
+    val nextAddressId = genesisTransfers
+      .select(max(col("addressId")))
+      .first
+      .getInt(0) + 1
+
+    val fromAddress = traces
       .select(
         col("fromAddress").as("address"),
         col("blockId"),
-        col("transactionIndex")
+        col("traceId")
       )
       .withColumn("isFromAddress", lit(true))
-    val toAddress = transactions
+      .join(genesisTransfers, Seq("address"), "left_anti") // remove genesis addresses
+      .filter(col("address").isNotNull)
+
+    val toAddress = traces
       .select(
         col("toAddress").as("address"),
         col("blockId"),
-        col("transactionIndex")
+        col("traceId")
       )
       .withColumn("isFromAddress", lit(false))
+      .join(genesisTransfers, Seq("address"), "left_anti") // remove genesis addresses
       .filter(col("address").isNotNull)
 
     val orderWindow = Window
       .partitionBy("address")
-      .orderBy("blockId", "transactionIndex", "isFromAddress")
+      .orderBy("blockId", "traceId", "isFromAddress")
 
-    fromAddress
+    val addressIdsFromTraces = fromAddress
       .union(toAddress)
       .withColumn("rowNumber", row_number().over(orderWindow))
       .filter(col("rowNumber") === 1)
-      .sort("blockId", "transactionIndex", "isFromAddress")
+      .sort("blockId", "traceId", "isFromAddress")
       .select("address")
       .map(_.getAs[Array[Byte]]("address"))
       .rdd
       .zipWithIndex()
       .map { case ((a, id)) => AddressId(a, id.toInt) }
       .toDS()
+      .withColumn("addressId", col("addressId") + nextAddressId)
+
+    genesisTransfers.select("address", "addressId")
+      .sort("addressId")
+      .union(addressIdsFromTraces)
+      .as[AddressId]
   }
 
   def computeEncodedTransactions(
