@@ -24,7 +24,8 @@ class BalancesTest
     )
   }
 
-  private val inDir = "src/test/resources/"
+  private val inputDir = "src/test/resources/complex_graph/"
+  private val refDir = inputDir + "reference/"
 
   private val t = new Transformation(spark, 2)
 
@@ -33,12 +34,12 @@ class BalancesTest
   test("with mining activities and two unsuccessful transactions") {
     // two transactions did not succeed (signalled by invalid calltype, or status 0)
 
-    val blocks =
-      readTestData[Block](spark, inDir + "balance_blocks_with_miner.csv")
+    val blocks = readTestData[Block](spark, inputDir + "test_blocks.csv")
     val tx =
-      readTestData[Transaction](spark, inDir + "test_transactions_complex.csv")
-    val traces = readTestData[Trace](spark, inDir + "balance_traces.csv")
-    val receipts = readTestData[Receipt](spark, inDir + "receipts.csv")
+      readTestData[Transaction](spark, inputDir + "test_transactions.csv")
+    val traces = readTestData[Trace](spark, inputDir + "balance_traces.csv")
+    val receipts =
+      readTestData[Receipt](spark, inputDir + "balance_receipts.csv")
 
     val addressIds = t.computeAddressIds(traces)
     val balances =
@@ -50,10 +51,10 @@ class BalancesTest
           addressIds
         )
         .sort(col("addressId"))
-    val expected =
-      readTestData[Balance](spark, inDir + "reference_complex/balances.csv")
+    val balancesRef =
+      readTestData[Balance](spark, refDir + "balances.csv")
 
-    assertDataFrameEquality(balances, expected)
+    assertDataFrameEquality(balances, balancesRef)
   }
 
 }

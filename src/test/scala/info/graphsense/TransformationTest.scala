@@ -27,11 +27,8 @@ class TransformationTest
   spark.sparkContext.setLogLevel("WARN")
   import spark.implicits._
 
-  val inputDir = "src/test/resources/"
-  val refDir = "src/test/resources/reference/"
-
-  val bucketSize: Int = 2
-  val prefixLength: Int = 4
+  private val inputDir = "src/test/resources/simple_graph/"
+  private val refDir = inputDir + "reference/"
 
   // input data
   val blocks = readTestData[Block](spark, inputDir + "test_blocks.csv")
@@ -52,7 +49,7 @@ class TransformationTest
 
   // transformation pipeline
 
-  val t = new Transformation(spark, bucketSize)
+  private val t = new Transformation(spark, 2)
 
   val exchangeRates =
     t.computeExchangeRates(blocks, exchangeRatesRaw)

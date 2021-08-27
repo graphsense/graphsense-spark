@@ -28,37 +28,36 @@ class ComplexGraphTransformationTest
 
   import spark.implicits._
 
-  private val inDir = "src/test/resources/"
-  private val refDir = "src/test/resources/reference_complex/"
+  private val inputDir = "src/test/resources/complex_graph/"
+  private val refDir = inputDir + "reference/"
 
-  private val txs = readTestData[Transaction](
-    spark,
-    inDir + "test_transactions_complex.csv"
-  )
-  private val traces = readTestData[Trace](spark, inDir + "test_traces.csv")
-  private val blocks = readTestData[Block](spark, inDir + "balance_blocks_with_miner.csv")
+  val txs =
+    readTestData[Transaction](spark, inputDir + "test_transactions.csv")
+  val traces = readTestData[Trace](spark, inputDir + "test_traces.csv")
+  val blocks =
+    readTestData[Block](spark, inputDir + "test_blocks.csv")
 
-  private val exchangeRatesRaw =
-    readTestData[ExchangeRatesRaw](spark, inDir + "test_exchange_rates.json")
+  val exchangeRatesRaw =
+    readTestData[ExchangeRatesRaw](spark, inputDir + "test_exchange_rates.json")
 
-  private val bucketSize = 2
+  // transformation pipeline
 
-  private val t = new Transformation(spark, bucketSize)
+  private val t = new Transformation(spark, 2)
 
-  private val exchangeRates =
+  val exchangeRates =
     t.computeExchangeRates(blocks, exchangeRatesRaw).persist()
-  private val txIds = t.computeTransactionIds(txs)
-  private val addressIds = t.computeAddressIds(traces)
-  private val encodedTxs =
+  val txIds = t.computeTransactionIds(txs)
+  val addressIds = t.computeAddressIds(traces)
+  val encodedTxs =
     t.computeEncodedTransactions(txs, txIds, addressIds, exchangeRates)
-  private val addressTransactions = t.computeAddressTransactions(encodedTxs)
-  private val addresses =
+  val addressTransactions = t.computeAddressTransactions(encodedTxs)
+  val addresses =
     t.computeAddresses(encodedTxs, addressTransactions, addressIds).persist()
-  private val addressTags = spark.emptyDataset[AddressTag]
-  private val addressRelations = t
+  val addressTags = spark.emptyDataset[AddressTag]
+  val addressRelations = t
     .computeAddressRelations(encodedTxs, addressTags)
     .sort("srcAddressId", "dstAddressId")
-  private val lastBlockTimestamp = blocks
+  val lastBlockTimestamp = blocks
     .select(max(col("timestamp")))
     .first
     .getInt(0)
