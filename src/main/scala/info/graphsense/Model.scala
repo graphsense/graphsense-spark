@@ -114,12 +114,6 @@ case class AddressTagRaw(
 
 case class ExchangeRates(blockId: Int, fiatValues: Seq[Float])
 
-case class GenesisTransfer(
-    addressId: Int,
-    address: Array[Byte],
-    value: BigInt
-)
-
 case class Balance(addressIdGroup: Int, addressId: Int, balance: BigInt)
 
 case class BlockTransaction(blockIdGroup: Int, blockId: Int, txs: Seq[Int])

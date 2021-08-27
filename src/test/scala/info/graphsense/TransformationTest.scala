@@ -1,10 +1,11 @@
 package info.graphsense
 
-import Helpers.{readTestData, setNullableStateForAllColumns}
 import com.github.mrpowers.spark.fast.tests.DataFrameComparer
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.{col, lower, max}
 import org.scalatest.funsuite._
+
+import Helpers.{readTestData, setNullableStateForAllColumns}
 
 class TransformationTest
     extends AnyFunSuite
@@ -37,8 +38,6 @@ class TransformationTest
   val transactions =
     readTestData[Transaction](spark, inputDir + "test_transactions.csv")
   val traces = readTestData[Trace](spark, inputDir + "test_traces.csv")
-  val genesisTransfers =
-    readTestData[GenesisTransfer](spark, inputDir + "genesis_transfers.csv")
   val exchangeRatesRaw =
     readTestData[ExchangeRatesRaw](spark, inputDir + "test_exchange_rates.json")
   val attributionTags =
@@ -76,7 +75,7 @@ class TransformationTest
     )
 
   val addressIds = t
-    .computeAddressIds(genesisTransfers, traces)
+    .computeAddressIds(traces)
     .sort("addressId")
   val addressIdsByAddressPrefix =
     addressIds.toDF

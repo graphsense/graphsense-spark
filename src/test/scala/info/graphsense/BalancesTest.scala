@@ -33,10 +33,6 @@ class BalancesTest
   test("with mining activities and two unsuccessful transactions") {
     // two transactions did not succeed (signalled by invalid calltype, or status 0)
 
-    val genesisTransfers = readTestData[GenesisTransfer](
-      spark,
-      inDir + "balance_genesis_transfers.csv"
-    )
     val blocks =
       readTestData[Block](spark, inDir + "balance_blocks_with_miner.csv")
     val tx =
@@ -44,10 +40,9 @@ class BalancesTest
     val traces = readTestData[Trace](spark, inDir + "balance_traces.csv")
     val receipts = readTestData[Receipt](spark, inDir + "receipts.csv")
 
-    val addressIds = t.computeAddressIds(genesisTransfers, traces)
+    val addressIds = t.computeAddressIds(traces)
     val balances =
       t.computeBalances(
-          genesisTransfers,
           blocks,
           tx,
           traces,

@@ -207,7 +207,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
   }
 
   def computeBalances(
-      genesisTransfers: Dataset[GenesisTransfer],
       blocks: Dataset[Block],
       transactions: Dataset[Transaction],
       traces: Dataset[Trace],
@@ -236,7 +235,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
 
     val txFeeDebits = transactions
-      .join(blocks, "blockId")
+      .join(blocks, Seq("blockId"), "inner")
       .drop("gasUsed") // to avoid duplicate column names
       .join(receipts)
       .filter(col("hash") === col("transactionHash"))
@@ -257,9 +256,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
     val rows =
       Seq(credits, debits, txFeeCredits, txFeeDebits)
         .reduce(_ union _)
-        .join(addressIds, Seq("address"), "full")
+        .join(addressIds, Seq("address"), "left")
         .drop("address")
-        .unionByName(genesisTransfers.drop("address"))
 
     rows
       .groupBy("addressId")
@@ -283,14 +281,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
   }
 
   def computeAddressIds(
-      genesisTransfers: Dataset[GenesisTransfer],
       traces: Dataset[Trace]
   ): Dataset[AddressId] = {
-
-    val nextAddressId = genesisTransfers
-      .select(max(col("addressId")))
-      .first
-      .getInt(0) + 1
 
     val fromAddress = traces
       .select(
@@ -299,7 +291,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("traceId")
       )
       .withColumn("isFromAddress", lit(true))
-      .join(genesisTransfers, Seq("address"), "left_anti") // remove genesis addresses
       .filter(col("address").isNotNull)
 
     val toAddress = traces
@@ -309,14 +300,13 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("traceId")
       )
       .withColumn("isFromAddress", lit(false))
-      .join(genesisTransfers, Seq("address"), "left_anti") // remove genesis addresses
       .filter(col("address").isNotNull)
 
     val orderWindow = Window
       .partitionBy("address")
       .orderBy("blockId", "traceId", "isFromAddress")
 
-    val addressIdsFromTraces = fromAddress
+    fromAddress
       .union(toAddress)
       .withColumn("rowNumber", row_number().over(orderWindow))
       .filter(col("rowNumber") === 1)
@@ -327,12 +317,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .zipWithIndex()
       .map { case ((a, id)) => AddressId(a, id.toInt) }
       .toDS()
-      .withColumn("addressId", col("addressId") + nextAddressId)
-
-    genesisTransfers.select("address", "addressId")
-      .sort("addressId")
-      .union(addressIdsFromTraces)
-      .as[AddressId]
   }
 
   def computeEncodedTransactions(

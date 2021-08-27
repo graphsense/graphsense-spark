@@ -114,8 +114,6 @@ object TransformationJob {
         ColumnName(_)
       ): _*
     )
-    val genesisTransfers =
-      cassandra.load[GenesisTransfer](conf.rawKeyspace(), "genesis_transfer")
 
     val transformation = new Transformation(spark, conf.bucketSize())
 
@@ -181,7 +179,7 @@ object TransformationJob {
     )
 
     println("Computing address IDs")
-    val addressIds = transformation.computeAddressIds(genesisTransfers, traces)
+    val addressIds = transformation.computeAddressIds(traces)
     val noAddresses = addressIds.count()
     val addressIdsByAddressPrefix =
       addressIds.toDF.transform(
@@ -319,7 +317,6 @@ object TransformationJob {
 
     println("Computing balances")
     val balances = transformation.computeBalances(
-      genesisTransfers,
       blocks,
       transactions,
       traces,

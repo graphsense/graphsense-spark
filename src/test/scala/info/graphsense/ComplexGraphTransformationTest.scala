@@ -1,10 +1,11 @@
 package info.graphsense
 
-import Helpers.{readTestData, setNullableStateForAllColumns}
 import com.github.mrpowers.spark.fast.tests.DataFrameComparer
 import org.apache.spark.sql.{Column, Dataset}
 import org.apache.spark.sql.functions.{col, max}
 import org.scalatest.funsuite.AnyFunSuite
+
+import Helpers.{readTestData, setNullableStateForAllColumns}
 
 class ComplexGraphTransformationTest
     extends AnyFunSuite
@@ -35,9 +36,7 @@ class ComplexGraphTransformationTest
     inDir + "test_transactions_complex.csv"
   )
   private val traces = readTestData[Trace](spark, inDir + "test_traces.csv")
-  private val genesisTransfers =
-    readTestData[GenesisTransfer](spark, inDir + "genesis_transfers.csv")
-  private val blocks = readTestData[Block](spark, inDir + "test_blocks.csv")
+  private val blocks = readTestData[Block](spark, inDir + "balance_blocks_with_miner.csv")
 
   private val exchangeRatesRaw =
     readTestData[ExchangeRatesRaw](spark, inDir + "test_exchange_rates.json")
@@ -49,7 +48,7 @@ class ComplexGraphTransformationTest
   private val exchangeRates =
     t.computeExchangeRates(blocks, exchangeRatesRaw).persist()
   private val txIds = t.computeTransactionIds(txs)
-  private val addressIds = t.computeAddressIds(genesisTransfers, traces)
+  private val addressIds = t.computeAddressIds(traces)
   private val encodedTxs =
     t.computeEncodedTransactions(txs, txIds, addressIds, exchangeRates)
   private val addressTransactions = t.computeAddressTransactions(encodedTxs)
@@ -87,7 +86,7 @@ class ComplexGraphTransformationTest
   }
 
   test("Check statistics") {
-    assert(blocks.count.toInt == 84, "expected 84 blocks")
+    assert(blocks.count.toInt == 10, "expected 10 blocks")
     assert(lastBlockTimestamp == 1438919571)
     assert(txs.count() == 10, "expected 10 transaction")
     assert(addressIds.count() == 59, "expected 59 addresses")
