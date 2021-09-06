@@ -107,13 +107,6 @@ object TransformationJob {
         ColumnName(_)
       ): _*
     )
-    val receipts = cassandra.load[Receipt](
-      conf.rawKeyspace(),
-      "receipt",
-      Array("transaction_hash_prefix", "transaction_hash", "gas_used").map(
-        ColumnName(_)
-      ): _*
-    )
 
     val transformation = new Transformation(spark, conf.bucketSize())
 
@@ -320,7 +313,6 @@ object TransformationJob {
       blocks,
       transactions,
       traces,
-      receipts,
       addressIds
     )
     cassandra.store(conf.targetKeyspace(), "balance", balances)

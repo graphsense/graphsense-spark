@@ -62,8 +62,8 @@ case class Block(
 )
 
 case class Transaction(
-    hashPrefix: String,
-    hash: Array[Byte],
+    txHashPrefix: String,
+    txHash: Array[Byte],
     nonce: Int,
     blockHash: Array[Byte],
     blockId: Int,
@@ -74,13 +74,8 @@ case class Transaction(
     gas: Int,
     gasPrice: Long,
     input: Array[Byte],
-    blockTimestamp: Int
-)
-
-case class Receipt(
-    transactionHashPrefix: String,
-    transactionHash: Array[Byte],
-    gasUsed: Int
+    blockTimestamp: Int,
+    receiptGasUsed: Long
 )
 
 case class Trace(

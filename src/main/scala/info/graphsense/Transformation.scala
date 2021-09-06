@@ -210,12 +210,11 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       blocks: Dataset[Block],
       transactions: Dataset[Transaction],
       traces: Dataset[Trace],
-      receipts: Dataset[Receipt],
       addressIds: Dataset[AddressId]
   ): Dataset[Balance] = {
 
-    val callTypes = Seq("delegatecall", "callcode", "staticcall")
-    val callTypeFilter = (!col("callType").isin(callTypes: _*)) ||
+    val excludedCallTypes = Seq("delegatecall", "callcode", "staticcall")
+    val callTypeFilter = (!col("callType").isin(excludedCallTypes: _*)) ||
       col("callType").isNull
 
     val debits = traces
@@ -236,18 +235,13 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
 
     val txFeeDebits = transactions
       .join(blocks, Seq("blockId"), "inner")
-      .drop("gasUsed") // to avoid duplicate column names
-      .join(receipts)
-      .filter(col("hash") === col("transactionHash"))
-      .withColumn("calculatedValue", col("gasUsed") * col("gasPrice"))
+      .withColumn("calculatedValue", col("receiptGasUsed") * col("gasPrice"))
       .groupBy("miner")
       .agg(sum("calculatedValue").as("value"))
       .select(col("miner").as("address"), col("value"))
 
     val txFeeCredits = transactions
-      .join(receipts)
-      .filter(col("hash") === col("transactionHash"))
-      .withColumn("calculatedValue", -col("gasUsed") * col("gasPrice"))
+      .withColumn("calculatedValue", -col("receiptGasUsed") * col("gasPrice"))
       .select(
         col("fromAddress").as("address"),
         col("calculatedValue").as("value")
@@ -270,10 +264,10 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       transactions: Dataset[Transaction]
   ): Dataset[TransactionId] = {
     transactions
-      .select("blockId", "transactionIndex", "hash")
+      .select("blockId", "transactionIndex", "txhash")
       .sort("blockId", "transactionIndex")
-      .select("hash")
-      .map(_.getAs[Array[Byte]]("hash"))
+      .select("txHash")
+      .map(_.getAs[Array[Byte]]("txHash"))
       .rdd
       .zipWithIndex()
       .map { case ((tx, id)) => TransactionId(tx, id.toInt) }
@@ -342,7 +336,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
     }
     transactions
-      .withColumnRenamed("hash", "transaction")
+      .withColumnRenamed("txHash", "transaction")
       .join(
         transactionsIds,
         Seq("transaction"),
@@ -366,10 +360,11 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
       .drop(
         "blockHash",
-        "hashPrefix",
+        "txHashPrefix",
         "transaction",
         "toAddress",
-        "fromAddress"
+        "fromAddress",
+        "receiptGasUsed"
       )
       .withColumnRenamed("fromAddressId", "srcAddressId")
       .withColumnRenamed("toAddressId", "dstAddressId")

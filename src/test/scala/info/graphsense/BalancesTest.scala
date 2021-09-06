@@ -24,7 +24,7 @@ class BalancesTest
     )
   }
 
-  private val inputDir = "src/test/resources/complex_graph/"
+  private val inputDir = "src/test/resources/balance/"
   private val refDir = inputDir + "reference/"
 
   private val t = new Transformation(spark, 2)
@@ -34,12 +34,10 @@ class BalancesTest
   test("with mining activities and two unsuccessful transactions") {
     // two transactions did not succeed (signalled by invalid calltype, or status 0)
 
-    val blocks = readTestData[Block](spark, inputDir + "test_blocks.csv")
+    val blocks = readTestData[Block](spark, inputDir + "balance_blocks.csv")
     val tx =
-      readTestData[Transaction](spark, inputDir + "test_transactions.csv")
+      readTestData[Transaction](spark, inputDir + "balance_transactions.csv")
     val traces = readTestData[Trace](spark, inputDir + "balance_traces.csv")
-    val receipts =
-      readTestData[Receipt](spark, inputDir + "balance_receipts.csv")
 
     val addressIds = t.computeAddressIds(traces)
     val balances =
@@ -47,7 +45,6 @@ class BalancesTest
           blocks,
           tx,
           traces,
-          receipts,
           addressIds
         )
         .sort(col("addressId"))

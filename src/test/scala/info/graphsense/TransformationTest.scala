@@ -184,12 +184,12 @@ class TransformationTest
   }
 
   test("Encoded transactions") {
-    val encTransactionsRef =
+    val encodedTransactionsRef =
       readTestData[EncodedTransaction](
         spark,
         refDir + "encoded_transactions.json"
       )
-    assertDataFrameEquality(encodedTransactions, encTransactionsRef)
+    assertDataFrameEquality(encodedTransactions, encodedTransactionsRef)
   }
 
   note("Test blocks")

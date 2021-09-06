@@ -1,4 +1,4 @@
-block_id_group,block_id,transaction_hash,transaction_index,from_address,to_address,value,input,output,trace_type,call_type,reward_type,gas,gas_used,subtraces,trace_address,error,status,trace_id
+block_id_group,block_id,tx_hash,transaction_index,from_address,to_address,value,input,output,trace_type,call_type,reward_type,gas,gas_used,subtraces,trace_address,error,status,trace_id
 0,46147,0x5c504ed432cb51138bcf09aa5e8a410dd4a1e204ef84bfed1be16dfba1b22060,0,0xa1e4380a3b1f749673e270229993ee55f35663b4,0x5df9b87991262f6ba471f09758cde1c0fc1de734,31337,0x,0x,call,call,,0,0,0,,,1,call_0x5c504ed432cb51138bcf09aa5e8a410dd4a1e204ef84bfed1be16dfba1b22060_
 0,46147,,,,0xe6a7a1d47ff21b6321162aea7c6cb457d5476bca,5000000000000000000,,,reward,,block,,,0,,,1,reward_46147_0
 0,46148,,,,0xf32866d5ce9a9b5673e076be48abcd6ed48ade78,5000000000000000000,,,reward,,block,,,0,,,1,reward_46148_0
