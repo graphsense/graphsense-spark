@@ -172,7 +172,7 @@ object TransformationJob {
     )
 
     println("Computing address IDs")
-    val addressIds = transformation.computeAddressIds(traces)
+    val addressIds = transformation.computeAddressIds(traces).persist()
     val noAddresses = addressIds.count()
     val addressIdsByAddressPrefix =
       addressIds.toDF.transform(
