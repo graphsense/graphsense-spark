@@ -99,7 +99,6 @@ CREATE TABLE address_incoming_relations (
     has_src_labels boolean,
     no_transactions int,
     value FROZEN <currency>,
-    transaction_ids list<int>,
     PRIMARY KEY ((dst_address_id_group, dst_address_id_secondary_group), dst_address_id, src_address_id)
 );
 
@@ -116,7 +115,6 @@ CREATE TABLE address_outgoing_relations (
     has_dst_labels boolean,
     no_transactions int,
     value frozen <currency>,
-    transaction_ids list<int>,
     PRIMARY KEY ((src_address_id_group, src_address_id_secondary_group), src_address_id, dst_address_id)
 );
 

@@ -7,7 +7,6 @@ import org.apache.spark.sql.functions.{
   coalesce,
   col,
   collect_list,
-  collect_set,
   count,
   countDistinct,
   date_format,
@@ -30,8 +29,7 @@ import org.apache.spark.sql.functions.{
   to_date,
   typedLit,
   unix_timestamp,
-  upper,
-  when
+  upper
 }
 import org.apache.spark.sql.types.{DecimalType, FloatType, IntegerType}
 
@@ -250,6 +248,9 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
     val rows =
       Seq(credits, debits, txFeeCredits, txFeeDebits)
         .reduce(_ union _)
+        .coalesce(
+          spark.conf.getOption("spark.sql.shuffle.partitions").get.toInt
+        )
         .join(addressIds, Seq("address"), "left")
         .drop("address")
 
@@ -539,8 +540,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
 
   def computeAddressRelations(
       encodedTransactions: Dataset[EncodedTransaction],
-      addressTags: Dataset[AddressTag],
-      transactionLimit: Int = 100
+      addressTags: Dataset[AddressTag]
   ): Dataset[AddressRelation] = {
 
     val aggValues = encodedTransactions.toDF.transform(
@@ -569,9 +569,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       // aggregate to number of transactions and list of transaction ids
       .agg(
         min("noTransactions").as("noTransactions"),
-        collect_set(
-          when(col("noTransactions") <= transactionLimit, col("transactionId"))
-        ).as("transactionIds")
       )
       // join aggregated currency values
       .join(
