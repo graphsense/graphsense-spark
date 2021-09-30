@@ -403,6 +403,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("blockTimestamp")
       )
       .withColumn("value", -col("value"))
+      .withColumn("isOutgoing", lit(true))
     val outputs = encodedTransactions
       .filter(col("dstAddressId").isNotNull)
       .select(
@@ -412,6 +413,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("blockId"),
         col("blockTimestamp")
       )
+      .withColumn("isOutgoing", lit(false))
 
     inputs
       .union(outputs)

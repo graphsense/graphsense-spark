@@ -56,7 +56,8 @@ CREATE TABLE address_transactions (
     address_id int,
     transaction_id int,
     value varint,
-    PRIMARY KEY ((address_id_group, address_id_secondary_group), address_id, transaction_id)
+    is_outgoing boolean,
+    PRIMARY KEY ((address_id_group, address_id_secondary_group), address_id, is_outgoing, transaction_id)
 );
 
 CREATE TABLE address_transactions_secondary_ids (
