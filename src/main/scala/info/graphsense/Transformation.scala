@@ -248,9 +248,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
     val rows =
       Seq(credits, debits, txFeeCredits, txFeeDebits)
         .reduce(_ union _)
-        .coalesce(
-          spark.conf.getOption("spark.sql.shuffle.partitions").get.toInt
-        )
         .join(addressIds, Seq("address"), "left")
         .drop("address")
 
