@@ -188,6 +188,18 @@ object TransformationJob {
       addressIdsByAddressPrefix
     )
 
+    println("Computing balances")
+    val balances = transformation
+      .computeBalances(
+        blocks,
+        transactions,
+        traces,
+        addressIds
+      )
+      .persist()
+    cassandra.store(conf.targetKeyspace(), "balance", balances)
+    println("Number of balances: " + balances.count())
+
     println("Encoding transactions")
     val encodedTransactions =
       transformation
@@ -307,16 +319,6 @@ object TransformationJob {
       "address_outgoing_relations_secondary_ids",
       addressOutgoingRelationsSecondaryIds
     )
-
-    println("Computing balances")
-    val balances = transformation.computeBalances(
-      blocks,
-      transactions,
-      traces,
-      addressIds
-    )
-    cassandra.store(conf.targetKeyspace(), "balance", balances)
-    println("Number of balances: " + balances.count())
 
     println("Computing summary statistics")
     val summaryStatistics =
