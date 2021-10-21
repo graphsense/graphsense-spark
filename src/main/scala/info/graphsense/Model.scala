@@ -72,10 +72,10 @@ case class Transaction(
     toAddress: Option[Array[Byte]],
     value: BigInt, // in wei, 1e18 wei = 1 ether
     gas: Int,
-    gasPrice: Long,
+    gasPrice: BigInt,
     input: Array[Byte],
     blockTimestamp: Int,
-    receiptGasUsed: Long
+    receiptGasUsed: BigInt
 )
 
 case class Trace(
