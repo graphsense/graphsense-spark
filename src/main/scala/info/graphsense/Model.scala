@@ -123,7 +123,7 @@ case class EncodedTransaction(
     value: BigInt,
     fiatValues: Seq[Float],
     gas: Int,
-    gasPrice: Long,
+    gasPrice: BigInt,
     input: Array[Byte],
     blockTimestamp: Int
 )
