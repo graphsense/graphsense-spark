@@ -245,8 +245,18 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("calculatedValue").as("value")
       )
 
+    val burntFees = blocks.na
+      .fill(0, Seq("baseFeePerGas"))
+      .withColumn(
+        "value",
+        -col("baseFeePerGas").cast(DecimalType(38, 0)) * col("gasUsed")
+      )
+      .select(col("miner").as("address"), col("value"))
+      .groupBy("address")
+      .agg(sum("value").as("value"))
+
     val rows =
-      Seq(credits, debits, txFeeCredits, txFeeDebits)
+      Seq(credits, debits, txFeeCredits, txFeeDebits, burntFees)
         .reduce(_ union _)
         .join(addressIds, Seq("address"), "left")
         .drop("address")
@@ -567,7 +577,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .groupBy("srcAddressId", "dstAddressId")
       // aggregate to number of transactions and list of transaction ids
       .agg(
-        min("noTransactions").as("noTransactions"),
+        min("noTransactions").as("noTransactions")
       )
       // join aggregated currency values
       .join(
