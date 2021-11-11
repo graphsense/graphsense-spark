@@ -57,6 +57,7 @@ case class Block(
     extraData: Array[Byte],
     gasLimit: Int,
     gasUsed: Int,
+    baseFeePerGas: Option[Long],
     timestamp: Int,
     transactionCount: Short
 )
