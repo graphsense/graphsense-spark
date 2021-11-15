@@ -42,18 +42,18 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
   def configuration(
       keyspaceName: String,
       bucketSize: Int,
+      txPrefixLength: Int,
       addressPrefixLength: Int,
       labelPrefixLength: Int,
-      txPrefixLength: Int,
       fiatCurrencies: Seq[String]
   ) = {
     Seq(
       Configuration(
         keyspaceName,
         bucketSize,
+        txPrefixLength,
         addressPrefixLength,
         labelPrefixLength,
-        txPrefixLength,
         fiatCurrencies
       )
     ).toDS()

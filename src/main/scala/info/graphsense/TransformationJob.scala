@@ -115,9 +115,9 @@ object TransformationJob {
       transformation.configuration(
         conf.targetKeyspace(),
         conf.bucketSize(),
+        conf.txPrefixLength(),
         conf.addressPrefixLength(),
         conf.labelPrefixLength(),
-        conf.txPrefixLength(),
         transformation.getFiatCurrencies(exchangeRatesRaw)
       )
     cassandra.store(
