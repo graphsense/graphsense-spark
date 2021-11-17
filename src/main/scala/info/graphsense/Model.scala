@@ -134,7 +134,6 @@ case class AddressTransaction(
     addressIdSecondaryGroup: Int,
     addressId: Int,
     transactionId: Int,
-    value: BigInt,
     blockId: Int,
     blockTimestamp: Int,
     isOutgoing: Boolean

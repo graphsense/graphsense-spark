@@ -405,18 +405,15 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("srcAddressId").as("addressId"),
         col("transactionId"),
-        col("value"),
         col("blockId"),
         col("blockTimestamp")
       )
-      .withColumn("value", -col("value"))
       .withColumn("isOutgoing", lit(true))
     val outputs = encodedTransactions
       .filter(col("dstAddressId").isNotNull)
       .select(
         col("dstAddressId").as("addressId"),
         col("transactionId"),
-        col("value"),
         col("blockId"),
         col("blockTimestamp")
       )
