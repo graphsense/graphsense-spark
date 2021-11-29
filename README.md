@@ -26,7 +26,7 @@ Make sure [Java 8][java] and [sbt >= 1.0][scala-sbt] is installed:
     java -version
     sbt about
 
-Download, install, and run [Apache Spark][apache-spark] (version 2.4.7)
+Download, install, and run [Apache Spark][apache-spark] (version 3.1.2)
 in `$SPARK_HOME`:
 
     $SPARK_HOME/sbin/start-master.sh
@@ -53,7 +53,7 @@ Check as follows
     cqlsh:btc_raw> USE tagpacks;
     cqlsh:tagpacks> DESCRIBE tables;
 
-## Execute Transformation Locally
+## Execute Transformation on localhost
 
 Create the target keyspace for transformed data
 
@@ -69,13 +69,13 @@ Package the transformation pipeline
 
 Run the transformation pipeline on localhost
 
-    ./submit.sh
-
-macOS only: make sure `gnu-getopt` is installed (`brew install gnu-getopt`).
+    ./submit_local_test.sh
 
 Check the running job using the local Spark UI at http://localhost:4040/jobs
 
 # Submit on a standalone Spark Cluster
+
+macOS only: make sure `gnu-getopt` is installed (`brew install gnu-getopt`).
 
 Use the `submit.sh` script and specify the Spark master node
 (e.g., `-s spark://SPARK_MASTER_IP:7077`) and other options:

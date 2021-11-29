@@ -10,4 +10,6 @@ $DSBULK load -c json -k eth_raw -t exchange_rates -url src/test/resources/cassan
 echo "Loading blocks"
 $DSBULK load -c csv -header true -k eth_raw -t block -url src/test/resources/cassandra/test_blocks.csv
 echo "Loading transactions"
-$DSBULK load -c csv -header true -k eth_raw -t transaction -url src/test/resources/cassandra/transactions.csv
+$DSBULK load -c csv -header true -k eth_raw -t transaction -url src/test/resources/cassandra/transactions.csv --schema.allowMissingFields true
+echo "Loading traces"
+$DSBULK load -c csv -header true -k eth_raw -t trace -url src/test/resources/cassandra/traces.csv
