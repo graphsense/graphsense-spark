@@ -57,7 +57,7 @@ CREATE TABLE address_transactions (
     transaction_id int,
     is_outgoing boolean,
     PRIMARY KEY ((address_id_group, address_id_secondary_group), address_id, is_outgoing, transaction_id)
-);
+) WITH CLUSTERING ORDER BY (address_id DESC, is_outgoing DESC, transaction_id DESC);
 
 CREATE TABLE address_transactions_secondary_ids (
     address_id_group int PRIMARY KEY,
