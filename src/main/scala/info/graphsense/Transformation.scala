@@ -219,31 +219,38 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .filter(col("toAddress").isNotNull)
       .filter(col("status") === 1)
       .filter(callTypeFilter)
-      .select(col("toAddress").as("address"), col("value"))
+      .groupBy("toAddress")
+      .agg(sum("value").as("debits"))
+      .withColumnRenamed("toAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
 
     val credits = traces
       .filter(col("fromAddress").isNotNull)
       .filter(col("status") === 1)
       .filter(callTypeFilter)
-      .withColumn("invertedValue", -col("value"))
-      .select(
-        col("fromAddress").as("address"),
-        col("invertedValue").as("value")
-      )
+      .groupBy("fromAddress")
+      .agg((-sum(col("value"))).as("credits"))
+      .withColumnRenamed("fromAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
 
     val txFeeDebits = transactions
       .join(blocks, Seq("blockId"), "inner")
       .withColumn("calculatedValue", col("receiptGasUsed") * col("gasPrice"))
       .groupBy("miner")
-      .agg(sum("calculatedValue").as("value"))
-      .select(col("miner").as("address"), col("value"))
+      .agg(sum("calculatedValue").as("txFeeDebits"))
+      .withColumnRenamed("miner", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
 
     val txFeeCredits = transactions
       .withColumn("calculatedValue", -col("receiptGasUsed") * col("gasPrice"))
-      .select(
-        col("fromAddress").as("address"),
-        col("calculatedValue").as("value")
-      )
+      .groupBy("fromAddress")
+      .agg(sum("calculatedValue").as("txFeeCredits"))
+      .withColumnRenamed("fromAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
 
     val burntFees = blocks.na
       .fill(0, Seq("baseFeePerGas"))
@@ -251,21 +258,29 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         "value",
         -col("baseFeePerGas").cast(DecimalType(38, 0)) * col("gasUsed")
       )
-      .select(col("miner").as("address"), col("value"))
-      .groupBy("address")
-      .agg(sum("value").as("value"))
+      .groupBy("miner")
+      .agg(sum("value").as("burntFees"))
+      .withColumnRenamed("miner", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
 
-    val rows =
-      Seq(credits, debits, txFeeCredits, txFeeDebits, burntFees)
-        .reduce(_ union _)
-        .join(addressIds, Seq("address"), "left")
-        .drop("address")
-
-    rows
-      .groupBy("addressId")
-      .agg(sum("value").as("balance"))
+    val balance = burntFees
+      .join(debits, Seq("addressId"), "full")
+      .join(credits, Seq("addressId"), "full")
+      .join(txFeeDebits, Seq("addressId"), "full")
+      .join(txFeeCredits, Seq("addressId"), "full")
+      .na
+      .fill(0)
+      .withColumn(
+        "balance",
+        col("burntFees") +
+          col("debits") + col("credits") +
+          col("txFeeDebits") + col("txFeeCredits")
+      )
       .transform(withSortedIdGroup[Balance]("addressId", "addressIdGroup"))
       .as[Balance]
+
+    balance
   }
 
   def computeTransactionIds(

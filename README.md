@@ -69,7 +69,7 @@ Package the transformation pipeline
 
 Run the transformation pipeline on localhost
 
-    ./submit_local_test.sh
+    ./submit.sh
 
 Check the running job using the local Spark UI at http://localhost:4040/jobs
 
