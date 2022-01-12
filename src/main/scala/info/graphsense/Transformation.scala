@@ -1,6 +1,6 @@
 package info.graphsense
 
-import org.apache.spark.sql.{DataFrame, Dataset, Encoder, SparkSession}
+import org.apache.spark.sql.{Column, DataFrame, Dataset, Encoder, SparkSession}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{
   array,
@@ -27,6 +27,7 @@ import org.apache.spark.sql.functions.{
   substring,
   sum,
   to_date,
+  transform,
   typedLit,
   unix_timestamp,
   upper
@@ -345,16 +346,11 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
     def toFiatCurrency(valueColumn: String, fiatValueColumn: String)(
         df: DataFrame
     ) = {
-      // see `transform_values` in Spark 3
       df.withColumn(
         fiatValueColumn,
-        array(
-          (0 until noFiatCurrencies.get)
-            .map(
-              i =>
-                (col(valueColumn) / 1e18 * col(fiatValueColumn).getItem(i))
-                  .cast(FloatType)
-            ): _*
+        transform(
+          col(fiatValueColumn),
+          (x: Column) => (col(valueColumn) * x / 1e18).cast(FloatType)
         )
       )
     }
