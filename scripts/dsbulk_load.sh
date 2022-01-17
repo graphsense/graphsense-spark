@@ -3,8 +3,6 @@
 DSBULK=dsbulk
 cqlsh -f scripts/schema_raw.cql
 
-echo "Loading tagpacks"
-$DSBULK load -logDir /tmp -c json -k tagpacks -t address_tag_by_address -url src/test/resources/cassandra/test_tags.json --schema.allowMissingFields true
 echo "Loading exchange_rates"
 $DSBULK load -logDir /tmp -c json -k eth_raw -t exchange_rates -url src/test/resources/cassandra/test_exchange_rates.json
 echo "Loading blocks"

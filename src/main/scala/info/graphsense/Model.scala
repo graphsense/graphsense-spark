@@ -1,7 +1,5 @@
 package info.graphsense
 
-import java.sql.Date
-
 // lookup tables
 
 case class TransactionId(
@@ -95,17 +93,6 @@ case class ExchangeRatesRaw(
     fiatValues: Option[Map[String, Float]]
 )
 
-case class AddressTagRaw(
-    address: String,
-    currency: String,
-    label: String,
-    source: String,
-    tagpackUri: String,
-    lastmod: Date,
-    category: Option[String],
-    abuse: Option[String]
-)
-
 // transformed schema tables
 
 case class ExchangeRates(blockId: Int, fiatValues: Seq[Float])
@@ -158,17 +145,6 @@ case class Address(
     outDegree: Int
 )
 
-case class AddressTag(
-    addressIdGroup: Int,
-    addressId: Int,
-    label: String,
-    source: String,
-    tagpackUri: String,
-    lastmod: Int,
-    category: Option[String],
-    abuse: Option[String]
-)
-
 case class AddressRelation(
     srcAddressIdGroup: Int,
     srcAddressIdSecondaryGroup: Int,
@@ -176,8 +152,6 @@ case class AddressRelation(
     dstAddressIdGroup: Int,
     dstAddressIdSecondaryGroup: Int,
     dstAddressId: Int,
-    hasSrcLabels: Boolean,
-    hasDstLabels: Boolean,
     noTransactions: Int,
     value: Currency
 )
@@ -192,27 +166,12 @@ case class AddressIncomingRelationSecondaryIds(
     maxSecondaryId: Int
 )
 
-case class Tag(
-    labelNormPrefix: String,
-    labelNorm: String,
-    label: String,
-    address: String,
-    source: String,
-    tagpackUri: String,
-    currency: String,
-    lastmod: Int,
-    category: Option[String],
-    abuse: Option[String],
-    activeAddress: Boolean
-)
-
 case class SummaryStatistics(
     timestamp: Int,
     noBlocks: Long,
     noTransactions: Long,
     noAddresses: Long,
-    noAddressRelations: Long,
-    noTags: Long
+    noAddressRelations: Long
 )
 
 case class Configuration(
@@ -220,6 +179,5 @@ case class Configuration(
     bucketSize: Int,
     txPrefixLength: Int,
     addressPrefixLength: Int,
-    labelPrefixLength: Int,
     fiatCurrencies: Seq[String]
 )
