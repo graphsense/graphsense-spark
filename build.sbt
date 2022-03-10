@@ -24,9 +24,9 @@ lazy val root = (project in file(".")).
       "-Ywarn-unused-import",
       "-Ywarn-value-discard"),
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.2.7" % Test,
-      "com.github.mrpowers" % "spark-fast-tests_2.12" % "0.23.0" % Test,
-      "org.rogach" %% "scallop" % "4.0.2" % Provided,
+      "org.scalatest" %% "scalatest" % "3.2.11" % Test,
+      "com.github.mrpowers" % "spark-fast-tests_2.12" % "1.0.0" % Test,
+      "org.rogach" %% "scallop" % "4.1.0" % Provided,
       "org.apache.spark" %% "spark-sql" % "3.1.2" % Provided,
       "com.datastax.spark" %% "spark-cassandra-connector" % "3.1.0" % Provided)
   )
