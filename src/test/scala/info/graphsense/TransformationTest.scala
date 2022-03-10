@@ -2,7 +2,7 @@ package info.graphsense
 
 import com.github.mrpowers.spark.fast.tests.DataFrameComparer
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.functions.{col, lower, max}
+import org.apache.spark.sql.functions.{col, max}
 import org.scalatest.funsuite._
 
 import Helpers.{readTestData, setNullableStateForAllColumns}
@@ -37,8 +37,6 @@ class TransformationTest
   val traces = readTestData[Trace](spark, inputDir + "test_traces.csv")
   val exchangeRatesRaw =
     readTestData[ExchangeRatesRaw](spark, inputDir + "test_exchange_rates.json")
-  val attributionTags =
-    readTestData[AddressTagRaw](spark, inputDir + "test_tags.json")
 
   val noBlocks = blocks.count.toInt
   val lastBlockTimestamp = blocks
@@ -102,19 +100,6 @@ class TransformationTest
     .computeAddressTransactions(encodedTransactions)
     .persist()
 
-  val addressTags =
-    t.computeAddressTags(
-      attributionTags,
-      addressIds,
-      "ETH"
-    )
-
-  val noAddressTags = addressTags
-    .select(col("label"))
-    .withColumn("label", lower(col("label")))
-    .distinct()
-    .count()
-
   val addresses = t
     .computeAddresses(
       encodedTransactions,
@@ -124,7 +109,7 @@ class TransformationTest
     .persist()
 
   val addressRelations = t
-    .computeAddressRelations(encodedTransactions, addressTags)
+    .computeAddressRelations(encodedTransactions)
     .sort("srcAddressId", "dstAddressId")
 
   note("Test lookup tables")
@@ -205,12 +190,6 @@ class TransformationTest
         refDir + "address_transactions.csv"
       )
     assertDataFrameEquality(addressTransactions, addressTransactionsRef)
-  }
-
-  test("Address tags") {
-    val addressTagsRef =
-      readTestData[AddressTag](spark, refDir + "address_tags.csv")
-    assertDataFrameEquality(addressTags, addressTagsRef)
   }
 
   test("Addresses") {

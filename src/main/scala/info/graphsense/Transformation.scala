@@ -1,6 +1,6 @@
 package info.graphsense
 
-import org.apache.spark.sql.{DataFrame, Dataset, Encoder, SparkSession}
+import org.apache.spark.sql.{Column, DataFrame, Dataset, Encoder, SparkSession}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{
   array,
@@ -13,23 +13,19 @@ import org.apache.spark.sql.functions.{
   floor,
   from_unixtime,
   hex,
-  length,
   lit,
-  lower,
   map_keys,
   map_values,
   max,
   min,
-  regexp_replace,
   row_number,
   size,
   struct,
   substring,
   sum,
   to_date,
-  typedLit,
-  unix_timestamp,
-  upper
+  transform,
+  typedLit
 }
 import org.apache.spark.sql.types.{DecimalType, FloatType, IntegerType}
 
@@ -44,7 +40,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       bucketSize: Int,
       txPrefixLength: Int,
       addressPrefixLength: Int,
-      labelPrefixLength: Int,
       fiatCurrencies: Seq[String]
   ) = {
     Seq(
@@ -53,7 +48,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         bucketSize,
         txPrefixLength,
         addressPrefixLength,
-        labelPrefixLength,
         fiatCurrencies
       )
     ).toDS()
@@ -219,31 +213,38 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .filter(col("toAddress").isNotNull)
       .filter(col("status") === 1)
       .filter(callTypeFilter)
-      .select(col("toAddress").as("address"), col("value"))
+      .groupBy("toAddress")
+      .agg(sum("value").as("debits"))
+      .withColumnRenamed("toAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
 
     val credits = traces
       .filter(col("fromAddress").isNotNull)
       .filter(col("status") === 1)
       .filter(callTypeFilter)
-      .withColumn("invertedValue", -col("value"))
-      .select(
-        col("fromAddress").as("address"),
-        col("invertedValue").as("value")
-      )
+      .groupBy("fromAddress")
+      .agg((-sum(col("value"))).as("credits"))
+      .withColumnRenamed("fromAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
 
     val txFeeDebits = transactions
       .join(blocks, Seq("blockId"), "inner")
       .withColumn("calculatedValue", col("receiptGasUsed") * col("gasPrice"))
       .groupBy("miner")
-      .agg(sum("calculatedValue").as("value"))
-      .select(col("miner").as("address"), col("value"))
+      .agg(sum("calculatedValue").as("txFeeDebits"))
+      .withColumnRenamed("miner", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
 
     val txFeeCredits = transactions
       .withColumn("calculatedValue", -col("receiptGasUsed") * col("gasPrice"))
-      .select(
-        col("fromAddress").as("address"),
-        col("calculatedValue").as("value")
-      )
+      .groupBy("fromAddress")
+      .agg(sum("calculatedValue").as("txFeeCredits"))
+      .withColumnRenamed("fromAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
 
     val burntFees = blocks.na
       .fill(0, Seq("baseFeePerGas"))
@@ -251,21 +252,29 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         "value",
         -col("baseFeePerGas").cast(DecimalType(38, 0)) * col("gasUsed")
       )
-      .select(col("miner").as("address"), col("value"))
-      .groupBy("address")
-      .agg(sum("value").as("value"))
+      .groupBy("miner")
+      .agg(sum("value").as("burntFees"))
+      .withColumnRenamed("miner", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
 
-    val rows =
-      Seq(credits, debits, txFeeCredits, txFeeDebits, burntFees)
-        .reduce(_ union _)
-        .join(addressIds, Seq("address"), "left")
-        .drop("address")
-
-    rows
-      .groupBy("addressId")
-      .agg(sum("value").as("balance"))
+    val balance = burntFees
+      .join(debits, Seq("addressId"), "full")
+      .join(credits, Seq("addressId"), "full")
+      .join(txFeeDebits, Seq("addressId"), "full")
+      .join(txFeeCredits, Seq("addressId"), "full")
+      .na
+      .fill(0)
+      .withColumn(
+        "balance",
+        col("burntFees") +
+          col("debits") + col("credits") +
+          col("txFeeDebits") + col("txFeeCredits")
+      )
       .transform(withSortedIdGroup[Balance]("addressId", "addressIdGroup"))
       .as[Balance]
+
+    balance
   }
 
   def computeTransactionIds(
@@ -330,16 +339,11 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
     def toFiatCurrency(valueColumn: String, fiatValueColumn: String)(
         df: DataFrame
     ) = {
-      // see `transform_values` in Spark 3
       df.withColumn(
         fiatValueColumn,
-        array(
-          (0 until noFiatCurrencies.get)
-            .map(
-              i =>
-                (col(valueColumn) / 1e18 * col(fiatValueColumn).getItem(i))
-                  .cast(FloatType)
-            ): _*
+        transform(
+          col(fiatValueColumn),
+          (x: Column) => (col(valueColumn) * x / 1e18).cast(FloatType)
         )
       )
     }
@@ -433,33 +437,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .as[AddressTransaction]
   }
 
-  def computeAddressTags(
-      tags: Dataset[AddressTagRaw],
-      addressIds: Dataset[AddressId],
-      currency: String
-  ): Dataset[AddressTag] = {
-    tags
-      .filter(col("currency") === currency)
-      .drop(col("currency"))
-      .withColumn(
-        "address",
-        // make uppercase and remove first two characters from string (0x)
-        upper(col("address")).substr(lit(3), length(col("address")) - 2)
-      )
-      .join(
-        addressIds
-          .select(hex(col("address")).as("address"), col("addressId")),
-        Seq("address"),
-        "inner"
-      )
-      .drop("address")
-      .withColumn(
-        "lastmod",
-        unix_timestamp(col("lastmod"), "yyyy-dd-MM").cast(IntegerType)
-      )
-      .transform(withSortedIdGroup[AddressTag]("addressId", "addressIdGroup"))
-  }
-
   def computeAddresses(
       encodedTransactions: Dataset[EncodedTransaction],
       addressTransactions: Dataset[AddressTransaction],
@@ -545,8 +522,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
   }
 
   def computeAddressRelations(
-      encodedTransactions: Dataset[EncodedTransaction],
-      addressTags: Dataset[AddressTag]
+      encodedTransactions: Dataset[EncodedTransaction]
   ): Dataset[AddressRelation] = {
 
     val aggValues = encodedTransactions.toDF.transform(
@@ -558,11 +534,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         "dstAddressId"
       )
     )
-
-    val addressLabels = addressTags
-      .select("addressId")
-      .distinct
-      .withColumn("hasLabels", lit(true))
 
     val window = Window.partitionBy("srcAddressId", "dstAddressId")
     encodedTransactions
@@ -580,24 +551,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .join(
         aggValues,
         Seq("srcAddressId", "dstAddressId"),
-        "left"
-      )
-      // join boolean column to indicate presence of src labels
-      .join(
-        addressLabels.select(
-          col("addressId").as("srcAddressId"),
-          col("hasLabels").as("hasSrcLabels")
-        ),
-        Seq("srcAddressId"),
-        "left"
-      )
-      // join boolean column to indicate presence of dst labels
-      .join(
-        addressLabels.select(
-          col("addressId").as("dstAddressId"),
-          col("hasLabels").as("hasDstLabels")
-        ),
-        Seq("dstAddressId"),
         "left"
       )
       // add partitioning columns for outgoing addresses
@@ -618,56 +571,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
           "dstAddressId"
         )
       )
-      .na
-      .fill(false, Seq("hasSrcLabels", "hasDstLabels"))
       .as[AddressRelation]
-  }
-
-  def computeTagsByLabel(
-      tags: Dataset[AddressTagRaw],
-      addressTags: Dataset[AddressTag],
-      addressIds: Dataset[AddressId],
-      currency: String,
-      prefixLength: Int
-  ): Dataset[Tag] = {
-    // check if addresses where used in transactions
-    tags
-      .filter(col("currency") === currency)
-      .withColumn(
-        "address",
-        // make uppercase and remove first two characters from string (0x)
-        upper(col("address")).substr(lit(3), length(col("address")) - 2)
-      )
-      .join(
-        addressIds
-          .select(hex(col("address")).as("address"), col("addressId")),
-        Seq("address"),
-        "left"
-      )
-      .join(
-        addressTags
-          .select(col("addressId"))
-          .withColumn("activeAddress", lit(true)),
-        Seq("addressId"),
-        "left"
-      )
-      .na
-      .fill(false, Seq("activeAddress"))
-      // normalize labels
-      .withColumn(
-        "labelNorm",
-        lower(regexp_replace(col("label"), "[\\W_]+", ""))
-      )
-      .withColumn(
-        "labelNormPrefix",
-        substring(col("labelNorm"), 0, prefixLength)
-      )
-      .withColumn(
-        "lastmod",
-        unix_timestamp(col("lastmod"), "yyyy-dd-MM").cast(IntegerType)
-      )
-      .drop("addressId")
-      .as[Tag]
   }
 
   def summaryStatistics(
@@ -675,8 +579,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       noBlocks: Long,
       noTransactions: Long,
       noAddresses: Long,
-      noAddressRelations: Long,
-      noTags: Long
+      noAddressRelations: Long
   ) = {
     Seq(
       SummaryStatistics(
@@ -684,8 +587,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         noBlocks,
         noTransactions,
         noAddresses,
-        noAddressRelations,
-        noTags
+        noAddressRelations
       )
     ).toDS()
   }

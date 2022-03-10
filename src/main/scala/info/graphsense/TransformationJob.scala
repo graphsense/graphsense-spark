@@ -2,7 +2,7 @@ package info.graphsense
 
 import com.datastax.spark.connector.ColumnName
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{col, lower, max}
+import org.apache.spark.sql.functions.{col, max}
 import org.rogach.scallop._
 
 import info.graphsense.storage.CassandraStorage
@@ -16,13 +16,6 @@ object TransformationJob {
         required = true,
         noshort = true,
         descr = "Raw keyspace"
-      )
-    val tagKeyspace: ScallopOption[String] =
-      opt[String](
-        "tag-keyspace",
-        required = true,
-        noshort = true,
-        descr = "Tag keyspace"
       )
     val targetKeyspace: ScallopOption[String] = opt[String](
       "target-keyspace",
@@ -44,13 +37,6 @@ object TransformationJob {
       noshort = true,
       descr = "Prefix length of address hashes for Cassandra partitioning keys"
     )
-    val labelPrefixLength: ScallopOption[Int] = opt[Int](
-      "label-prefix-length",
-      required = false,
-      default = Some(3),
-      noshort = true,
-      descr = "Prefix length of tag labels for Cassandra partitioning keys"
-    )
     val txPrefixLength: ScallopOption[Int] = opt[Int](
       "tx-prefix-length",
       required = false,
@@ -71,12 +57,10 @@ object TransformationJob {
     spark.sparkContext.setLogLevel("WARN")
 
     println("Raw keyspace:                  " + conf.rawKeyspace())
-    println("Tag keyspace:                  " + conf.tagKeyspace())
     println("Target keyspace:               " + conf.targetKeyspace())
     println("Bucket size:                   " + conf.bucketSize())
     println("Address prefix length:         " + conf.addressPrefixLength())
     println("Tx prefix length:              " + conf.txPrefixLength())
-    println("Label prefix length:           " + conf.labelPrefixLength())
 
     import spark.implicits._
 
@@ -89,8 +73,6 @@ object TransformationJob {
       cassandra.load[Block](conf.rawKeyspace(), "block")
     val transactions =
       cassandra.load[Transaction](conf.rawKeyspace(), "transaction")
-    val tagsRaw = cassandra
-      .load[AddressTagRaw](conf.tagKeyspace(), "address_tag_by_address")
     val traces = cassandra.load[Trace](
       conf.rawKeyspace(),
       "trace",
@@ -117,7 +99,6 @@ object TransformationJob {
         conf.bucketSize(),
         conf.txPrefixLength(),
         conf.addressPrefixLength(),
-        conf.labelPrefixLength(),
         transformation.getFiatCurrencies(exchangeRatesRaw)
       )
     cassandra.store(
@@ -242,34 +223,6 @@ object TransformationJob {
       addressTransactionsSecondaryIds
     )
 
-    println("Computing address tags")
-    val addressTags =
-      transformation
-        .computeAddressTags(
-          tagsRaw,
-          addressIds,
-          "ETH"
-        )
-        .persist()
-    cassandra.store(conf.targetKeyspace(), "address_tags", addressTags)
-    val noAddressTags = addressTags
-      .select(col("label"))
-      .withColumn("label", lower(col("label")))
-      .distinct()
-      .count()
-    val addressTagsByLabel = transformation.computeTagsByLabel(
-      tagsRaw,
-      addressTags,
-      addressIds,
-      "ETH",
-      conf.labelPrefixLength()
-    )
-    cassandra.store(
-      conf.targetKeyspace(),
-      "address_tag_by_label",
-      addressTagsByLabel
-    )
-
     println("Computing address statistics")
     val addresses = transformation.computeAddresses(
       encodedTransactions,
@@ -280,7 +233,7 @@ object TransformationJob {
 
     println("Computing address relations")
     val addressRelations =
-      transformation.computeAddressRelations(encodedTransactions, addressTags)
+      transformation.computeAddressRelations(encodedTransactions)
     val noAddressRelations = addressRelations.count()
 
     cassandra.store(
@@ -327,8 +280,7 @@ object TransformationJob {
         noBlocks,
         noTransactions,
         noAddresses,
-        noAddressRelations,
-        noAddressTags
+        noAddressRelations
       )
     summaryStatistics.show()
     cassandra.store(

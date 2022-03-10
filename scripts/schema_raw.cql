@@ -79,23 +79,3 @@ CREATE TABLE exchange_rates (
     date text PRIMARY KEY,
     fiat_values map<text, float>
 );
-
-DROP KEYSPACE IF EXISTS tagpacks;
-CREATE KEYSPACE tagpacks WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
-
-USE tagpacks;
-
-CREATE TABLE address_tag_by_address (
-    address text,
-    currency text,
-    label text,
-    source text,
-    tagpack_uri text,
-    confidence int,
-    is_cluster_definer boolean,
-    created date,
-    lastmod date,
-    category text,
-    abuse text,
-    PRIMARY KEY (address, currency, label, source, tagpack_uri)
-);

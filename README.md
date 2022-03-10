@@ -5,8 +5,7 @@
 
 The GraphSense Transformation Pipeline reads raw block and transaction data,
 which is ingested into [Apache Cassandra][apache-cassandra]
-by the [graphsense-ethereum-etl][graphsense-ethereum-etl] component, and
-attribution tags provided by [graphsense-tagpacks][graphsense-tagpacks].
+by the [graphsense-ethereum-etl][graphsense-ethereum-etl] component.
 The transformation pipeline computes an address graph and de-normalized views
 using [Apache Spark][apache-spark], which are again stored in Cassandra.
 
@@ -44,14 +43,12 @@ directory your `$PATH` variable, and ingest raw test data using
     scripts/dsbulk_load.sh
 
 This should create a keyspace `eth_raw` (tables `exchange_rates`,
-`transaction`, `block`) and `tagpacks` (table `address_tag_by_address`).
+`transaction`, `block`).
 Check as follows
 
     cqlsh localhost
     cqlsh> USE eth_raw;
     cqlsh:btc_raw> DESCRIBE tables;
-    cqlsh:btc_raw> USE tagpacks;
-    cqlsh:tagpacks> DESCRIBE tables;
 
 ## Execute Transformation on localhost
 
@@ -69,7 +66,7 @@ Package the transformation pipeline
 
 Run the transformation pipeline on localhost
 
-    ./submit_local_test.sh
+    ./submit.sh
 
 Check the running job using the local Spark UI at http://localhost:4040/jobs
 
@@ -83,8 +80,8 @@ Use the `submit.sh` script and specify the Spark master node
 ```
 ./submit.sh -h
 Usage: submit.sh [-h] [-m MEMORY_GB] [-c CASSANDRA_HOST] [-s SPARK_MASTER]
-                 [--src_keyspace RAW_KEYSPACE] [--tag_keyspace TAG_KEYSPACE]
-                 [--tgt_keyspace TGT_KEYSPACE] [--bucket_size BUCKET_SIZE]
+                 [--raw_keyspace RAW_KEYSPACE] [--tgt_keyspace TGT_KEYSPACE]
+                 [--bucket_size BUCKET_SIZE]
 ```
 
 # Submit to an external standalone Spark Cluster using Docker
@@ -94,7 +91,6 @@ file and the `transformation` subdirectory.
 
 
 [graphsense-ethereum-etl]: https://github.com/graphsense/graphsense-ethereum-etl
-[graphsense-tagpacks]: https://github.com/graphsense/graphsense-tagpacks
 [graphsense-dashboard]: https://github.com/graphsense/graphsense-dashboard
 [graphsense-rest]: https://github.com/graphsense/graphsense-rest
 [graphsense-setup]: https://github.com/graphsense/graphsense-setup

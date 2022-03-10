@@ -2,16 +2,14 @@
 
 echo -en "Starting Spark job ...\n" \
          "Config:\n" \
-         "- Spark master: $SPARK_MASTER\n" \
-         "- Spark driver: $SPARK_DRIVER_HOST\n" \
-         "- Spark local dir: $SPARK_LOCAL_DIR\n" \
-         "- Cassandra host: $CASSANDRA_HOST\n" \
-         "- Executor memory: $SPARK_EXECUTOR_MEMORY\n" \
+         "- Spark master:        $SPARK_MASTER\n" \
+         "- Spark driver:        $SPARK_DRIVER_HOST\n" \
+         "- Spark local dir:     $SPARK_LOCAL_DIR\n" \
+         "- Cassandra host:      $CASSANDRA_HOST\n" \
+         "- Executor memory:     $SPARK_EXECUTOR_MEMORY\n" \
          "Arguments:\n" \
-         "- Currency:        $CURRENCY\n" \
-         "- Raw keyspace:    $RAW_KEYSPACE\n" \
-         "- Tag keyspace:    $TAG_KEYSPACE\n" \
-         "- Target keyspace: $TGT_KEYSPACE\n"
+         "- Raw keyspace:        $RAW_KEYSPACE\n" \
+         "- Target keyspace:     $TGT_KEYSPACE\n"
 
 "$SPARK_HOME"/bin/spark-submit \
   --class "info.graphsense.TransformationJob" \
@@ -23,16 +21,16 @@ echo -en "Starting Spark job ...\n" \
   --conf spark.blockManager.port="$SPARK_BLOCKMGR_PORT" \
   --conf spark.executor.memory="$SPARK_EXECUTOR_MEMORY" \
   --conf spark.cassandra.connection.host="$CASSANDRA_HOST" \
+  --conf spark.sql.extensions=com.datastax.spark.connector.CassandraSparkExtensions \
   --conf spark.local.dir="$SPARK_LOCAL_DIR" \
   --conf spark.default.parallelism=400 \
   --conf spark.driver.memory="64G" \
   --conf spark.sql.session.timeZone=UTC \
   --conf spark.serializer="org.apache.spark.serializer.KryoSerializer" \
-  --packages com.datastax.spark:spark-cassandra-connector_2.12:2.4.2,org.rogach:scallop_2.12:4.0.2 \
-  target/scala-2.12/graphsense-ethereum-transformation_2.12-0.5.1.jar \
+  --packages com.datastax.spark:spark-cassandra-connector_2.12:3.0.1,org.rogach:scallop_2.12:4.1.0,joda-time:joda-time:2.10.10 \
+  target/scala-2.12/graphsense-ethereum-transformation_2.12-0.5.2.jar \
   --raw-keyspace "$RAW_KEYSPACE" \
-  --tag-keyspace "$TAG_KEYSPACE" \
   --target-keyspace "$TGT_KEYSPACE" \
-  --bucket-size 50000
+  --bucket-size 10000
 
 exit $?

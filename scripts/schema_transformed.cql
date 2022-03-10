@@ -57,7 +57,7 @@ CREATE TABLE address_transactions (
     transaction_id int,
     is_outgoing boolean,
     PRIMARY KEY ((address_id_group, address_id_secondary_group), address_id, is_outgoing, transaction_id)
-);
+) WITH CLUSTERING ORDER BY (address_id DESC, is_outgoing DESC, transaction_id DESC);
 
 CREATE TABLE address_transactions_secondary_ids (
     address_id_group int PRIMARY KEY,
@@ -79,24 +79,11 @@ CREATE TABLE address (
     PRIMARY KEY (address_id_group, address_id)
 );
 
-CREATE TABLE address_tags (
-    address_id_group int,
-    address_id int,
-    label text,
-    source text,
-    tagpack_uri text,
-    lastmod int,
-    category text,
-    abuse text,
-    PRIMARY KEY (address_id_group, address_id, label, source, tagpack_uri)
-);
-
 CREATE TABLE address_incoming_relations (
     dst_address_id_group int,
     dst_address_id_secondary_group int,
     dst_address_id int,
     src_address_id int,
-    has_src_labels boolean,
     no_transactions int,
     value FROZEN <currency>,
     PRIMARY KEY ((dst_address_id_group, dst_address_id_secondary_group), dst_address_id, src_address_id)
@@ -112,7 +99,6 @@ CREATE TABLE address_outgoing_relations (
     src_address_id_secondary_group int,
     src_address_id int,
     dst_address_id int,
-    has_dst_labels boolean,
     no_transactions int,
     value frozen <currency>,
     PRIMARY KEY ((src_address_id_group, src_address_id_secondary_group), src_address_id, dst_address_id)
@@ -123,28 +109,12 @@ CREATE TABLE address_outgoing_relations_secondary_ids (
     max_secondary_id int
 );
 
-CREATE TABLE address_tag_by_label (
-    label_norm_prefix text,
-    label_norm text,
-    label text,
-    address text,
-    source text,
-    tagpack_uri text,
-    currency text,
-    lastmod int,
-    category text,
-    abuse text,
-    active_address boolean,
-    PRIMARY KEY (label_norm_prefix, label_norm, label, address, currency, source, tagpack_uri)
-);
-
 CREATE TABLE summary_statistics (
     timestamp int,
     no_blocks bigint PRIMARY KEY,
     no_transactions bigint,
     no_addresses bigint,
-    no_address_relations bigint,
-    no_tags bigint
+    no_address_relations bigint
 );
 
 CREATE TABLE balance (
@@ -158,7 +128,6 @@ CREATE TABLE configuration (
     keyspace_name text PRIMARY KEY,
     bucket_size int,
     address_prefix_length int,
-    label_prefix_length int,
     tx_prefix_length int,
     fiat_currencies list<text>
 );
