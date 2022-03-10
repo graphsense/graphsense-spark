@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Improved balance calculation
 
 ### Removed
-- Removed tag handling (see graphsense/graphsense-tagstore)
+- Removed tag handling (see graphsense/graphsense-tagpack-tool)
 
 ## [0.5.1] 2021-11-29
 ### Changed
