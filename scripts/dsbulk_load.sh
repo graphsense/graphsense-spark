@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DSBULK=dsbulk
+DSBULK=/home/rcs/lib/dsbulk-1.8.0/bin/dsbulk
 cqlsh -f scripts/schema_raw.cql
 
 echo "Loading exchange_rates"
