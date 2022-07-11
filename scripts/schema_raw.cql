@@ -43,7 +43,7 @@ CREATE TABLE transaction (
     max_fee_per_gas bigint,
     max_priority_fee_per_gas bigint,
     transaction_type bigint,
-    receipt_cumulative_gas_used bigint,
+    receipt_cumulative_gas_used varint,
     receipt_gas_used varint,
     receipt_contract_address blob,
     receipt_root blob,
@@ -68,14 +68,21 @@ CREATE TABLE trace (
     gas int,
     gas_used bigint,
     subtraces int,
-    trace_address list<int>,
+    trace_address text,
     error text,
     status smallint,
     trace_id text,
-    PRIMARY KEY (block_id_group, block_id, trace_id)
+    trace_index int,
+    PRIMARY KEY (block_id_group, block_id, trace_index)
 );
 
 CREATE TABLE exchange_rates (
     date text PRIMARY KEY,
     fiat_values map<text, float>
+);
+
+CREATE TABLE configuration (
+    id text PRIMARY KEY,
+    block_bucket_size int,
+    tx_prefix_length int
 );
