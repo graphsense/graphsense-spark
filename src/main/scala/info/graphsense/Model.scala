@@ -74,7 +74,8 @@ case class Transaction(
     gasPrice: BigInt,
     input: Array[Byte],
     blockTimestamp: Int,
-    receiptGasUsed: BigInt
+    receiptGasUsed: BigInt,
+    receiptEffectiveGasPrice: Option[BigInt],
 )
 
 case class Trace(

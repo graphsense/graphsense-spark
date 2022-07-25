@@ -197,7 +197,12 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .sort("blockId")
       .as[ExchangeRates]
   }
-
+  /* 
+    Adapted from 
+    https://medium.com/google-cloud/how-to-query-balances-for-all-ethereum-addresses-in-bigquery-fb594e4034a7
+    and 
+    https://github.com/blockchain-etl/ethereum-etl-airflow/blob/master/dags/resources/stages/enrich/sqls/balances.sql
+  */
   def computeBalances(
       blocks: Dataset[Block],
       transactions: Dataset[Transaction],
@@ -205,10 +210,16 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       addressIds: Dataset[AddressId]
   ): Dataset[Balance] = {
 
+
+
     val excludedCallTypes = Seq("delegatecall", "callcode", "staticcall")
     val callTypeFilter = (!col("callType").isin(excludedCallTypes: _*)) ||
       col("callType").isNull
-
+    /*
+      Debits is everything added to the recipient account 
+      Miner rewards excl. fees are encode in toAddress without sender in eth_etl traces
+      Suicides that move money are also included.
+    */
     val debits = traces
       .filter(col("toAddress").isNotNull)
       .filter(col("status") === 1)
@@ -219,6 +230,10 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .join(addressIds, Seq("address"), "left")
       .drop("address")
 
+    /*
+      Credits is everything deducted form the sender account 
+      this includes base miner reward in reward traces. But fees are not included yet.
+    */
     val credits = traces
       .filter(col("fromAddress").isNotNull)
       .filter(col("status") === 1)
@@ -229,37 +244,33 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .join(addressIds, Seq("address"), "left")
       .drop("address")
 
+    /* 
+      Calculating the fees Debits (income) for the miners
+    */
     val txFeeDebits = transactions
       .join(blocks, Seq("blockId"), "inner")
-      .withColumn("calculatedValue", col("receiptGasUsed") * col("gasPrice"))
+      .withColumn("gp", coalesce(col("receiptEffectiveGasPrice"), col("gasPrice")))
+      .withColumn("bfpg", coalesce(col("baseFeePerGas"), lit(0).cast(DecimalType(38, 0))))
+      .withColumn("calculatedValue", col("receiptGasUsed") * (col("gp") - col("bfpg")))
       .groupBy("miner")
       .agg(sum("calculatedValue").as("txFeeDebits"))
       .withColumnRenamed("miner", "address")
       .join(addressIds, Seq("address"), "left")
       .drop("address")
 
+    /*
+      Calculating fee credits (cost) for users. Users pay entire gas.
+    */
     val txFeeCredits = transactions
-      .withColumn("calculatedValue", -col("receiptGasUsed") * col("gasPrice"))
+      .withColumn("gp", coalesce(col("receiptEffectiveGasPrice"), col("gasPrice")))
+      .withColumn("calculatedValue", -col("receiptGasUsed") * col("gp"))
       .groupBy("fromAddress")
       .agg(sum("calculatedValue").as("txFeeCredits"))
       .withColumnRenamed("fromAddress", "address")
       .join(addressIds, Seq("address"), "left")
       .drop("address")
 
-    val burntFees = blocks.na
-      .fill(0, Seq("baseFeePerGas"))
-      .withColumn(
-        "value",
-        -col("baseFeePerGas").cast(DecimalType(38, 0)) * col("gasUsed")
-      )
-      .groupBy("miner")
-      .agg(sum("value").as("burntFees"))
-      .withColumnRenamed("miner", "address")
-      .join(addressIds, Seq("address"), "left")
-      .drop("address")
-
-    val balance = burntFees
-      .join(debits, Seq("addressId"), "full")
+    val balance = debits
       .join(credits, Seq("addressId"), "full")
       .join(txFeeDebits, Seq("addressId"), "full")
       .join(txFeeCredits, Seq("addressId"), "full")
@@ -267,7 +278,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .fill(0)
       .withColumn(
         "balance",
-        col("burntFees") +
           col("debits") + col("credits") +
           col("txFeeDebits") + col("txFeeCredits")
       )
@@ -348,6 +358,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
     }
     transactions
+      .drop("receiptEffectiveGasPrice")
       .withColumnRenamed("txHash", "transaction")
       .join(
         transactionsIds,
