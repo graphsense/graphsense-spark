@@ -27,8 +27,8 @@ echo -en "Starting Spark job ...\n" \
   --conf spark.driver.memory="64G" \
   --conf spark.sql.session.timeZone=UTC \
   --conf spark.serializer="org.apache.spark.serializer.KryoSerializer" \
-  --packages com.datastax.spark:spark-cassandra-connector_2.12:3.0.1,org.rogach:scallop_2.12:4.1.0,joda-time:joda-time:2.10.10 \
-  target/scala-2.12/graphsense-ethereum-transformation_2.12-1.0.0.jar \
+  --packages com.datastax.spark:spark-cassandra-connector_2.12:3.2.0,org.rogach:scallop_2.12:4.1.0,joda-time:joda-time:2.10.10 \
+  target/scala-2.12/graphsense-ethereum-transformation_2.12-1.0.2.jar \
   --raw-keyspace "$RAW_KEYSPACE" \
   --target-keyspace "$TGT_KEYSPACE" \
   --bucket-size 10000
