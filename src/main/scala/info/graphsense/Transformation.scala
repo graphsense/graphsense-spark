@@ -584,6 +584,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
     Seq(
       SummaryStatistics(
         lastBlockTimestamp,
+        lastBlockTimestamp,
+        noBlocks,
         noBlocks,
         noTransactions,
         noAddresses,
