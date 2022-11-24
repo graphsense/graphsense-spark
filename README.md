@@ -84,11 +84,6 @@ Usage: submit.sh [-h] [-m MEMORY_GB] [-c CASSANDRA_HOST] [-s SPARK_MASTER]
                  [--bucket_size BUCKET_SIZE]
 ```
 
-# Submit to an external standalone Spark Cluster using Docker
-
-See the [GraphSense Setup][graphsense-setup] component, i.e., the README
-file and the `transformation` subdirectory.
-
 
 [graphsense-ethereum-etl]: https://github.com/graphsense/graphsense-ethereum-etl
 [graphsense-dashboard]: https://github.com/graphsense/graphsense-dashboard

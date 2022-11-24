@@ -168,7 +168,9 @@ case class AddressIncomingRelationSecondaryIds(
 
 case class SummaryStatistics(
     timestamp: Int,
+    timestampTransform: Int,
     noBlocks: Long,
+    noBlocksTransform: Long,
     noTransactions: Long,
     noAddresses: Long,
     noAddressRelations: Long
