@@ -28,5 +28,7 @@ lazy val root = (project in file(".")).
       "com.github.mrpowers" % "spark-fast-tests_2.12" % "1.0.0" % Test,
       "org.rogach" %% "scallop" % "4.1.0" % Provided,
       "org.apache.spark" %% "spark-sql" % "3.2.1" % Provided,
-      "com.datastax.spark" %% "spark-cassandra-connector" % "3.2.0" % Provided)
+      "com.datastax.spark" %% "spark-cassandra-connector" % "3.2.0" % Provided,
+      "org.web3j"              %  "core"                     % "4.8.7",
+      "org.web3j"              %  "abi"                     % "4.8.7"),
   )

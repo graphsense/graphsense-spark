@@ -1,11 +1,14 @@
 package info.graphsense
 
+import scala.math.BigInt
 import com.datastax.spark.connector.ColumnName
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{col, max}
+import org.apache.spark.sql.functions.{col, max, lit}
 import org.rogach.scallop._
 
 import info.graphsense.storage.CassandraStorage
+
+import org.apache.spark.sql.Dataset
 
 object TransformationJob {
 
@@ -89,6 +92,14 @@ object TransformationJob {
         ColumnName(_)
       ): _*
     )
+
+    val tt = new TokenTransfers(spark)
+    // Transfer(address,address,uint256)
+    val erc20_transfer_logs = tt.get_token_transfers(cassandra
+      .load[Log](
+        conf.rawKeyspace(),
+        "log"
+      ))
 
     val transformation = new Transformation(spark, conf.bucketSize())
 
