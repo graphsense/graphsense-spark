@@ -95,11 +95,14 @@ object TransformationJob {
 
     val tt = new TokenTransfers(spark)
     // Transfer(address,address,uint256)
-    val erc20_transfer_logs = tt.get_token_transfers(cassandra
-      .load[Log](
-        conf.rawKeyspace(),
-        "log"
-      ))
+    val token_configurations = tt.get_token_configurations()
+    val token_transfers = tt.get_token_transfers(
+      cassandra
+        .load[Log](
+          conf.rawKeyspace(),
+          "log"
+        )
+    )
 
     val transformation = new Transformation(spark, conf.bucketSize())
 
@@ -164,7 +167,8 @@ object TransformationJob {
     )
 
     println("Computing address IDs")
-    val addressIds = transformation.computeAddressIds(traces).persist()
+    val addressIds =
+      transformation.computeAddressIds(traces, token_transfers).persist()
     val noAddresses = addressIds.count()
     val addressIdsByAddressPrefix =
       addressIds.toDF.transform(
@@ -181,12 +185,15 @@ object TransformationJob {
     )
 
     println("Computing balances")
+
     val balances = transformation
       .computeBalances(
         blocks,
         transactions,
         traces,
-        addressIds
+        addressIds,
+        token_transfers,
+        token_configurations
       )
       .persist()
     cassandra.store(conf.targetKeyspace(), "balance", balances)

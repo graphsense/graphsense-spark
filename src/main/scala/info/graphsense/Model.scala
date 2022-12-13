@@ -34,7 +34,12 @@ case class AddressIdByAddressPrefix(
 
 // Helper types
 
+case class TokenConfiguration(currency_ticker: String, token_address: Array[Byte], standard: String, decimals: Int)
+
 case class TokenTransfer(
+    blockId: Int,
+    transactionIndex: Short,
+    logIndex: Int,
     txhash: Array[Byte],
     token_address: Array[Byte],
     from: Array[Byte],
@@ -54,13 +59,32 @@ case class TokenTransfer(
       this.from
     ) && bytes_to_hexstr(that.to) == bytes_to_hexstr(
       this.to
-    ) && that.value == this.value
+    ) && that.value == this.value && that.blockId == this.blockId && that.logIndex == this.logIndex && that.transactionIndex == this.transactionIndex
   }
 
   /** TODO fix hashcode in case I want to use this in collection
     * @return
     */
   override def hashCode(): Int = super.hashCode()
+
+  def isDefault(): Boolean = {
+    this == TokenTransfer.default()
+  }
+}
+
+object TokenTransfer {
+  def default() = new TokenTransfer(
+    0,
+    0,
+    0,
+    hexstr_to_bytes(
+      "0x0000000000000000000000000000000000000000000000000000000000000000"
+    ),
+    hexstr_to_bytes("0x0000000000000000000000000000000000000000"),
+    hexstr_to_bytes("0x0000000000000000000000000000000000000000"),
+    hexstr_to_bytes("0x0000000000000000000000000000000000000000"),
+    BigInt.int2bigInt(0)
+  )
 }
 
 // transformed schema data types
@@ -143,7 +167,7 @@ case class Log(
 
 case class ExchangeRates(blockId: Int, fiatValues: Seq[Float])
 
-case class Balance(addressIdGroup: Int, addressId: Int, balance: BigInt)
+case class Balance(addressIdGroup: Int, addressId: Int, balance: BigInt, currency: String)
 
 case class BlockTransaction(blockIdGroup: Int, blockId: Int, txs: Seq[Int])
 

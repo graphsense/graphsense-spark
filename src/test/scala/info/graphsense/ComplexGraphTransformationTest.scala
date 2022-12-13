@@ -47,7 +47,7 @@ class ComplexGraphTransformationTest
   val exchangeRates =
     t.computeExchangeRates(blocks, exchangeRatesRaw).persist()
   val txIds = t.computeTransactionIds(txs)
-  val addressIds = t.computeAddressIds(traces)
+  val addressIds = t.computeAddressIds(traces, spark.emptyDataset[TokenTransfer])
   val encodedTxs =
     t.computeEncodedTransactions(txs, txIds, addressIds, exchangeRates)
   val addressTransactions = t.computeAddressTransactions(encodedTxs)

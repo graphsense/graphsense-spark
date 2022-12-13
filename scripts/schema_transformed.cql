@@ -123,7 +123,8 @@ CREATE TABLE balance (
     address_id_group int,
     address_id int,
     balance varint,
-    PRIMARY KEY (address_id_group, address_id)
+    currency string,
+    PRIMARY KEY (address_id_group, address_id, currency)
 );
 
 CREATE TABLE configuration (

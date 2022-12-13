@@ -68,10 +68,10 @@ class TransformationTest
         "transactionPrefix"
       )
     )
-
   val addressIds = t
-    .computeAddressIds(traces)
+    .computeAddressIds(traces, spark.emptyDataset[TokenTransfer])
     .sort("addressId")
+
   val addressIdsByAddressPrefix =
     addressIds.toDF
       .transform(
