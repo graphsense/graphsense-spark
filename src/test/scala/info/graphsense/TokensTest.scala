@@ -1,7 +1,7 @@
 package info.graphsense
 
 import com.github.mrpowers.spark.fast.tests.DataFrameComparer
-import org.apache.spark.sql.functions.{col, lit}
+import org.apache.spark.sql.functions.{col, lit, udf}
 import org.scalatest.funsuite.AnyFunSuite
 
 import Helpers.{readTestData}
@@ -108,9 +108,9 @@ class TokenTest
 
     val tt = new TokenTransfers(spark)
 
-    /* Only keep USDT token transfers for compare but parse all of them*/
+    /* Parse all but only keep USDT token transfers for compare but parse all of them*/
     val transfers = tt
-      .get_token_transfers(logs)
+      .get_token_transfers(logs, tt.token_addresses)
       .filter(
         col("token_address") === lit(
           hexstr_to_bytes("0xdAC17F958D2ee523a2206206994597C13D831ec7")
@@ -134,6 +134,79 @@ class TokenTest
       )
 
     assertDataFrameEquality(transfers, transfersRef)
+
+  }
+
+  test("encoded token transfers test") {
+    import spark.implicits._
+    val inputDir = "src/test/resources/tokens/"
+
+    val blocks =
+      readTestData[Block](spark, inputDir + "test_blocks.csv")
+
+    val transactions =
+      readTestData[Transaction](
+        spark,
+        inputDir + "test_transactions.csv"
+      )
+    val traces =
+      readTestData[Trace](spark, inputDir + "test_traces.csv")
+    val exchangeRatesRaw =
+      readTestData[ExchangeRatesRaw](
+        spark,
+        inputDir + "test_exchange_rates.json"
+      )
+    val logs = readTestData[Log](spark, inputDir + "logs.json")
+
+    val t = new Transformation(spark, 2)
+    val tt = new TokenTransfers(spark)
+
+    /* Parse all but only keep USDT token transfers for compare but parse all of them*/
+    val transfers = tt
+      .get_token_transfers(logs, tt.token_addresses)
+
+    val token_configs = tt.get_token_configurations()
+
+    val exchangeRates =
+      t.computeExchangeRates(blocks, exchangeRatesRaw)
+        .persist()
+
+    val transactionIds = t.computeTransactionIds(transactions)
+
+    val addressIds = t
+      .computeAddressIds(traces, transfers)
+      .sort("addressId")
+
+    /*    val encodedTransactions =
+      t.computeEncodedTransactions(
+        transactions,
+        transactionIds,
+        addressIds,
+        exchangeRates
+      ).sort("blockId")
+        .persist()*/
+/*    val htostr = udf((x: Array[Byte]) => bytes_to_hexstr(x))
+    val hashes = transfers.select($"txHash").distinct().withColumn("txHash", htostr(transfers("txHash")))
+
+    hashes.write
+      .format("csv")
+      .option("header", true)
+      .save(
+        "/home/mf/Documents/ikna/src/infrastructure/graphsense-ethereum-transformation/hashes.csv"
+      )
+*/
+    val encodedTokenTransfers =
+      t.computeEncodedTokenTransfers(
+        transfers,
+        token_configs,
+        transactionIds,
+        addressIds,
+        exchangeRates
+      ).sort("blockId")
+        .persist()
+
+
+    /*println(encodedTokenTransfers.show())*/
 
   }
 

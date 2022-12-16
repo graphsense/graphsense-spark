@@ -1,6 +1,7 @@
 package info.graphsense
 
 import info.graphsense.Conversion._
+import com.fasterxml.jackson.databind.node.BigIntegerNode
 
 // lookup tables
 
@@ -34,13 +35,20 @@ case class AddressIdByAddressPrefix(
 
 // Helper types
 
-case class TokenConfiguration(currency_ticker: String, token_address: Array[Byte], standard: String, decimals: Int)
+case class TokenConfiguration(
+    currency_ticker: String,
+    token_address: Array[Byte],
+    standard: String,
+    decimals: Int,
+    decimal_divisor: Int,
+    peg_currency: Option[String]
+)
 
 case class TokenTransfer(
     blockId: Int,
     transactionIndex: Short,
     logIndex: Int,
-    txhash: Array[Byte],
+    txHash: Array[Byte],
     token_address: Array[Byte],
     from: Array[Byte],
     to: Array[Byte],
@@ -51,8 +59,8 @@ case class TokenTransfer(
       return false
 
     val that = thatGeneric.asInstanceOf[TokenTransfer]
-    bytes_to_hexstr(that.txhash) == bytes_to_hexstr(
-      this.txhash
+    bytes_to_hexstr(that.txHash) == bytes_to_hexstr(
+      this.txHash
     ) && bytes_to_hexstr(that.token_address) == bytes_to_hexstr(
       this.token_address
     ) && bytes_to_hexstr(that.from) == bytes_to_hexstr(
@@ -167,9 +175,33 @@ case class Log(
 
 case class ExchangeRates(blockId: Int, fiatValues: Seq[Float])
 
-case class Balance(addressIdGroup: Int, addressId: Int, balance: BigInt, currency: String)
+case class Balance(
+    addressIdGroup: Int,
+    addressId: Int,
+    balance: BigInt,
+    currency: String
+)
 
 case class BlockTransaction(blockIdGroup: Int, blockId: Int, txs: Seq[Int])
+
+/*
+    blockId: Int,
+    transactionIndex: Short,
+    logIndex: Int,
+    txHash: Array[Byte],
+    token_address: Array[Byte],
+    from: Array[Byte],
+    to: Array[Byte],
+    value: BigInt*/
+case class EncodedTokenTransfer(
+    transactionId: Int,
+    logIndex: Int,
+    currency: String,
+    srcAddressId: Int,
+    dstAddressId: Option[Int],
+    value: BigInt,
+    fiatValues: Seq[Float]
+)
 
 case class EncodedTransaction(
     transactionId: Int,

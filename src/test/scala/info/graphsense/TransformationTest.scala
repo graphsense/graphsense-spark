@@ -208,7 +208,7 @@ class TransformationTest
     assert(blocks.count.toInt == 84, "expected 84 blocks")
     assert(lastBlockTimestamp == 1438919571)
     assert(transactions.count() == 10, "expected 10 transaction")
-    assert(addressIds.count() == 59, "expected 15 addresses")
+    assert(addressIds.count() == 59, "expected 59 addresses")
     assert(addressRelations.count() == 9, "expected 9 address relations")
   }
 }

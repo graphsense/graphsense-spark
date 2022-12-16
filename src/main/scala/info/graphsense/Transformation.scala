@@ -3,7 +3,9 @@ package info.graphsense
 import org.apache.spark.sql.{Column, DataFrame, Dataset, Encoder, SparkSession}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{
+  when,
   array,
+  element_at,
   coalesce,
   col,
   collect_list,
@@ -302,7 +304,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         "balance",
         col("debits") + col("credits")
       )
-      .join(token_configurations, Seq("token_address"), "full")
+      .join(token_configurations, Seq("token_address"), "left")
       .withColumn("currency", col("currency_ticker"))
 
     val balance_tokens = balance_tokens_t
@@ -383,6 +385,91 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .zipWithIndex()
       .map { case ((a, id)) => AddressId(a, id.toInt) }
       .toDS()
+  }
+
+  def computeEncodedTokenTransfers(
+      token_transfers: Dataset[TokenTransfer],
+      token_configurations: Dataset[TokenConfiguration],
+      transactionsIds: Dataset[TransactionId],
+      addressIds: Dataset[AddressId],
+      exchangeRates: Dataset[ExchangeRates]
+  ): Dataset[EncodedTokenTransfer] = {
+    def toFiatCurrency(valueColumn: String, fiatValueColumn: String)(
+        df: DataFrame
+    ) = {
+
+      val test = df.withColumn(
+        fiatValueColumn,
+        when(
+          $"peg_currency" === "usd",
+          array(
+            lit(1),
+            element_at(col(fiatValueColumn), 1) / element_at(
+              col(fiatValueColumn),
+              2
+            )
+          )
+        ).otherwise(col(fiatValueColumn))
+      )
+      /*println(test.show())*/
+      test.withColumn(
+        fiatValueColumn,
+        transform(
+          col(fiatValueColumn),
+          (x: Column) =>
+            (col(valueColumn) * x / col("decimal_divisor")).cast(FloatType)
+        )
+      )
+    }
+    token_transfers
+      .withColumnRenamed("txHash", "transaction")
+      .join(
+        transactionsIds,
+        Seq("transaction"),
+        "left"
+      )
+      .join(
+        addressIds.select(
+          col("address").as("from"),
+          col("addressId").as("fromAddressId")
+        ),
+        Seq("from"),
+        "left"
+      )
+      .join(
+        addressIds.select(
+          col("address").as("to"),
+          col("addressId").as("toAddressId")
+        ),
+        Seq("to"),
+        "left"
+      )
+      .drop(
+        "blockHash",
+        "txHashPrefix",
+        "transactionIndex",
+        "transaction",
+        "from",
+        "to"
+      )
+      .withColumnRenamed("fromAddressId", "srcAddressId")
+      .withColumnRenamed("toAddressId", "dstAddressId")
+      .join(exchangeRates, Seq("blockId"), "left")
+      .join(
+        token_configurations.select(
+          "token_address",
+          "currency_ticker",
+          "peg_currency",
+          "decimals",
+          "decimal_divisor"
+        ),
+        Seq("token_address"),
+        "left"
+      )
+      .transform(toFiatCurrency("value", "fiatValues"))
+      .drop("decimals", "standard", "peg_currency", "decimal_divisor")
+      .withColumnRenamed("currency_ticker", "currency")
+      .as[EncodedTokenTransfer]
   }
 
   def computeEncodedTransactions(

@@ -1,14 +1,11 @@
 package info.graphsense
 
-import scala.math.BigInt
 import com.datastax.spark.connector.ColumnName
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{col, max, lit}
+import org.apache.spark.sql.functions.{col, max}
 import org.rogach.scallop._
 
 import info.graphsense.storage.CassandraStorage
-
-import org.apache.spark.sql.Dataset
 
 object TransformationJob {
 
@@ -101,7 +98,8 @@ object TransformationJob {
         .load[Log](
           conf.rawKeyspace(),
           "log"
-        )
+        ),
+      tt.token_addresses
     )
 
     val transformation = new Transformation(spark, conf.bucketSize())
@@ -209,6 +207,16 @@ object TransformationJob {
           exchangeRates
         )
         .persist()
+
+    val encodedTokenTransfers = transformation
+      .computeEncodedTokenTransfers(
+        token_transfers,
+        token_configurations,
+        transactionIds,
+        addressIds,
+        exchangeRates
+      )
+      .persist()
 
     println("Computing block transactions")
     val blockTransactions = transformation
