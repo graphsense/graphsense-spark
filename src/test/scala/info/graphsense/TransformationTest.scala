@@ -38,6 +38,9 @@ class TransformationTest
   val exchangeRatesRaw =
     readTestData[ExchangeRatesRaw](spark, inputDir + "test_exchange_rates.json")
 
+  val tokenTransfers = spark.emptyDataset[TokenTransfer]
+  val encodedTokenTransfers = spark.emptyDataset[EncodedTokenTransfer]
+
   val noBlocks = blocks.count.toInt
   val lastBlockTimestamp = blocks
     .select(max(col("timestamp")))
@@ -69,7 +72,7 @@ class TransformationTest
       )
     )
   val addressIds = t
-    .computeAddressIds(traces, spark.emptyDataset[TokenTransfer])
+    .computeAddressIds(traces, tokenTransfers)
     .sort("addressId")
 
   val addressIdsByAddressPrefix =
@@ -98,21 +101,21 @@ class TransformationTest
   val addressTransactions = t
     .computeAddressTransactions(
       encodedTransactions,
-      spark.emptyDataset[EncodedTokenTransfer]
+      encodedTokenTransfers
     )
     .persist()
 
   val addresses = t
     .computeAddresses(
       encodedTransactions,
-      spark.emptyDataset[EncodedTokenTransfer],
+      encodedTokenTransfers,
       addressTransactions,
       addressIds
     )
     .persist()
 
   val addressRelations = t
-    .computeAddressRelations(encodedTransactions)
+    .computeAddressRelations(encodedTransactions, encodedTokenTransfers)
     .sort("srcAddressId", "dstAddressId")
 
   note("Test lookup tables")

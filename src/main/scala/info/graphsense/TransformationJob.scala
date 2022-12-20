@@ -260,7 +260,10 @@ object TransformationJob {
 
     println("Computing address relations")
     val addressRelations =
-      transformation.computeAddressRelations(encodedTransactions)
+      transformation.computeAddressRelations(
+        encodedTransactions,
+        encodedTokenTransfers
+      )
     val noAddressRelations = addressRelations.count()
 
     cassandra.store(

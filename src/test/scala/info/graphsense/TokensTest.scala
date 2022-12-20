@@ -42,26 +42,10 @@ class TokenTest
   }
 
   test("Default Transfer") {
-    val dv = TokenTransfer.default()
-
-    assert(dv.isDefault)
+    assert(TokenTransfer.default().isDefault)
   }
 
   test("decode log") {
-
-    /*    {
-      "block_id_group": 15000,
-      "block_id": 15000000,
-      "topic0": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-      "log_index": 0,
-      "address": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
-      "block_hash": "0x9a71a95be3fe957457b11817587e5af4c7e24836d5b383c430ff25b9286a457f",
-      "data": "0x0000000000000000000000000000000000000000000000005ea0a1fe55143c0d",
-      "topics": ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", "0x00000000000000000000000006729eb2424da47898f935267bd4a62940de5105", "0x000000000000000000000000beefbabeea323f07c59926295205d3b7a17e8638"],
-      "transaction_index": 2,
-      "tx_hash": "0xbeb3d09a644dc0772719f498172af05ed8cd337aaf83c2b5aee43be34fcb9dfb"
-    }
-     */
     val l = Log(
       15000,
       15000000,
@@ -117,7 +101,7 @@ class TokenTest
         )
       )
 
-    /* GENERATE REV DATA DECODED TOKEN TRANSFERS
+    /* GENERATE REF DATA DECODED TOKEN TRANSFERS
 
     val transfers_str = tt.human_readable_token_transfers(transfers)
     println(transfers_str.show())
@@ -192,9 +176,25 @@ class TokenTest
         .withColumn(
           "allfiatset",
           forall(col("fiatValues"), (colmn: Column) => colmn.isNotNull)
-        ).filter($"allfiatset"===lit(false)).count() === 0
+        )
+        .filter($"allfiatset" === lit(false))
+        .count() === 0
     )
-    /* GENERATE LIST OF HASHES used in Transfers   
+
+    assert(
+      encodedTransactions.filter($"dstAddressId".isNull).count() === 0
+    )
+
+    assert(
+      encodedTransactions.filter($"dstAddressId".isNull).count() === 0
+    )
+
+    assert(
+      encodedTransactions
+        .filter($"dstAddressId".isNull)
+        .count() === transactions.filter($"toAddress".isNull).count()
+    )
+    /* GENERATE LIST OF HASHES used in Transfers
 
     val htostr = udf((x: Array[Byte]) => bytes_to_hexstr(x))
     val hashes = transfers.select($"txHash").distinct().withColumn("txHash", htostr(transfers("txHash")))
@@ -220,16 +220,26 @@ class TokenTest
         .withColumn(
           "allfiatset",
           forall(col("fiatValues"), (colmn: Column) => colmn.isNotNull)
-        ).filter($"allfiatset"===lit(false)).count() === 0
+        )
+        .filter($"allfiatset" === lit(false))
+        .count() === 0
     )
+
+    assert(
+      encodedTokenTransfers.filter($"srcAddressId".isNull).count() === 0
+    )
+
+    assert(
+      encodedTokenTransfers.filter($"dstAddressId".isNull).count() === 0
+    )
+
+    /*println(encodedTokenTransfers.show(100, false))*/
 
     val addressTransactions = t
       .computeAddressTransactions(
         encodedTransactions,
         encodedTokenTransfers
       )
-
-
 
     val addresses = t
       .computeAddresses(
@@ -240,7 +250,37 @@ class TokenTest
       )
 
     assert(
+      addresses
+        .filter($"totalTokensSpent".isNotNull)
+        .filter(col("totalSpent.value") > 0)
+        .count() === 3
+    )
+
+    /*    println(addresses
+        .filter($"totalTokensSpent".isNotNull)
+        .filter(col("totalSpent.value") > 0).show(10, false))*/
+
+    /*val htostr = udf((x: Array[Byte]) => bytes_to_hexstr(x))*/
+    assert(
+      addresses
+        /*.withColumn("address", htostr(addresses("address")))*/
+        .filter($"noIncomingTxs" === 0 && $"noOutgoingTxs" === 0)
+        .count() === 0
+    )
+
+    /* this is currently not true since
+    for the address transactions, tx table is used not traces */
+    /*
+      val address_count = addressIds.count()
+      assert(addresses.count() === address_count)
+     */
+
+    assert(
       addresses.count() === addresses.select($"addressId").distinct().count()
+    )
+
+    assert(
+      addresses.count() === addresses.select($"address").distinct().count()
     )
 
     val addressesRef =
@@ -249,16 +289,62 @@ class TokenTest
         inputDir + "/reference/addresses.json"
       )
 
-    assertDataFrameEquality(addresses, addressesRef)
+    /* GENERATE REF DATA for addresses */
 
-/*    val htostr = udf((x: Array[Byte]) => bytes_to_hexstr(x))
+    /*
+    val htostr = udf((x: Array[Byte]) => bytes_to_hexstr(x))
     val addresseshr = addresses
       .withColumn("address", htostr(addresses("address")))
     addresseshr.write
       .format("json")
       .save(
         "/home/mf/Documents/ikna/src/infrastructure/graphsense-ethereum-transformation/addresses.json"
-      )*/
+      )
+     */
+
+    assertDataFrameEquality(addresses, addressesRef)
+
+    val address_relations =
+      t.computeAddressRelations(encodedTransactions, encodedTokenTransfers)
+
+    assert(
+      address_relations
+        .filter($"tokenValues".isNotNull)
+        .filter(col("value.value") > 0)
+        .count() === 1
+    )
+
+    assert(address_relations.filter($"srcAddressId".isNull).count() === 0)
+
+    assert(address_relations.filter($"dstAddressId".isNull).count() === 0)
+    /*
+      print(address_relations
+        .filter($"tokenValues".isNotNull)
+        .filter(col("value.value") > 0).show(100,false))
+     */
+    /* GENERATE REF DATA for addresses_relations */
+    /*
+      address_relations.write
+      .format("json")
+      .save(
+        "/home/mf/Documents/ikna/src/infrastructure/graphsense-ethereum-transformation/addresses_relations.json"
+      )
+     */
+
+    assert(
+      address_relations
+        .filter($"tokenValues".isNotNull)
+        .filter(col("value.value") > 0)
+        .count() === 1
+    )
+
+    val address_relationsRef =
+      readTestData[AddressRelation](
+        spark,
+        inputDir + "/reference/address_relations.json"
+      )
+
+    assertDataFrameEquality(address_relations, address_relationsRef)
 
   }
 

@@ -258,7 +258,8 @@ case class AddressRelation(
     dstAddressIdSecondaryGroup: Int,
     dstAddressId: Int,
     noTransactions: Int,
-    value: Currency
+    value: Currency,
+    tokenValues: Option[Map[String, Currency]]
 )
 
 case class AddressOutgoingRelationSecondaryIds(

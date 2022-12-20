@@ -57,6 +57,22 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
     ).toDS()
   }
 
+  def zeroValueIfNull(columnName: String, length: Int)(
+      df: DataFrame
+  ): DataFrame = {
+    df.withColumn(
+      columnName,
+      coalesce(
+        col(columnName),
+        struct(
+          lit(0).cast(DecimalType(38, 0)).as("value"),
+          typedLit(Array.fill[Float](length)(0))
+            .as("fiatValues")
+        )
+      )
+    )
+  }
+
   def aggregateValues(
       valueColumn: String,
       fiatValueColumn: String,
@@ -65,16 +81,33 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
   )(df: DataFrame): DataFrame = {
     df.groupBy(groupColumns.head, groupColumns.tail: _*)
       .agg(
-        struct(
-          sum(col(valueColumn)).as(valueColumn),
-          array(
-            (0 until length)
-              .map(i =>
-                sum(col(fiatValueColumn).getItem(i)).cast(FloatType)
-              ): _*
-          ).as(fiatValueColumn)
-        ).as(valueColumn)
+        createAggCurrencyStruct(valueColumn, fiatValueColumn, length)
       )
+  }
+
+  def createAggCurrencyStruct(
+      valueColumn: String,
+      fiatValueColumn: String,
+      length: Int
+  ): Column = {
+    struct(
+      sum(col(valueColumn)).as(valueColumn),
+      array(
+        (0 until length)
+          .map(i => sum(col(fiatValueColumn).getItem(i)).cast(FloatType)): _*
+      ).as(fiatValueColumn)
+    ).as(valueColumn)
+  }
+
+  def createAggCurrencyStructPerCurrency(
+      valueColumn: String,
+      fiatValueColumn: String,
+      length: Int
+  ): Column = {
+    struct(
+      col("currency"),
+      createAggCurrencyStruct(valueColumn, fiatValueColumn, length)
+    )
   }
 
   def getFiatCurrencies(
@@ -620,65 +653,36 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       addressTransactions: Dataset[AddressTransaction],
       addressIds: Dataset[AddressId]
   ): Dataset[Address] = {
-    def zeroValueIfNull(columnName: String)(df: DataFrame): DataFrame = {
-      df.withColumn(
-        columnName,
-        coalesce(
-          col(columnName),
-          struct(
-            lit(0).cast(DecimalType(38, 0)).as("value"),
-            typedLit(Array.fill[Float](noFiatCurrencies.get)(0))
-              .as("fiatValues")
-          )
-        )
-      )
-    }
+
     val relations = encodedTransactions
-      .select("dstAddressId", "srcAddressId")
-      .union(encodedTokenTransfers.select("dstAddressId", "srcAddressId"))
+      .select("dstAddressId", "srcAddressId", "transactionId")
+      .union(
+        encodedTokenTransfers
+          .select("dstAddressId", "srcAddressId", "transactionId")
+      )
 
     val outStats_eth = encodedTransactions
       .groupBy("srcAddressId")
       .agg(
-        count("transactionId").cast(IntegerType).as("noOutgoingTxs"),
-        struct(
-          sum(col("value")).as("value"),
-          array(
-            (0 until noFiatCurrencies.get)
-              .map(i => sum(col("fiatValues").getItem(i)).cast(FloatType)): _*
-          ).as("fiatValues")
-        ).as("TotalSpent")
+        createAggCurrencyStruct("value", "fiatValues", noFiatCurrencies.get)
+          .as("TotalSpent")
       )
-    val outStats_degree = relations
+    val outStats_relations = relations
       .groupBy("srcAddressId")
-      .agg(countDistinct("dstAddressId").cast(IntegerType).as("outDegree"))
-    /*      .join(
-        encodedTransactions.toDF.transform(
-          aggregateValues(
-            "value",
-            "fiatValues",
-            noFiatCurrencies.get,
-            "srcAddressId"
-          )
-        ),
-        Seq("srcAddressId"),
-        "left"
+      .agg(
+        count("transactionId").cast(IntegerType).as("noOutgoingTxs"),
+        countDistinct("dstAddressId").cast(IntegerType).as("outDegree")
       )
-      .withColumnRenamed("value", "TotalSpent")*/
 
     val outStats_token = encodedTokenTransfers
       .groupBy("srcAddressId", "currency")
       .agg(
-        struct(
-          col("currency"),
-          struct(
-            sum(col("value")).as("value"),
-            array(
-              (0 until noFiatCurrencies.get)
-                .map(i => sum(col("fiatValues").getItem(i)).cast(FloatType)): _*
-            ).as("fiatValues")
-          )
-        ).as("TokensSpent")
+        createAggCurrencyStructPerCurrency(
+          "value",
+          "fiatValues",
+          noFiatCurrencies.get
+        )
+          .as("TokensSpent")
       )
       .groupBy("srcAddressId")
       .agg(
@@ -686,54 +690,34 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
 
     val outStats = outStats_eth
-      .join(outStats_degree, Seq("srcAddressId"), "left")
-      .join(outStats_token, Seq("srcAddressId"), "left")
+      .join(outStats_relations, Seq("srcAddressId"), "full")
+      .join(outStats_token, Seq("srcAddressId"), "full")
     /*
     println(outStats.sort("srcAddressId").show())*/
 
     val inStats_eth = encodedTransactions
       .groupBy("dstAddressId")
       .agg(
-        count("transactionId").cast(IntegerType).as("noIncomingTxs"),
-        struct(
-          sum(col("value")).as("value"),
-          array(
-            (0 until noFiatCurrencies.get)
-              .map(i => sum(col("fiatValues").getItem(i)).cast(FloatType)): _*
-          ).as("fiatValues")
-        ).as("TotalReceived")
+        createAggCurrencyStruct("value", "fiatValues", noFiatCurrencies.get)
+          .as("TotalReceived")
       )
-    /*.join(
-        encodedTransactions.toDF
-          .transform(
-            aggregateValues(
-              "value",
-              "fiatValues",
-              noFiatCurrencies.get,
-              "dstAddressId"
-            )
-          ),
-        Seq("dstAddressId"),
-        "left"
-      )
-      .withColumnRenamed("value", "TotalReceived")*/
-    val inStats_degree = relations
+
+    val inStats_relations = relations
       .groupBy("dstAddressId")
-      .agg(countDistinct("srcAddressId").cast(IntegerType).as("inDegree"))
+      .agg(
+        count("transactionId").cast(IntegerType).as("noIncomingTxs"),
+        countDistinct("srcAddressId").cast(IntegerType).as("inDegree")
+      )
 
     val inStats_token = encodedTokenTransfers
       .groupBy("dstAddressId", "currency")
       .agg(
-        struct(
-          col("currency"),
-          struct(
-            sum(col("value")).as("value"),
-            array(
-              (0 until noFiatCurrencies.get)
-                .map(i => sum(col("fiatValues").getItem(i)).cast(FloatType)): _*
-            ).as("fiatValues")
-          ).as("valueCurrency")
-        ).as("TokensReceived")
+        createAggCurrencyStructPerCurrency(
+          "value",
+          "fiatValues",
+          noFiatCurrencies.get
+        )
+          .as("TokensReceived")
       )
       .groupBy("dstAddressId")
       .agg(
@@ -742,12 +726,13 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
 
     val inStats = inStats_eth
-      .join(inStats_degree, Seq("dstAddressId"), "left")
-      .join(inStats_token, Seq("dstAddressId"), "left")
+      .join(inStats_relations, Seq("dstAddressId"), "full")
+      .join(inStats_token, Seq("dstAddressId"), "full")
     /*
     println(inStats.sort("dstAddressId").show())*/
 
     addressTransactions
+      .select("addressId", "transactionId")
       .groupBy("addressId")
       .agg(
         min(col("transactionId")).as("firstTxId"),
@@ -765,8 +750,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
       .na
       .fill(0, Seq("noIncomingTxs", "noOutgoingTxs", "inDegree", "outDegree"))
-      .transform(zeroValueIfNull("totalReceived"))
-      .transform(zeroValueIfNull("totalSpent"))
+      .transform(zeroValueIfNull("totalReceived", noFiatCurrencies.get))
+      .transform(zeroValueIfNull("totalSpent", noFiatCurrencies.get))
       .join(addressIds, Seq("addressId"), "left")
       .transform(withIdGroup("addressId", "addressIdGroup"))
       .sort("addressId")
@@ -774,7 +759,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
   }
 
   def computeAddressRelations(
-      encodedTransactions: Dataset[EncodedTransaction]
+      encodedTransactions: Dataset[EncodedTransaction],
+      encodedTokenTransfers: Dataset[EncodedTokenTransfer]
   ): Dataset[AddressRelation] = {
 
     val aggValues = encodedTransactions.toDF.transform(
@@ -787,8 +773,31 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
     )
 
+    val aggValues_tokens = encodedTokenTransfers
+      .groupBy("srcAddressId", "dstAddressId", "currency")
+      .agg(
+        createAggCurrencyStructPerCurrency(
+          "value",
+          "fiatValues",
+          noFiatCurrencies.get
+        ).as("tokenValues")
+      )
+      .groupBy("srcAddressId", "dstAddressId")
+      .agg(
+        map_from_entries(collect_set("tokenValues")).as("tokenValues")
+      )
+
     val window = Window.partitionBy("srcAddressId", "dstAddressId")
     encodedTransactions
+      .select("srcAddressId", "dstAddressId", "transactionId")
+      // union token transfers to cover addresses that have only seen token transfers
+      .union(
+        encodedTokenTransfers.select(
+          "srcAddressId",
+          "dstAddressId",
+          "transactionId"
+        )
+      )
       .filter(col("dstAddressId").isNotNull)
       .withColumn(
         "noTransactions",
@@ -802,6 +811,12 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       // join aggregated currency values
       .join(
         aggValues,
+        Seq("srcAddressId", "dstAddressId"),
+        "left"
+      )
+      // join aggregated token values
+      .join(
+        aggValues_tokens,
         Seq("srcAddressId", "dstAddressId"),
         "left"
       )
@@ -823,6 +838,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
           "dstAddressId"
         )
       )
+      .transform(zeroValueIfNull("value", noFiatCurrencies.get))
       .as[AddressRelation]
   }
 
