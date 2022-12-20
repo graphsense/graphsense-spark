@@ -84,12 +84,11 @@ class TransformationTest
 
   val encodedTransactions =
     t.computeEncodedTransactions(
-        transactions,
-        transactionIds,
-        addressIds,
-        exchangeRates
-      )
-      .sort("blockId")
+      transactions,
+      transactionIds,
+      addressIds,
+      exchangeRates
+    ).sort("blockId")
       .persist()
 
   val blockTransactions = t
@@ -97,12 +96,16 @@ class TransformationTest
     .sort("blockId")
 
   val addressTransactions = t
-    .computeAddressTransactions(encodedTransactions)
+    .computeAddressTransactions(
+      encodedTransactions,
+      spark.emptyDataset[EncodedTokenTransfer]
+    )
     .persist()
 
   val addresses = t
     .computeAddresses(
       encodedTransactions,
+      spark.emptyDataset[EncodedTokenTransfer],
       addressTransactions,
       addressIds
     )

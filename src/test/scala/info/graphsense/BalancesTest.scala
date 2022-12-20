@@ -47,7 +47,6 @@ class BalancesTest
       .map(x => x.token_address)
       .collect()
 
-    println(token_selection)
     val token_transfers = tt.get_token_transfers(logs, token_selection)
 
     val addressIds = t.computeAddressIds(traces, token_transfers)

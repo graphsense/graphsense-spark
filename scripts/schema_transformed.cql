@@ -55,9 +55,11 @@ CREATE TABLE address_transactions (
     address_id_secondary_group int,
     address_id int,
     transaction_id int,
+    log_id int, 
+    currency text,
     is_outgoing boolean,
-    PRIMARY KEY ((address_id_group, address_id_secondary_group), address_id, is_outgoing, transaction_id)
-) WITH CLUSTERING ORDER BY (address_id DESC, is_outgoing DESC, transaction_id DESC);
+    PRIMARY KEY ((address_id_group, address_id_secondary_group), address_id, is_outgoing, currency, transaction_id)
+) WITH CLUSTERING ORDER BY (address_id DESC, is_outgoing DESC, currency DESC, transaction_id DESC);
 
 CREATE TABLE address_transactions_secondary_ids (
     address_id_group int PRIMARY KEY,
@@ -74,6 +76,8 @@ CREATE TABLE address (
     last_tx_id int,
     total_received FROZEN <currency>,
     total_spent FROZEN <currency>,
+    total_tokens_received map<text,currency>,
+    total_tokens_spent map<text,currency>,
     in_degree int,
     out_degree int,
     PRIMARY KEY (address_id_group, address_id)
@@ -123,7 +127,7 @@ CREATE TABLE balance (
     address_id_group int,
     address_id int,
     balance varint,
-    currency string,
+    currency text,
     PRIMARY KEY (address_id_group, address_id, currency)
 );
 

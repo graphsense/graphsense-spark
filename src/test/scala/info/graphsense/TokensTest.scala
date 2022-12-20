@@ -1,7 +1,7 @@
 package info.graphsense
 
 import com.github.mrpowers.spark.fast.tests.DataFrameComparer
-import org.apache.spark.sql.functions.{col, lit, udf}
+import org.apache.spark.sql.functions.{col, lit, udf, forall}
 import org.scalatest.funsuite.AnyFunSuite
 
 import Helpers.{readTestData}
@@ -97,7 +97,7 @@ class TokenTest
 
   }
 
-  test("decode logs") {
+  test("full transform with logs") {
 
     val inputDir = "src/test/resources/tokens/"
     spark.sparkContext.setLogLevel("WARN")
@@ -117,7 +117,9 @@ class TokenTest
         )
       )
 
-    /*    val transfers_str = tt.human_readable_token_transfers(transfers)
+    /* GENERATE REV DATA DECODED TOKEN TRANSFERS
+
+    val transfers_str = tt.human_readable_token_transfers(transfers)
     println(transfers_str.show())
 
     transfers_str.write
@@ -177,15 +179,24 @@ class TokenTest
       .computeAddressIds(traces, transfers)
       .sort("addressId")
 
-    /*    val encodedTransactions =
+    val encodedTransactions =
       t.computeEncodedTransactions(
         transactions,
         transactionIds,
         addressIds,
         exchangeRates
-      ).sort("blockId")
-        .persist()*/
-/*    val htostr = udf((x: Array[Byte]) => bytes_to_hexstr(x))
+      )
+
+    assert(
+      encodedTransactions
+        .withColumn(
+          "allfiatset",
+          forall(col("fiatValues"), (colmn: Column) => colmn.isNotNull)
+        ).filter($"allfiatset"===lit(false)).count() === 0
+    )
+    /* GENERATE LIST OF HASHES used in Transfers   
+
+    val htostr = udf((x: Array[Byte]) => bytes_to_hexstr(x))
     val hashes = transfers.select($"txHash").distinct().withColumn("txHash", htostr(transfers("txHash")))
 
     hashes.write
@@ -194,7 +205,7 @@ class TokenTest
       .save(
         "/home/mf/Documents/ikna/src/infrastructure/graphsense-ethereum-transformation/hashes.csv"
       )
-*/
+     */
     val encodedTokenTransfers =
       t.computeEncodedTokenTransfers(
         transfers,
@@ -202,11 +213,52 @@ class TokenTest
         transactionIds,
         addressIds,
         exchangeRates
-      ).sort("blockId")
-        .persist()
+      ).persist()
+
+    assert(
+      encodedTokenTransfers
+        .withColumn(
+          "allfiatset",
+          forall(col("fiatValues"), (colmn: Column) => colmn.isNotNull)
+        ).filter($"allfiatset"===lit(false)).count() === 0
+    )
+
+    val addressTransactions = t
+      .computeAddressTransactions(
+        encodedTransactions,
+        encodedTokenTransfers
+      )
 
 
-    /*println(encodedTokenTransfers.show())*/
+
+    val addresses = t
+      .computeAddresses(
+        encodedTransactions,
+        encodedTokenTransfers,
+        addressTransactions,
+        addressIds
+      )
+
+    assert(
+      addresses.count() === addresses.select($"addressId").distinct().count()
+    )
+
+    val addressesRef =
+      readTestData[Address](
+        spark,
+        inputDir + "/reference/addresses.json"
+      )
+
+    assertDataFrameEquality(addresses, addressesRef)
+
+/*    val htostr = udf((x: Array[Byte]) => bytes_to_hexstr(x))
+    val addresseshr = addresses
+      .withColumn("address", htostr(addresses("address")))
+    addresseshr.write
+      .format("json")
+      .save(
+        "/home/mf/Documents/ikna/src/infrastructure/graphsense-ethereum-transformation/addresses.json"
+      )*/
 
   }
 

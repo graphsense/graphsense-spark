@@ -19,24 +19,24 @@ class TokenTransfers(spark: SparkSession) {
       hexstr_to_bytes("0xdAC17F958D2ee523a2206206994597C13D831ec7"),
       "erc20",
       6,
-      pow(10,6).intValue(),
-      Some("usd")
+      pow(10, 6).intValue(),
+      Some("USD")
     ),
     TokenConfiguration(
       "USDC",
       hexstr_to_bytes("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"),
       "erc20",
       6,
-      pow(10,6).intValue(),
-      Some("usd")
+      pow(10, 6).intValue(),
+      Some("USD")
     ),
     TokenConfiguration(
       "WETH",
       hexstr_to_bytes("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
       "erc20",
       18,
-      pow(10,18).intValue(),
-      Some("eth")
+      pow(10, 18).intValue(),
+      Some("ETH")
     )
   )
 
@@ -50,7 +50,10 @@ class TokenTransfers(spark: SparkSession) {
       .as[TokenConfiguration]
   }
 
-  def get_token_transfers(logs: Dataset[Log], for_tokens: Seq[Array[Byte]]): Dataset[TokenTransfer] = {
+  def get_token_transfers(
+      logs: Dataset[Log],
+      for_tokens: Seq[Array[Byte]]
+  ): Dataset[TokenTransfer] = {
     logs
       .filter(col("topic0") === lit(Erc20.transfer_topic_hash))
       .filter(col("address").isin(for_tokens: _*))

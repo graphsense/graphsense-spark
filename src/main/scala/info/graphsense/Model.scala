@@ -1,7 +1,6 @@
 package info.graphsense
 
 import info.graphsense.Conversion._
-import com.fasterxml.jackson.databind.node.BigIntegerNode
 
 // lookup tables
 
@@ -223,8 +222,10 @@ case class AddressTransaction(
     addressIdSecondaryGroup: Int,
     addressId: Int,
     transactionId: Int,
-    blockId: Int,
-    blockTimestamp: Int,
+    logIndex: Option[Int],
+    currency: String,
+    /*    blockId: Int,
+    blockTimestamp: Int,*/
     isOutgoing: Boolean
 )
 
@@ -243,6 +244,8 @@ case class Address(
     lastTxId: Int,
     totalReceived: Currency,
     totalSpent: Currency,
+    totalTokensReceived: Option[Map[String, Currency]],
+    totalTokensSpent: Option[Map[String, Currency]],
     inDegree: Int,
     outDegree: Int
 )

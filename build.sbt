@@ -2,7 +2,6 @@ ThisBuild / scalaVersion := "2.12.10"
 ThisBuild / organization := "info.graphsense"
 ThisBuild / version      := "1.2.0"
 
-
 lazy val root = (project in file(".")).
   settings(
     name := "graphsense-ethereum-transformation",

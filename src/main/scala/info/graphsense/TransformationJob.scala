@@ -229,7 +229,7 @@ object TransformationJob {
 
     println("Computing address transactions")
     val addressTransactions = transformation
-      .computeAddressTransactions(encodedTransactions)
+      .computeAddressTransactions(encodedTransactions, encodedTokenTransfers)
       .persist()
     cassandra.store(
       conf.targetKeyspace(),
@@ -252,6 +252,7 @@ object TransformationJob {
     println("Computing address statistics")
     val addresses = transformation.computeAddresses(
       encodedTransactions,
+      encodedTokenTransfers,
       addressTransactions,
       addressIds
     )

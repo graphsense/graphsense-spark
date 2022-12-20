@@ -26,7 +26,7 @@ object Util {
 object Conversion {
   implicit def hexstr_to_bytes(s: String): Array[Byte] = {
     val hex = canonical_hex(s)
-    assert(hex.length % 2 == 0, "Hex string has wrong length") 
+    assert(hex.length % 2 == 0, "Hex string has wrong length")
     hex.sliding(2, 2).map(Integer.parseInt(_, 16).toByte).toArray
   }
 
@@ -48,8 +48,6 @@ object Conversion {
 
   def bytes_to_hexstr_can(bytes: Array[Byte]): String = {
     canonical_hex(bytes_to_hexstr(bytes))
-  } 
-
-
+  }
 
 }

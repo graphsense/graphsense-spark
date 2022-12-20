@@ -47,12 +47,21 @@ class ComplexGraphTransformationTest
   val exchangeRates =
     t.computeExchangeRates(blocks, exchangeRatesRaw).persist()
   val txIds = t.computeTransactionIds(txs)
-  val addressIds = t.computeAddressIds(traces, spark.emptyDataset[TokenTransfer])
+  val addressIds =
+    t.computeAddressIds(traces, spark.emptyDataset[TokenTransfer])
   val encodedTxs =
     t.computeEncodedTransactions(txs, txIds, addressIds, exchangeRates)
-  val addressTransactions = t.computeAddressTransactions(encodedTxs)
+  val addressTransactions = t.computeAddressTransactions(
+    encodedTxs,
+    spark.emptyDataset[EncodedTokenTransfer]
+  )
   val addresses =
-    t.computeAddresses(encodedTxs, addressTransactions, addressIds).persist()
+    t.computeAddresses(
+      encodedTxs,
+      spark.emptyDataset[EncodedTokenTransfer],
+      addressTransactions,
+      addressIds
+    ).persist()
   val addressRelations = t
     .computeAddressRelations(encodedTxs)
     .sort("srcAddressId", "dstAddressId")

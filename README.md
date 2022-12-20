@@ -85,6 +85,19 @@ Usage: submit.sh [-h] [-m MEMORY_GB] [-c CASSANDRA_HOST] [-s SPARK_MASTER]
 ```
 
 
+# Contributions
+
+Community contributions e.g. new features and bug fixes are very welcome. For both please create a pull request with the proposed changes. We will review as soon as possible. To avoid frustration and wasted work please contact us to discuss changes before you implement them. This is best done via an issue or our [discussion board](https://github.com/orgs/graphsense/discussions/).
+
+Please make sure that the submitted code is always tested and properly formatted. 
+
+Do not forget to format and test your code using 
+```
+sbt scalafmt && sbt test
+```
+before committing.
+
+# Useful links
 [graphsense-ethereum-etl]: https://github.com/graphsense/graphsense-ethereum-etl
 [graphsense-dashboard]: https://github.com/graphsense/graphsense-dashboard
 [graphsense-rest]: https://github.com/graphsense/graphsense-rest
@@ -95,3 +108,5 @@ Usage: submit.sh [-h] [-m MEMORY_GB] [-c CASSANDRA_HOST] [-s SPARK_MASTER]
 [dsbulk]: https://github.com/datastax/dsbulk
 [apache-spark]: https://spark.apache.org/downloads.html
 [apache-cassandra]: http://cassandra.apache.org
+
+

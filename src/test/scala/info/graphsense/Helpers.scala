@@ -15,8 +15,10 @@ import org.apache.spark.sql.types.{
   ArrayType,
   StringType,
   StructField,
-  StructType
+  StructType,
+  MapType
 }
+import org.web3j.abi.datatypes
 
 trait SparkSessionTestWrapper {
 
@@ -104,6 +106,8 @@ case object Helpers {
         val newDataType = dataType match {
           case t: StructType          => set(t)
           case ArrayType(dataType, _) => ArrayType(dataType, containsNull)
+          case MapType(kt, dataType:StructType, _)  => MapType(kt, set(dataType), containsNull)
+          case MapType(kt, dataType, _)  => MapType(kt, dataType, containsNull)
           case _                      => dataType
         }
         StructField(name, newDataType, nullable = nullable, metadata)
