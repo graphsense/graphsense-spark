@@ -94,6 +94,10 @@ object TokenTransfer {
   )
 }
 
+case class Contract(
+    addressId: Int
+)
+
 // transformed schema data types
 
 case class Currency(value: BigInt, fiatValues: Seq[Float])
@@ -247,7 +251,8 @@ case class Address(
     totalTokensReceived: Option[Map[String, Currency]],
     totalTokensSpent: Option[Map[String, Currency]],
     inDegree: Int,
-    outDegree: Int
+    outDegree: Int,
+    isContract: Boolean
 )
 
 case class AddressRelation(

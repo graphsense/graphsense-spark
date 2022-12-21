@@ -42,6 +42,7 @@ class ComplexGraphTransformationTest
 
   val tokenTransfers = spark.emptyDataset[TokenTransfer]
   val encodedTokenTransfers = spark.emptyDataset[EncodedTokenTransfer]
+  val contracts = spark.emptyDataset[Contract]
 
   // transformation pipeline
 
@@ -63,7 +64,8 @@ class ComplexGraphTransformationTest
       encodedTxs,
       encodedTokenTransfers,
       addressTransactions,
-      addressIds
+      addressIds,
+      contracts
     ).persist()
   val addressRelations = t
     .computeAddressRelations(encodedTxs, encodedTokenTransfers)

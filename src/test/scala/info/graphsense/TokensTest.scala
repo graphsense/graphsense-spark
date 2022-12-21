@@ -135,6 +135,7 @@ class TokenTest
         spark,
         inputDir + "test_transactions.csv"
       )
+
     val traces =
       readTestData[Trace](spark, inputDir + "test_traces.csv")
     val exchangeRatesRaw =
@@ -162,6 +163,8 @@ class TokenTest
     val addressIds = t
       .computeAddressIds(traces, transfers)
       .sort("addressId")
+
+    val contracts = t.computeContracts(traces, addressIds)
 
     val encodedTransactions =
       t.computeEncodedTransactions(
@@ -246,7 +249,8 @@ class TokenTest
         encodedTransactions,
         encodedTokenTransfers,
         addressTransactions,
-        addressIds
+        addressIds,
+        contracts
       )
 
     assert(
@@ -254,6 +258,17 @@ class TokenTest
         .filter($"totalTokensSpent".isNotNull)
         .filter(col("totalSpent.value") > 0)
         .count() === 3
+    )
+
+    /* 
+      there are at least 3 contract creations in the ds, but 
+      only one has seen transactions so far. So only one 
+      contract address.
+    */
+    assert(
+      addresses
+        .filter($"isContract" === true)
+        .count() === 1
     )
 
     /*    println(addresses
@@ -300,7 +315,8 @@ class TokenTest
       .save(
         "/home/mf/Documents/ikna/src/infrastructure/graphsense-ethereum-transformation/addresses.json"
       )
-     */
+    */
+     
 
     assertDataFrameEquality(addresses, addressesRef)
 
@@ -329,7 +345,7 @@ class TokenTest
       .save(
         "/home/mf/Documents/ikna/src/infrastructure/graphsense-ethereum-transformation/addresses_relations.json"
       )
-     */
+    */
 
     assert(
       address_relations

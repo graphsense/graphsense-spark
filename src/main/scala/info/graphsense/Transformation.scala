@@ -370,6 +370,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
   ): Dataset[AddressId] = {
 
     val fromAddress = traces
+      .filter(col("status") === 1)
       .select(
         col("fromAddress").as("address"),
         col("blockId"),
@@ -379,6 +380,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .filter(col("address").isNotNull)
 
     val toAddress = traces
+      .filter(col("status") === 1)
       .select(
         col("toAddress").as("address"),
         col("blockId"),
@@ -420,6 +422,20 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .zipWithIndex()
       .map { case ((a, id)) => AddressId(a, id.toInt) }
       .toDS()
+  }
+
+  def computeContracts(
+      traces: Dataset[Trace],
+      addressIds: Dataset[AddressId]
+  ): Dataset[Contract] = {
+    traces
+      .filter(col("status") === 1)
+      .filter(col("traceId").startsWith("create"))
+      .select(col("toAddress").as("address"))
+      .join(addressIds, Seq("address"))
+      .select($"addressId")
+      .distinct
+      .as[Contract]
   }
 
   def computeEncodedTokenTransfers(
@@ -651,7 +667,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       encodedTransactions: Dataset[EncodedTransaction],
       encodedTokenTransfers: Dataset[EncodedTokenTransfer],
       addressTransactions: Dataset[AddressTransaction],
-      addressIds: Dataset[AddressId]
+      addressIds: Dataset[AddressId],
+      contracts: Dataset[Contract]
   ): Dataset[Address] = {
 
     val relations = encodedTransactions
@@ -748,8 +765,15 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         Seq("addressId"),
         "left"
       )
+      .join(
+        contracts.withColumn("isContract", lit(true)),
+        Seq("addressId"),
+        "left"
+      )
       .na
       .fill(0, Seq("noIncomingTxs", "noOutgoingTxs", "inDegree", "outDegree"))
+      .na
+      .fill(false, Seq("isContract"))
       .transform(zeroValueIfNull("totalReceived", noFiatCurrencies.get))
       .transform(zeroValueIfNull("totalSpent", noFiatCurrencies.get))
       .join(addressIds, Seq("addressId"), "left")

@@ -40,6 +40,7 @@ class TransformationTest
 
   val tokenTransfers = spark.emptyDataset[TokenTransfer]
   val encodedTokenTransfers = spark.emptyDataset[EncodedTokenTransfer]
+  val contracts = spark.emptyDataset[Contract]
 
   val noBlocks = blocks.count.toInt
   val lastBlockTimestamp = blocks
@@ -110,7 +111,8 @@ class TransformationTest
       encodedTransactions,
       encodedTokenTransfers,
       addressTransactions,
-      addressIds
+      addressIds,
+      contracts
     )
     .persist()
 

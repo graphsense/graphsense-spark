@@ -76,10 +76,11 @@ CREATE TABLE address (
     last_tx_id int,
     total_received FROZEN <currency>,
     total_spent FROZEN <currency>,
-    total_tokens_received map<text,currency>,
-    total_tokens_spent map<text,currency>,
+    total_tokens_received map<text,FROZEN <currency>>,
+    total_tokens_spent map<text,FROZEN <currency>>,
     in_degree int,
     out_degree int,
+    is_contract boolean,
     PRIMARY KEY (address_id_group, address_id)
 );
 
@@ -90,6 +91,7 @@ CREATE TABLE address_incoming_relations (
     src_address_id int,
     no_transactions int,
     value FROZEN <currency>,
+    token_values map<text,FROZEN <currency>>,
     PRIMARY KEY ((dst_address_id_group, dst_address_id_secondary_group), dst_address_id, src_address_id)
 );
 
@@ -105,6 +107,7 @@ CREATE TABLE address_outgoing_relations (
     dst_address_id int,
     no_transactions int,
     value frozen <currency>,
+    token_values map<text,FROZEN <currency>>,
     PRIMARY KEY ((src_address_id_group, src_address_id_secondary_group), src_address_id, dst_address_id)
 );
 

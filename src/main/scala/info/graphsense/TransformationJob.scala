@@ -182,6 +182,9 @@ object TransformationJob {
       addressIdsByAddressPrefix
     )
 
+    println("Computing contracts")
+    val contracts = transformation.computeContracts(traces, addressIds)
+
     println("Computing balances")
 
     val balances = transformation
@@ -254,7 +257,8 @@ object TransformationJob {
       encodedTransactions,
       encodedTokenTransfers,
       addressTransactions,
-      addressIds
+      addressIds,
+      contracts
     )
     cassandra.store(conf.targetKeyspace(), "address", addresses)
 
