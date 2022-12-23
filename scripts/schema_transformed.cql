@@ -55,7 +55,7 @@ CREATE TABLE address_transactions (
     address_id_secondary_group int,
     address_id int,
     transaction_id int,
-    log_id int, 
+    log_index int, 
     currency text,
     is_outgoing boolean,
     PRIMARY KEY ((address_id_group, address_id_secondary_group), address_id, is_outgoing, currency, transaction_id)
