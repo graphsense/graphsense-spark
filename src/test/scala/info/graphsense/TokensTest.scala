@@ -10,6 +10,7 @@ import info.graphsense.Conversion._
 import org.apache.spark.sql.{Dataset, Column}
 
 import Helpers.{readTestData, setNullableStateForAllColumns}
+import info.graphsense.storage.CassandraStorage
 
 class TokenTest
     extends AnyFunSuite
@@ -244,6 +245,12 @@ class TokenTest
         encodedTokenTransfers
       )
 
+    assert(
+      addressTransactions
+        .filter($"transactionId".isNull)
+        .count() === 0
+    )
+
     val addresses = t
       .computeAddresses(
         encodedTransactions,
@@ -253,6 +260,19 @@ class TokenTest
         contracts
       )
 
+    /*    val wt = addresses.filter(col("totalTokensReceived").isNotNull)
+    println(wt.show(10,false))
+    println(wt.printSchema())
+     */
+     
+    /*val cassandra = new CassandraStorage(spark)*/
+
+    /*    cassandra.store(
+      "eth_transformed",
+      "address",
+      wt
+    )*/
+
     assert(
       addresses
         .filter($"totalTokensSpent".isNotNull)
@@ -260,11 +280,11 @@ class TokenTest
         .count() === 3
     )
 
-    /* 
-      there are at least 3 contract creations in the ds, but 
-      only one has seen transactions so far. So only one 
+    /*
+      there are at least 3 contract creations in the ds, but
+      only one has seen transactions so far. So only one
       contract address.
-    */
+     */
     assert(
       addresses
         .filter($"isContract" === true)
@@ -315,13 +335,18 @@ class TokenTest
       .save(
         "/home/mf/Documents/ikna/src/infrastructure/graphsense-ethereum-transformation/addresses.json"
       )
-    */
-     
+     */
 
     assertDataFrameEquality(addresses, addressesRef)
 
     val address_relations =
       t.computeAddressRelations(encodedTransactions, encodedTokenTransfers)
+
+    /*    cassandra.store(
+      "eth_transformed",
+      "address_outgoing_relations",
+      address_relations
+    )*/
 
     assert(
       address_relations
@@ -345,7 +370,7 @@ class TokenTest
       .save(
         "/home/mf/Documents/ikna/src/infrastructure/graphsense-ethereum-transformation/addresses_relations.json"
       )
-    */
+     */
 
     assert(
       address_relations

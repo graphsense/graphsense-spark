@@ -248,8 +248,8 @@ case class Address(
     lastTxId: Int,
     totalReceived: Currency,
     totalSpent: Currency,
-    totalTokensReceived: Option[Map[String, Currency]],
-    totalTokensSpent: Option[Map[String, Currency]],
+    totalTokensReceived: Map[String, Currency],
+    totalTokensSpent: Map[String, Currency],
     inDegree: Int,
     outDegree: Int,
     isContract: Boolean
@@ -264,7 +264,7 @@ case class AddressRelation(
     dstAddressId: Int,
     noTransactions: Int,
     value: Currency,
-    tokenValues: Option[Map[String, Currency]]
+    tokenValues: Map[String, Currency]
 )
 
 case class AddressOutgoingRelationSecondaryIds(

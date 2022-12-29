@@ -28,6 +28,7 @@ lazy val root = (project in file(".")).
       "org.rogach" %% "scallop" % "4.1.0" % Provided,
       "org.apache.spark" %% "spark-sql" % "3.2.1" % Provided,
       "com.datastax.spark" %% "spark-cassandra-connector" % "3.2.0" % Provided,
+      "joda-time"              % "joda-time"                 %"2.10.10",
       "org.web3j"              %  "core"                     % "4.8.7",
       "org.web3j"              %  "abi"                     % "4.8.7"),
   )

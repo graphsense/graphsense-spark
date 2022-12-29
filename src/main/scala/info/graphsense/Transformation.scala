@@ -644,7 +644,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         /*        col("blockId"),
         col("blockTimestamp")*/
       )
-    inputs
+    val atxs = inputs
       .union(inputs_tokens)
       .union(outputs)
       .union(outputs_tokens)
@@ -660,7 +660,15 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .filter(
         col("addressId").isNotNull
       ) /*They cant be selected for anyways should only contain sender of coinbase*/
-      .as[AddressTransaction]
+
+      val txWithoutTxIds = atxs.filter(col("transactionId").isNull)
+      val nr_of_txs_without_ids = txWithoutTxIds.count()
+      if (nr_of_txs_without_ids > 0) {
+        println("Found address_transactions without txid: " + nr_of_txs_without_ids)
+        println(txWithoutTxIds.show(100, false))
+      }
+
+      atxs.filter(col("transactionId").isNotNull).as[AddressTransaction]
   }
 
   def computeAddresses(
