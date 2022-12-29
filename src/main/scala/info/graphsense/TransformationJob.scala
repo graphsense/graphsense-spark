@@ -2,7 +2,7 @@ package info.graphsense
 
 import com.datastax.spark.connector.ColumnName
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{col, max}
+import org.apache.spark.sql.functions.{col, max, broadcast}
 import org.rogach.scallop._
 
 import info.graphsense.storage.CassandraStorage
@@ -92,7 +92,7 @@ object TransformationJob {
 
     val tt = new TokenTransfers(spark)
     // Transfer(address,address,uint256)
-    val token_configurations = tt.get_token_configurations()
+    val token_configurations = tt.get_token_configurations().persist()
     val token_transfers = tt.get_token_transfers(
       cassandra
         .load[Log](
@@ -100,7 +100,7 @@ object TransformationJob {
           "log"
         ),
       tt.token_addresses
-    )
+    ).persist()
 
     val transformation = new Transformation(spark, conf.bucketSize())
 
@@ -136,6 +136,7 @@ object TransformationJob {
     cassandra.store(conf.targetKeyspace(), "exchange_rates", exchangeRates)
 
     println("Computing transaction IDs")
+    spark.sparkContext.setJobDescription("Computing transaction IDs")
     val transactionIds =
       transformation.computeTransactionIds(transactions).persist()
     val transactionIdsByTransactionIdGroup =
@@ -165,6 +166,7 @@ object TransformationJob {
     )
 
     println("Computing address IDs")
+    spark.sparkContext.setJobDescription("Computing address IDs")
     val addressIds =
       transformation.computeAddressIds(traces, token_transfers).persist()
     val noAddresses = addressIds.count()
@@ -183,6 +185,7 @@ object TransformationJob {
     )
 
     println("Computing contracts")
+    spark.sparkContext.setJobDescription("Computing contracts")
     val contracts = transformation.computeContracts(traces, addressIds)
 
     println("Computing balances")
@@ -201,6 +204,7 @@ object TransformationJob {
     println("Number of balances: " + balances.count())
 
     println("Encoding transactions")
+    spark.sparkContext.setJobDescription("Encoding transactions")
     val encodedTransactions =
       transformation
         .computeEncodedTransactions(
@@ -222,6 +226,7 @@ object TransformationJob {
       .persist()
 
     println("Computing block transactions")
+    spark.sparkContext.setJobDescription("Computing block transactions")
     val blockTransactions = transformation
       .computeBlockTransactions(blocks, encodedTransactions)
     cassandra.store(
@@ -231,6 +236,7 @@ object TransformationJob {
     )
 
     println("Computing address transactions")
+    spark.sparkContext.setJobDescription("Computing address transactions")
     val addressTransactions = transformation
       .computeAddressTransactions(encodedTransactions, encodedTokenTransfers)
       .persist()
@@ -253,6 +259,7 @@ object TransformationJob {
     )
 
     println("Computing address statistics")
+    spark.sparkContext.setJobDescription("Computing address statistics")
     val addresses = transformation.computeAddresses(
       encodedTransactions,
       encodedTokenTransfers,
@@ -263,6 +270,7 @@ object TransformationJob {
     cassandra.store(conf.targetKeyspace(), "address", addresses)
 
     println("Computing address relations")
+    spark.sparkContext.setJobDescription("Computing address relations")
     val addressRelations =
       transformation.computeAddressRelations(
         encodedTransactions,
@@ -308,6 +316,7 @@ object TransformationJob {
     )
 
     println("Computing summary statistics")
+    spark.sparkContext.setJobDescription("Computing summary statistics")
     val summaryStatistics =
       transformation.summaryStatistics(
         lastBlockTimestamp,

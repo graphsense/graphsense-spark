@@ -29,7 +29,8 @@ import org.apache.spark.sql.functions.{
   transform,
   typedLit,
   map_from_entries,
-  collect_set
+  collect_set,
+  broadcast
 }
 import org.apache.spark.sql.types.{DecimalType, FloatType, IntegerType}
 
@@ -339,7 +340,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         "balance",
         col("debits") + col("credits")
       )
-      .join(token_configurations, Seq("token_address"), "left")
+      .join(broadcast(token_configurations), Seq("token_address"), "left")
       .withColumn("currency", col("currency_ticker"))
 
     val balance_tokens = balance_tokens_t
@@ -479,18 +480,16 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         "left"
       )
       .join(
-        addressIds.select(
-          col("address").as("from"),
-          col("addressId").as("fromAddressId")
-        ),
+        addressIds
+          .withColumnRenamed("address", "from")
+          .withColumnRenamed("addressId", "fromAddressId"),
         Seq("from"),
         "left"
       )
       .join(
-        addressIds.select(
-          col("address").as("to"),
-          col("addressId").as("toAddressId")
-        ),
+        addressIds
+          .withColumnRenamed("address", "to")
+          .withColumnRenamed("addressId", "toAddressId"),
         Seq("to"),
         "left"
       )
@@ -504,14 +503,16 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
       .withColumnRenamed("fromAddressId", "srcAddressId")
       .withColumnRenamed("toAddressId", "dstAddressId")
-      .join(exchangeRates, Seq("blockId"), "left")
+      .join(broadcast(exchangeRates), Seq("blockId"), "left")
       .join(
-        token_configurations.select(
-          "token_address",
-          "currency_ticker",
-          "peg_currency",
-          "decimals",
-          "decimal_divisor"
+        broadcast(
+          token_configurations.select(
+            "token_address",
+            "currency_ticker",
+            "peg_currency",
+            "decimals",
+            "decimal_divisor"
+          )
         ),
         Seq("token_address"),
         "left"
@@ -547,18 +548,16 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         "left"
       )
       .join(
-        addressIds.select(
-          col("address").as("fromAddress"),
-          col("addressId").as("fromAddressId")
-        ),
+        addressIds
+          .withColumnRenamed("address", "fromAddress")
+          .withColumnRenamed("addressId", "fromAddressId"),
         Seq("fromAddress"),
         "left"
       )
       .join(
-        addressIds.select(
-          col("address").as("toAddress"),
-          col("addressId").as("toAddressId")
-        ),
+        addressIds
+          .withColumnRenamed("address", "toAddress")
+          .withColumnRenamed("addressId", "toAddressId"),
         Seq("toAddress"),
         "left"
       )
@@ -572,7 +571,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
       .withColumnRenamed("fromAddressId", "srcAddressId")
       .withColumnRenamed("toAddressId", "dstAddressId")
-      .join(exchangeRates, Seq("blockId"), "left")
+      .join(broadcast(exchangeRates), Seq("blockId"), "left")
       .transform(toFiatCurrency("value", "fiatValues"))
       .as[EncodedTransaction]
   }
@@ -614,8 +613,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("dstAddressId").as("addressId"),
         col("transactionId")
-        /*        col("blockId"),
-        col("blockTimestamp")*/
       )
       .withColumn("isOutgoing", lit(false))
       .withColumn("currency", lit("ETH"))
@@ -629,8 +626,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("isOutgoing"),
         col("currency"),
         col("logIndex")
-        /*        col("blockId"),
-        col("blockTimestamp")*/
       )
 
     val outputs_tokens = encodedTokenTransfers
@@ -641,8 +636,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("isOutgoing"),
         col("currency"),
         col("logIndex")
-        /*        col("blockId"),
-        col("blockTimestamp")*/
       )
     val atxs = inputs
       .union(inputs_tokens)
@@ -661,14 +654,16 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("addressId").isNotNull
       ) /*They cant be selected for anyways should only contain sender of coinbase*/
 
-      val txWithoutTxIds = atxs.filter(col("transactionId").isNull)
-      val nr_of_txs_without_ids = txWithoutTxIds.count()
-      if (nr_of_txs_without_ids > 0) {
-        println("Found address_transactions without txid: " + nr_of_txs_without_ids)
-        println(txWithoutTxIds.show(100, false))
-      }
+    val txWithoutTxIds = atxs.filter(col("transactionId").isNull)
+    val nr_of_txs_without_ids = txWithoutTxIds.count()
+    if (nr_of_txs_without_ids > 0) {
+      println(
+        "Found address_transactions without txid: " + nr_of_txs_without_ids
+      )
+      println(txWithoutTxIds.show(100, false))
+    }
 
-      atxs.filter(col("transactionId").isNotNull).as[AddressTransaction]
+    atxs.filter(col("transactionId").isNotNull).as[AddressTransaction]
   }
 
   def computeAddresses(
@@ -820,7 +815,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
 
     val window = Window.partitionBy("srcAddressId", "dstAddressId")
-    encodedTransactions
+    val outrelations = encodedTransactions
       .select("srcAddressId", "dstAddressId", "transactionId")
       // union token transfers to cover addresses that have only seen token transfers
       .union(
@@ -871,6 +866,18 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         )
       )
       .transform(zeroValueIfNull("value", noFiatCurrencies.get))
+
+    val withoutsrcgroup = outrelations
+      .filter(col("srcAddressIdGroup").isNull)
+    val withoutsrcgroupcnt = withoutsrcgroup.count()
+    if (withoutsrcgroupcnt > 0) {
+      println("Found address relations with null group: " + withoutsrcgroupcnt)
+      println(withoutsrcgroup.show(100, false))
+    }
+
+    outrelations
+      .filter(col("srcAddressIdGroup").isNotNull)
+      .filter(col("dstAddressIdGroup").isNotNull)
       .as[AddressRelation]
   }
 
