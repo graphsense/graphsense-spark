@@ -119,6 +119,13 @@ object TransformationJob {
       configuration
     )
 
+    println("Store token configuration")
+    cassandra.store(
+      conf.targetKeyspace(),
+      "token_configuration",
+      token_configurations
+    )
+
     val noBlocks = blocks.count()
     println("Number of blocks: " + noBlocks)
     val lastBlockTimestamp = blocks

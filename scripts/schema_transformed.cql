@@ -141,3 +141,13 @@ CREATE TABLE configuration (
     tx_prefix_length int,
     fiat_currencies list<text>
 );
+
+
+CREATE TABLE token_configuration (
+    currency_ticker text PRIMARY KEY,
+    token_address blob,
+    standard text,
+    decimals int,
+    decimal_divisor bigint,
+    peg_currency text
+);
