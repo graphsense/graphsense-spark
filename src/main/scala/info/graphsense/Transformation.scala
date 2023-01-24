@@ -454,15 +454,15 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         when(
           $"peg_currency" === "USD",
           array(
-            lit(1),
             element_at(col(fiatValueColumn), 1) / element_at(
               col(fiatValueColumn),
               2
-            )
+            ),
+            lit(1)
           )
         ).otherwise(col(fiatValueColumn))
       )
-      /*println(df_with_stablecoin_factors.show())*/
+      /*println(df_with_stablecoin_factors.show(100,false))*/
       df_with_stablecoin_factors.withColumn(
         fiatValueColumn,
         transform(

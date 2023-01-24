@@ -39,7 +39,7 @@ case class TokenConfiguration(
     token_address: Array[Byte],
     standard: String,
     decimals: Int,
-    decimal_divisor: Int,
+    decimal_divisor: Long,
     peg_currency: Option[String]
 )
 

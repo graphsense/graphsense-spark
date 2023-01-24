@@ -326,8 +326,8 @@ class TokenTest
 
     /* GENERATE REF DATA for addresses */
 
-    /*
-    val htostr = udf((x: Array[Byte]) => bytes_to_hexstr(x))
+    
+/*    val htostr = udf((x: Array[Byte]) => bytes_to_hexstr(x))
     val addresseshr = addresses
       .withColumn("address", htostr(addresses("address")))
     addresseshr.write
@@ -335,7 +335,7 @@ class TokenTest
       .save(
         "/home/mf/Documents/ikna/src/infrastructure/graphsense-ethereum-transformation/addresses.json"
       )
-     */
+    */
 
     assertDataFrameEquality(addresses, addressesRef)
 

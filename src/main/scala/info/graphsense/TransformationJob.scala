@@ -93,14 +93,16 @@ object TransformationJob {
     val tt = new TokenTransfers(spark)
     // Transfer(address,address,uint256)
     val token_configurations = tt.get_token_configurations().persist()
-    val token_transfers = tt.get_token_transfers(
-      cassandra
-        .load[Log](
-          conf.rawKeyspace(),
-          "log"
-        ),
-      tt.token_addresses
-    ).persist()
+    val token_transfers = tt
+      .get_token_transfers(
+        cassandra
+          .load[Log](
+            conf.rawKeyspace(),
+            "log"
+          ),
+        tt.token_addresses
+      )
+      .persist()
 
     val transformation = new Transformation(spark, conf.bucketSize())
 
