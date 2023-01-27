@@ -340,7 +340,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         "balance",
         col("debits") + col("credits")
       )
-      .join(broadcast(token_configurations), Seq("token_address"), "left")
+      .join(token_configurations, Seq("token_address"), "left")
       .withColumn("currency", col("currency_ticker"))
 
     val balance_tokens = balance_tokens_t
@@ -503,16 +503,14 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
       .withColumnRenamed("fromAddressId", "srcAddressId")
       .withColumnRenamed("toAddressId", "dstAddressId")
-      .join(broadcast(exchangeRates), Seq("blockId"), "left")
+      .join(exchangeRates, Seq("blockId"), "left")
       .join(
-        broadcast(
           token_configurations.select(
             "token_address",
             "currency_ticker",
             "peg_currency",
             "decimals",
             "decimal_divisor"
-          )
         ),
         Seq("token_address"),
         "left"
@@ -654,14 +652,14 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("addressId").isNotNull
       ) /*They cant be selected for anyways should only contain sender of coinbase*/
 
-    val txWithoutTxIds = atxs.filter(col("transactionId").isNull)
+/*    val txWithoutTxIds = atxs.filter(col("transactionId").isNull)
     val nr_of_txs_without_ids = txWithoutTxIds.count()
     if (nr_of_txs_without_ids > 0) {
       println(
         "Found address_transactions without txid: " + nr_of_txs_without_ids
       )
       println(txWithoutTxIds.show(100, false))
-    }
+    }*/
 
     atxs.filter(col("transactionId").isNotNull).as[AddressTransaction]
   }
@@ -867,13 +865,13 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
       .transform(zeroValueIfNull("value", noFiatCurrencies.get))
 
-    val withoutsrcgroup = outrelations
+/*    val withoutsrcgroup = outrelations
       .filter(col("srcAddressIdGroup").isNull)
     val withoutsrcgroupcnt = withoutsrcgroup.count()
     if (withoutsrcgroupcnt > 0) {
       println("Found address relations with null group: " + withoutsrcgroupcnt)
       println(withoutsrcgroup.show(100, false))
-    }
+    }*/
 
     outrelations
       .filter(col("srcAddressIdGroup").isNotNull)
