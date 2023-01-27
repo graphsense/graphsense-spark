@@ -38,6 +38,10 @@ class TransformationTest
   val exchangeRatesRaw =
     readTestData[ExchangeRatesRaw](spark, inputDir + "test_exchange_rates.json")
 
+  val tokenTransfers = spark.emptyDataset[TokenTransfer]
+  val encodedTokenTransfers = spark.emptyDataset[EncodedTokenTransfer]
+  val contracts = spark.emptyDataset[Contract]
+
   val noBlocks = blocks.count.toInt
   val lastBlockTimestamp = blocks
     .select(max(col("timestamp")))
@@ -68,10 +72,10 @@ class TransformationTest
         "transactionPrefix"
       )
     )
-
   val addressIds = t
-    .computeAddressIds(traces)
+    .computeAddressIds(traces, tokenTransfers)
     .sort("addressId")
+
   val addressIdsByAddressPrefix =
     addressIds.toDF
       .transform(
@@ -84,12 +88,11 @@ class TransformationTest
 
   val encodedTransactions =
     t.computeEncodedTransactions(
-        transactions,
-        transactionIds,
-        addressIds,
-        exchangeRates
-      )
-      .sort("blockId")
+      transactions,
+      transactionIds,
+      addressIds,
+      exchangeRates
+    ).sort("blockId")
       .persist()
 
   val blockTransactions = t
@@ -97,19 +100,24 @@ class TransformationTest
     .sort("blockId")
 
   val addressTransactions = t
-    .computeAddressTransactions(encodedTransactions)
+    .computeAddressTransactions(
+      encodedTransactions,
+      encodedTokenTransfers
+    )
     .persist()
 
   val addresses = t
     .computeAddresses(
       encodedTransactions,
+      encodedTokenTransfers,
       addressTransactions,
-      addressIds
+      addressIds,
+      contracts
     )
     .persist()
 
   val addressRelations = t
-    .computeAddressRelations(encodedTransactions)
+    .computeAddressRelations(encodedTransactions, encodedTokenTransfers)
     .sort("srcAddressId", "dstAddressId")
 
   note("Test lookup tables")
@@ -208,7 +216,7 @@ class TransformationTest
     assert(blocks.count.toInt == 84, "expected 84 blocks")
     assert(lastBlockTimestamp == 1438919571)
     assert(transactions.count() == 10, "expected 10 transaction")
-    assert(addressIds.count() == 59, "expected 15 addresses")
+    assert(addressIds.count() == 59, "expected 59 addresses")
     assert(addressRelations.count() == 9, "expected 9 address relations")
   }
 }

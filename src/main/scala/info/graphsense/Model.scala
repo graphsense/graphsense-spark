@@ -1,5 +1,7 @@
 package info.graphsense
 
+import info.graphsense.Conversion._
+
 // lookup tables
 
 case class TransactionId(
@@ -27,6 +29,72 @@ case class AddressId(
 case class AddressIdByAddressPrefix(
     addressPrefix: String,
     address: Array[Byte],
+    addressId: Int
+)
+
+// Helper types
+
+case class TokenConfiguration(
+    currency_ticker: String,
+    token_address: Array[Byte],
+    standard: String,
+    decimals: Int,
+    decimal_divisor: Long,
+    peg_currency: Option[String]
+)
+
+case class TokenTransfer(
+    blockId: Int,
+    transactionIndex: Short,
+    logIndex: Int,
+    txHash: Array[Byte],
+    token_address: Array[Byte],
+    from: Array[Byte],
+    to: Array[Byte],
+    value: BigInt
+) {
+  override def equals(thatGeneric: scala.Any): Boolean = {
+    if (!thatGeneric.isInstanceOf[TokenTransfer])
+      return false
+
+    val that = thatGeneric.asInstanceOf[TokenTransfer]
+    bytes_to_hexstr(that.txHash) == bytes_to_hexstr(
+      this.txHash
+    ) && bytes_to_hexstr(that.token_address) == bytes_to_hexstr(
+      this.token_address
+    ) && bytes_to_hexstr(that.from) == bytes_to_hexstr(
+      this.from
+    ) && bytes_to_hexstr(that.to) == bytes_to_hexstr(
+      this.to
+    ) && that.value == this.value && that.blockId == this.blockId && that.logIndex == this.logIndex && that.transactionIndex == this.transactionIndex
+  }
+
+  /** TODO fix hashcode in case I want to use this in collection
+    * @return
+    */
+  override def hashCode(): Int = super.hashCode()
+
+  def isDefault(): Boolean = {
+    this == TokenTransfer.default()
+  }
+}
+
+object TokenTransfer {
+  def default() = new TokenTransfer(
+    0,
+    0,
+    0,
+    hexstr_to_bytes(
+      "0x0000000000000000000000000000000000000000000000000000000000000000"
+    ),
+    hexstr_to_bytes("0x0000000000000000000000000000000000000000"),
+    hexstr_to_bytes("0x0000000000000000000000000000000000000000"),
+    hexstr_to_bytes("0x0000000000000000000000000000000000000000"),
+    BigInt.int2bigInt(0)
+  )
+}
+
+case class Contract(
     addressId: Int
 )
 
@@ -93,13 +161,50 @@ case class ExchangeRatesRaw(
     fiatValues: Option[Map[String, Float]]
 )
 
+case class Log(
+    blockIdGroup: Int,
+    blockId: Int,
+    blockHash: Array[Byte],
+    address: Array[Byte],
+    data: Array[Byte],
+    topics: Seq[Array[Byte]],
+    topic0: Array[Byte],
+    txHash: Array[Byte],
+    logIndex: Int,
+    transactionIndex: Short
+)
+
 // transformed schema tables
 
 case class ExchangeRates(blockId: Int, fiatValues: Seq[Float])
 
-case class Balance(addressIdGroup: Int, addressId: Int, balance: BigInt)
+case class Balance(
+    addressIdGroup: Int,
+    addressId: Int,
+    balance: BigInt,
+    currency: String
+)
 
 case class BlockTransaction(blockIdGroup: Int, blockId: Int, txs: Seq[Int])
+
+/*
+    blockId: Int,
+    transactionIndex: Short,
+    logIndex: Int,
+    txHash: Array[Byte],
+    token_address: Array[Byte],
+    from: Array[Byte],
+    to: Array[Byte],
+    value: BigInt*/
+case class EncodedTokenTransfer(
+    transactionId: Int,
+    logIndex: Int,
+    currency: String,
+    srcAddressId: Int,
+    dstAddressId: Option[Int],
+    value: BigInt,
+    fiatValues: Seq[Float]
+)
 
 case class EncodedTransaction(
     transactionId: Int,
@@ -121,8 +226,10 @@ case class AddressTransaction(
     addressIdSecondaryGroup: Int,
     addressId: Int,
     transactionId: Int,
-    blockId: Int,
-    blockTimestamp: Int,
+    logIndex: Option[Int],
+    currency: String,
+    /*    blockId: Int,
+    blockTimestamp: Int,*/
     isOutgoing: Boolean
 )
 
@@ -141,8 +248,11 @@ case class Address(
     lastTxId: Int,
     totalReceived: Currency,
     totalSpent: Currency,
+    totalTokensReceived: Map[String, Currency],
+    totalTokensSpent: Map[String, Currency],
     inDegree: Int,
-    outDegree: Int
+    outDegree: Int,
+    isContract: Boolean
 )
 
 case class AddressRelation(
@@ -153,7 +263,8 @@ case class AddressRelation(
     dstAddressIdSecondaryGroup: Int,
     dstAddressId: Int,
     noTransactions: Int,
-    value: Currency
+    value: Currency,
+    tokenValues: Map[String, Currency]
 )
 
 case class AddressOutgoingRelationSecondaryIds(

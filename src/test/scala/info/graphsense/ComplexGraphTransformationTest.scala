@@ -40,6 +40,10 @@ class ComplexGraphTransformationTest
   val exchangeRatesRaw =
     readTestData[ExchangeRatesRaw](spark, inputDir + "test_exchange_rates.json")
 
+  val tokenTransfers = spark.emptyDataset[TokenTransfer]
+  val encodedTokenTransfers = spark.emptyDataset[EncodedTokenTransfer]
+  val contracts = spark.emptyDataset[Contract]
+
   // transformation pipeline
 
   private val t = new Transformation(spark, 2)
@@ -47,14 +51,24 @@ class ComplexGraphTransformationTest
   val exchangeRates =
     t.computeExchangeRates(blocks, exchangeRatesRaw).persist()
   val txIds = t.computeTransactionIds(txs)
-  val addressIds = t.computeAddressIds(traces)
+  val addressIds =
+    t.computeAddressIds(traces, tokenTransfers)
   val encodedTxs =
     t.computeEncodedTransactions(txs, txIds, addressIds, exchangeRates)
-  val addressTransactions = t.computeAddressTransactions(encodedTxs)
+  val addressTransactions = t.computeAddressTransactions(
+    encodedTxs,
+    encodedTokenTransfers
+  )
   val addresses =
-    t.computeAddresses(encodedTxs, addressTransactions, addressIds).persist()
+    t.computeAddresses(
+      encodedTxs,
+      encodedTokenTransfers,
+      addressTransactions,
+      addressIds,
+      contracts
+    ).persist()
   val addressRelations = t
-    .computeAddressRelations(encodedTxs)
+    .computeAddressRelations(encodedTxs, encodedTokenTransfers)
     .sort("srcAddressId", "dstAddressId")
   val lastBlockTimestamp = blocks
     .select(max(col("timestamp")))

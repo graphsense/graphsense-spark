@@ -1,2 +1,7 @@
 # sbt
 target/
+.metals/
+.bloop/
+.ammonite/
+.bsp/
+metals.sbt

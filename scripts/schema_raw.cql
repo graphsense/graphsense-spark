@@ -76,6 +76,20 @@ CREATE TABLE trace (
     PRIMARY KEY (block_id_group, block_id, trace_index)
 );
 
+CREATE TABLE log (
+    block_id_group int,
+    block_id int,
+    block_hash blob,
+    address blob,
+    data blob,
+    topics list<blob>,
+    topic0 blob,
+    tx_hash blob,
+    log_index int,
+    transaction_index smallint,
+    PRIMARY KEY (block_id_group, block_id, topic0, log_index)
+) WITH CLUSTERING ORDER BY (block_id ASC, topic0 ASC, log_index ASC);
+
 CREATE TABLE exchange_rates (
     date text PRIMARY KEY,
     fiat_values map<text, float>

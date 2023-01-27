@@ -28,6 +28,7 @@ class BalancesTest
   private val refDir = inputDir + "reference/"
 
   private val t = new Transformation(spark, 2)
+  private val tt = new TokenTransfers(spark)
 
   import spark.implicits._
 
@@ -38,16 +39,27 @@ class BalancesTest
     val tx =
       readTestData[Transaction](spark, inputDir + "balance_transactions.csv")
     val traces = readTestData[Trace](spark, inputDir + "balance_traces.csv")
+    val logs = readTestData[Log](spark, inputDir + "logs.json")
 
-    val addressIds = t.computeAddressIds(traces)
+    val token_configs = tt.get_token_configurations()
+    val token_selection = token_configs
+      .filter(col("currency_ticker").isin(Array("USDT", "USDC", "WETH"): _*))
+      .map(x => x.token_address)
+      .collect()
+
+    val token_transfers = tt.get_token_transfers(logs, token_selection)
+
+    val addressIds = t.computeAddressIds(traces, token_transfers)
     val balances =
       t.computeBalances(
-          blocks,
-          tx,
-          traces,
-          addressIds
-        )
-        .sort(col("addressId"))
+        blocks,
+        tx,
+        traces,
+        addressIds,
+        token_transfers,
+        token_configs
+      ).sort($"currency", $"addressId")
+
     val balancesRef =
       readTestData[Balance](spark, refDir + "balances.csv")
 
