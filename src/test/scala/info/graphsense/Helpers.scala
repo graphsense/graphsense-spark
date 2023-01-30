@@ -18,7 +18,7 @@ import org.apache.spark.sql.types.{
   StructType,
   MapType
 }
-import org.web3j.abi.datatypes
+/*import org.web3j.abi.datatypes*/
 
 trait SparkSessionTestWrapper {
 

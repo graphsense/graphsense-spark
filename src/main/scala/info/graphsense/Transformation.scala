@@ -505,12 +505,12 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .withColumnRenamed("toAddressId", "dstAddressId")
       .join(exchangeRates, Seq("blockId"), "left")
       .join(
-          token_configurations.select(
-            "token_address",
-            "currency_ticker",
-            "peg_currency",
-            "decimals",
-            "decimal_divisor"
+        token_configurations.select(
+          "token_address",
+          "currency_ticker",
+          "peg_currency",
+          "decimals",
+          "decimal_divisor"
         ),
         Seq("token_address"),
         "left"
@@ -652,7 +652,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("addressId").isNotNull
       ) /*They cant be selected for anyways should only contain sender of coinbase*/
 
-/*    val txWithoutTxIds = atxs.filter(col("transactionId").isNull)
+    /*    val txWithoutTxIds = atxs.filter(col("transactionId").isNull)
     val nr_of_txs_without_ids = txWithoutTxIds.count()
     if (nr_of_txs_without_ids > 0) {
       println(
@@ -865,7 +865,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
       .transform(zeroValueIfNull("value", noFiatCurrencies.get))
 
-/*    val withoutsrcgroup = outrelations
+    /*    val withoutsrcgroup = outrelations
       .filter(col("srcAddressIdGroup").isNull)
     val withoutsrcgroupcnt = withoutsrcgroup.count()
     if (withoutsrcgroupcnt > 0) {

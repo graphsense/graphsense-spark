@@ -2,7 +2,7 @@ package info.graphsense
 
 import scala.language.implicitConversions
 
-import org.apache.spark.sql.functions.{col, length, lit, udf, when}
+/*import org.apache.spark.sql.functions.{col, when}*/
 
 object Util {
 

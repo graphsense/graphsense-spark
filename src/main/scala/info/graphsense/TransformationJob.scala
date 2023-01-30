@@ -2,7 +2,7 @@ package info.graphsense
 
 import com.datastax.spark.connector.ColumnName
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{col, max, broadcast}
+import org.apache.spark.sql.functions.{col, max}
 import org.rogach.scallop._
 
 import info.graphsense.storage.CassandraStorage

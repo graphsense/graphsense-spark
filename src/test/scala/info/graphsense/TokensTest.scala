@@ -1,7 +1,7 @@
 package info.graphsense
 
 import com.github.mrpowers.spark.fast.tests.DataFrameComparer
-import org.apache.spark.sql.functions.{col, lit, udf, forall}
+import org.apache.spark.sql.functions.{col, lit, forall}
 import org.scalatest.funsuite.AnyFunSuite
 
 import Helpers.{readTestData}
@@ -10,7 +10,7 @@ import info.graphsense.Conversion._
 import org.apache.spark.sql.{Dataset, Column}
 
 import Helpers.{readTestData, setNullableStateForAllColumns}
-import info.graphsense.storage.CassandraStorage
+/*import info.graphsense.storage.CassandraStorage*/
 
 class TokenTest
     extends AnyFunSuite
