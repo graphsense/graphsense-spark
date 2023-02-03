@@ -92,15 +92,15 @@ object TransformationJob {
 
     val tt = new TokenTransfers(spark)
     // Transfer(address,address,uint256)
-    val token_configurations = tt.get_token_configurations().persist()
-    val token_transfers = tt
-      .get_token_transfers(
+    val tokenConfigurations = tt.getTokenConfigurations().persist()
+    val tokenTransfers = tt
+      .getTokenTransfers(
         cassandra
           .load[Log](
             conf.rawKeyspace(),
             "log"
           ),
-        tt.token_addresses
+        tt.tokenAddresses
       )
       .persist()
 
@@ -125,7 +125,7 @@ object TransformationJob {
     cassandra.store(
       conf.targetKeyspace(),
       "token_configuration",
-      token_configurations
+      tokenConfigurations
     )
 
     val noBlocks = blocks.count()
@@ -177,7 +177,7 @@ object TransformationJob {
     println("Computing address IDs")
     spark.sparkContext.setJobDescription("Computing address IDs")
     val addressIds =
-      transformation.computeAddressIds(traces, token_transfers).persist()
+      transformation.computeAddressIds(traces, tokenTransfers).persist()
     val noAddresses = addressIds.count()
     val addressIdsByAddressPrefix =
       addressIds.toDF.transform(
@@ -205,8 +205,8 @@ object TransformationJob {
         transactions,
         traces,
         addressIds,
-        token_transfers,
-        token_configurations
+        tokenTransfers,
+        tokenConfigurations
       )
       .persist()
     cassandra.store(conf.targetKeyspace(), "balance", balances)
@@ -226,8 +226,8 @@ object TransformationJob {
 
     val encodedTokenTransfers = transformation
       .computeEncodedTokenTransfers(
-        token_transfers,
-        token_configurations,
+        tokenTransfers,
+        tokenConfigurations,
         transactionIds,
         addressIds,
         exchangeRates

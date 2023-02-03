@@ -41,29 +41,28 @@ class BalancesTest
     val traces = readTestData[Trace](spark, inputDir + "balance_traces.csv")
     val logs = readTestData[Log](spark, inputDir + "logs.json")
 
-    val token_configs = tt.get_token_configurations()
-    val token_selection = token_configs
-      .filter(col("currency_ticker").isin(Array("USDT", "USDC", "WETH"): _*))
-      .map(x => x.token_address)
+    val tokenConfigs = tt.getTokenConfigurations()
+    val tokenSelection = tokenConfigs
+      .filter(col("currencyTicker").isin(Array("USDT", "USDC", "WETH"): _*))
+      .map(x => x.tokenAddress)
       .collect()
 
-    val token_transfers = tt.get_token_transfers(logs, token_selection)
+    val tokenTransfers = tt.getTokenTransfers(logs, tokenSelection)
 
-    val addressIds = t.computeAddressIds(traces, token_transfers)
+    val addressIds = t.computeAddressIds(traces, tokenTransfers)
     val balances =
       t.computeBalances(
         blocks,
         tx,
         traces,
         addressIds,
-        token_transfers,
-        token_configs
-      ).sort($"currency", $"addressId")
+        tokenTransfers,
+        tokenConfigs
+      ).sort(col("currency"), col("addressId"))
 
     val balancesRef =
       readTestData[Balance](spark, refDir + "balances.csv")
 
     assertDataFrameEquality(balances, balancesRef)
   }
-
 }

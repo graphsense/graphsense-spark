@@ -22,34 +22,34 @@ object Erc20 {
 
   val tokenTransferEventSelector = EventEncoder.encode(tokenTransferEvent)
 
-  val transfer_topic_hash = hexstr_to_bytes(
+  val transferTopicHash = hexStrToBytes(
     EventEncoder.encode(tokenTransferEvent)
   )
 
-  def decode_transfer(log: Log): Try[TokenTransfer] = {
-    val topic0_str = bytes_to_hexstr(log.topic0)
+  def decodeTransfer(log: Log): Try[TokenTransfer] = {
+    val topic0Str = bytesToHexStr(log.topic0)
     try {
-      topic0_str match {
+      topic0Str match {
         case `tokenTransferEventSelector` => {
           val iparam = tokenTransferEvent.getIndexedParameters()
           val dparam = tokenTransferEvent.getNonIndexedParameters()
           val sender = FunctionReturnDecoder
             .decodeIndexedValue(
-              bytes_to_hexstr_can(log.topics(1)),
+              bytesToHexStrCan(log.topics(1)),
               iparam.get(0)
             )
             .getValue()
             .asInstanceOf[String]
           val recipient = FunctionReturnDecoder
             .decodeIndexedValue(
-              bytes_to_hexstr_can(log.topics(2)),
+              bytesToHexStrCan(log.topics(2)),
               iparam.get(1)
             )
             .getValue()
             .asInstanceOf[String]
           val value = BigInt(
             FunctionReturnDecoder
-              .decode(bytes_to_hexstr_can(log.data), dparam)
+              .decode(bytesToHexStrCan(log.data), dparam)
               .get(0)
               .getValue()
               .asInstanceOf[BigInteger]

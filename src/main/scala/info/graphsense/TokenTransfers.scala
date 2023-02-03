@@ -12,10 +12,10 @@ class TokenTransfers(spark: SparkSession) {
 
   import spark.implicits._
 
-  val supported_tokens = List(
+  val supportedTokens = List(
     TokenConfiguration(
       "USDT",
-      hexstr_to_bytes("0xdAC17F958D2ee523a2206206994597C13D831ec7"),
+      hexStrToBytes("0xdAC17F958D2ee523a2206206994597C13D831ec7"),
       "erc20",
       6,
       pow(10, 6).longValue(),
@@ -23,7 +23,7 @@ class TokenTransfers(spark: SparkSession) {
     ),
     TokenConfiguration(
       "USDC",
-      hexstr_to_bytes("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"),
+      hexStrToBytes("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"),
       "erc20",
       6,
       pow(10, 6).longValue(),
@@ -31,7 +31,7 @@ class TokenTransfers(spark: SparkSession) {
     ),
     TokenConfiguration(
       "WETH",
-      hexstr_to_bytes("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
+      hexStrToBytes("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
       "erc20",
       18,
       pow(10, 18).longValue(),
@@ -39,54 +39,53 @@ class TokenTransfers(spark: SparkSession) {
     )
   )
 
-  val token_addresses = supported_tokens.map(x => x.token_address)
+  val tokenAddresses = supportedTokens.map(x => x.tokenAddress)
 
-  def get_token_configurations(): Dataset[TokenConfiguration] = {
+  def getTokenConfigurations(): Dataset[TokenConfiguration] = {
     spark
       .createDataFrame(
-        supported_tokens
+        supportedTokens
       )
       .as[TokenConfiguration]
   }
 
-  def get_token_transfers(
+  def getTokenTransfers(
       logs: Dataset[Log],
-      for_tokens: Seq[Array[Byte]]
+      forTokens: Seq[Array[Byte]]
   ): Dataset[TokenTransfer] = {
     logs
-      .filter(col("topic0") === lit(Erc20.transfer_topic_hash))
-      .filter(col("address").isin(for_tokens: _*))
-      .map(x => Erc20.decode_transfer(x))
+      .filter(col("topic0") === lit(Erc20.transferTopicHash))
+      .filter(col("address").isin(forTokens: _*))
+      .map(x => Erc20.decodeTransfer(x))
       .filter((x: Try[TokenTransfer]) => x.isSuccess)
       .map(x => x.get)
   }
 
-  def get_non_decodable_transfer_logs(logs: Dataset[Log]): Dataset[Log] = {
+  def getNonDecodableTransferLogs(logs: Dataset[Log]): Dataset[Log] = {
     logs
-      .filter(col("topic0") === lit(Erc20.transfer_topic_hash))
-      .filter(col("address").isin(token_addresses: _*))
+      .filter(col("topic0") === lit(Erc20.transferTopicHash))
+      .filter(col("address").isin(tokenAddresses: _*))
       .filter(x =>
-        Erc20.decode_transfer(x) match {
+        Erc20.decodeTransfer(x) match {
           case Success(_) => false
           case Failure(_) => true
         }
       )
   }
 
-  def human_readable_token_transfers(
+  def humanReadableTokenTransfers(
       transfers: Dataset[TokenTransfer]
   ): DataFrame = {
-    val htostr = udf((x: Array[Byte]) => bytes_to_hexstr(x))
-    val transfers_str = transfers
+    val htoStr = udf((x: Array[Byte]) => bytesToHexStr(x))
+    val transfersStr = transfers
       .withColumn("blockId", transfers("blockId"))
       .withColumn("transactionIndex", transfers("transactionIndex"))
       .withColumn("logIndex", transfers("logIndex"))
-      .withColumn("txhash", htostr(transfers("txhash")))
-      .withColumn("token_address", htostr(transfers("token_address")))
-      .withColumn("from", htostr(transfers("from")))
-      .withColumn("to", htostr(transfers("to")))
+      .withColumn("txhash", htoStr(transfers("txhash")))
+      .withColumn("tokenAddress", htoStr(transfers("tokenAddress")))
+      .withColumn("from", htoStr(transfers("from")))
+      .withColumn("to", htoStr(transfers("to")))
       .withColumn("value", transfers("value"))
-    transfers_str.toDF
+    transfersStr.toDF
   }
-
 }

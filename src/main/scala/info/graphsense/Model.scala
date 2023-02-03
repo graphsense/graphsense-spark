@@ -35,12 +35,12 @@ case class AddressIdByAddressPrefix(
 // Helper types
 
 case class TokenConfiguration(
-    currency_ticker: String,
-    token_address: Array[Byte],
+    currencyTicker: String,
+    tokenAddress: Array[Byte],
     standard: String,
     decimals: Int,
-    decimal_divisor: Long,
-    peg_currency: Option[String]
+    decimalDivisor: Long,
+    pegCurrency: Option[String]
 )
 
 case class TokenTransfer(
@@ -48,7 +48,7 @@ case class TokenTransfer(
     transactionIndex: Short,
     logIndex: Int,
     txHash: Array[Byte],
-    token_address: Array[Byte],
+    tokenAddress: Array[Byte],
     from: Array[Byte],
     to: Array[Byte],
     value: BigInt
@@ -58,15 +58,18 @@ case class TokenTransfer(
       return false
 
     val that = thatGeneric.asInstanceOf[TokenTransfer]
-    bytes_to_hexstr(that.txHash) == bytes_to_hexstr(
+    bytesToHexStr(that.txHash) == bytesToHexStr(
       this.txHash
-    ) && bytes_to_hexstr(that.token_address) == bytes_to_hexstr(
-      this.token_address
-    ) && bytes_to_hexstr(that.from) == bytes_to_hexstr(
+    ) && bytesToHexStr(that.tokenAddress) == bytesToHexStr(
+      this.tokenAddress
+    ) && bytesToHexStr(that.from) == bytesToHexStr(
       this.from
-    ) && bytes_to_hexstr(that.to) == bytes_to_hexstr(
+    ) && bytesToHexStr(that.to) == bytesToHexStr(
       this.to
-    ) && that.value == this.value && that.blockId == this.blockId && that.logIndex == this.logIndex && that.transactionIndex == this.transactionIndex
+    ) && (that.value == this.value
+      && that.blockId == this.blockId
+      && that.logIndex == this.logIndex
+      && that.transactionIndex == this.transactionIndex)
   }
 
   /** TODO fix hashcode in case I want to use this in collection
@@ -84,12 +87,12 @@ object TokenTransfer {
     0,
     0,
     0,
-    hexstr_to_bytes(
+    hexStrToBytes(
       "0x0000000000000000000000000000000000000000000000000000000000000000"
     ),
-    hexstr_to_bytes("0x0000000000000000000000000000000000000000"),
-    hexstr_to_bytes("0x0000000000000000000000000000000000000000"),
-    hexstr_to_bytes("0x0000000000000000000000000000000000000000"),
+    hexStrToBytes("0x0000000000000000000000000000000000000000"),
+    hexStrToBytes("0x0000000000000000000000000000000000000000"),
+    hexStrToBytes("0x0000000000000000000000000000000000000000"),
     BigInt.int2bigInt(0)
   )
 }
@@ -187,15 +190,6 @@ case class Balance(
 
 case class BlockTransaction(blockIdGroup: Int, blockId: Int, txs: Seq[Int])
 
-/*
-    blockId: Int,
-    transactionIndex: Short,
-    logIndex: Int,
-    txHash: Array[Byte],
-    token_address: Array[Byte],
-    from: Array[Byte],
-    to: Array[Byte],
-    value: BigInt*/
 case class EncodedTokenTransfer(
     transactionId: Int,
     logIndex: Int,
@@ -228,8 +222,6 @@ case class AddressTransaction(
     transactionId: Int,
     logIndex: Option[Int],
     currency: String,
-    /*    blockId: Int,
-    blockTimestamp: Int,*/
     isOutgoing: Boolean
 )
 

@@ -61,7 +61,7 @@ case object Helpers {
       x.grouped(2).toArray map { Integer.parseInt(_, 16).toByte }
     )
 
-    val hatba = udf((x: Seq[String]) => x.map(hexstr_to_bytes).toArray)
+    val hatba = udf((x: Seq[String]) => x.map(hexStrToBytes).toArray)
 
     val fileSuffix = file.toUpperCase.split("\\.").last
     val df =

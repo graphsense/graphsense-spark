@@ -3,10 +3,8 @@ package info.graphsense
 import org.apache.spark.sql.{Column, DataFrame, Dataset, Encoder, SparkSession}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{
-  when,
   array,
   broadcast,
-  element_at,
   coalesce,
   col,
   collect_list,
@@ -14,6 +12,7 @@ import org.apache.spark.sql.functions.{
   count,
   countDistinct,
   date_format,
+  element_at,
   floor,
   from_unixtime,
   hex,
@@ -30,7 +29,8 @@ import org.apache.spark.sql.functions.{
   sum,
   to_date,
   transform,
-  typedLit
+  typedLit,
+  when
 }
 import org.apache.spark.sql.types.{DecimalType, FloatType, IntegerType}
 
@@ -243,8 +243,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       transactions: Dataset[Transaction],
       traces: Dataset[Trace],
       addressIds: Dataset[AddressId],
-      token_transfers: Dataset[TokenTransfer],
-      token_configurations: Dataset[TokenConfiguration]
+      tokenTransfers: Dataset[TokenTransfer],
+      tokenConfigurations: Dataset[TokenConfiguration]
   ): Dataset[Balance] = {
 
     val excludedCallTypes = Seq("delegatecall", "callcode", "staticcall")
@@ -318,37 +318,37 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .select("addressIdGroup", "addressId", "balance", "currency")
       .as[Balance]
 
-    val token_credits = token_transfers
-      .groupBy("from", "token_address")
+    val tokenCredits = tokenTransfers
+      .groupBy("from", "tokenAddress")
       .agg((-sum(col("value"))).as("credits"))
       .withColumnRenamed("from", "address")
       .join(addressIds, Seq("address"), "left")
       .drop("address")
 
-    val token_debits = token_transfers
-      .groupBy("to", "token_address")
+    val tokenDebits = tokenTransfers
+      .groupBy("to", "tokenAddress")
       .agg((sum(col("value"))).as("debits"))
       .withColumnRenamed("to", "address")
       .join(addressIds, Seq("address"), "left")
       .drop("address")
 
-    val balance_tokens_t = token_credits
-      .join(token_debits, Seq("addressId", "token_address"), "full")
+    val balanceTokensTmp = tokenCredits
+      .join(tokenDebits, Seq("addressId", "tokenAddress"), "full")
       .na
       .fill(0, Seq("credits", "debits"))
       .withColumn(
         "balance",
         col("debits") + col("credits")
       )
-      .join(token_configurations, Seq("token_address"), "left")
-      .withColumn("currency", col("currency_ticker"))
+      .join(tokenConfigurations, Seq("tokenAddress"), "left")
+      .withColumn("currency", col("currencyTicker"))
 
-    val balance_tokens = balance_tokens_t
+    val balanceTokens = balanceTokensTmp
       .transform(withSortedIdGroup[Balance]("addressId", "addressIdGroup"))
       .select("addressIdGroup", "addressId", "balance", "currency")
       .as[Balance]
 
-    balance.union(balance_tokens)
+    balance.union(balanceTokens)
   }
 
   def computeTransactionIds(
@@ -367,7 +367,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
 
   def computeAddressIds(
       traces: Dataset[Trace],
-      token_transfers: Dataset[TokenTransfer]
+      tokenTransfers: Dataset[TokenTransfer]
   ): Dataset[AddressId] = {
 
     val fromAddress = traces
@@ -390,7 +390,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .withColumn("isFromAddress", lit(false))
       .filter(col("address").isNotNull)
 
-    val toAddress_tt = token_transfers
+    val toAddressTT = tokenTransfers
       .select(
         col("to").as("address"),
         col("blockId"),
@@ -398,7 +398,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
       .withColumn("isFromAddress", lit(false))
 
-    val fromAddress_tt = token_transfers
+    val fromAddressTT = tokenTransfers
       .select(
         col("from").as("address"),
         col("blockId"),
@@ -412,8 +412,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
 
     fromAddress
       .union(toAddress)
-      .union(fromAddress_tt)
-      .union(toAddress_tt)
+      .union(fromAddressTT)
+      .union(toAddressTT)
       .withColumn("rowNumber", row_number().over(orderWindow))
       .filter(col("rowNumber") === 1)
       .sort("blockId", "traceId", "isFromAddress")
@@ -434,14 +434,14 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .filter(col("traceId").startsWith("create"))
       .select(col("toAddress").as("address"))
       .join(addressIds, Seq("address"))
-      .select($"addressId")
+      .select("addressId")
       .distinct
       .as[Contract]
   }
 
   def computeEncodedTokenTransfers(
-      token_transfers: Dataset[TokenTransfer],
-      token_configurations: Dataset[TokenConfiguration],
+      tokenTransfers: Dataset[TokenTransfer],
+      tokenConfigurations: Dataset[TokenConfiguration],
       transactionsIds: Dataset[TransactionId],
       addressIds: Dataset[AddressId],
       exchangeRates: Dataset[ExchangeRates]
@@ -449,10 +449,10 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
     def toFiatCurrency(valueColumn: String, fiatValueColumn: String)(
         df: DataFrame
     ) = {
-      val df_with_stablecoin_factors = df.withColumn(
+      val dfWithStablecoinFactors = df.withColumn(
         fiatValueColumn,
         when(
-          $"peg_currency" === "USD",
+          col("pegCurrency") === "USD",
           array(
             element_at(col(fiatValueColumn), 1) / element_at(
               col(fiatValueColumn),
@@ -462,17 +462,16 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
           )
         ).otherwise(col(fiatValueColumn))
       )
-      /*println(df_with_stablecoin_factors.show(100,false))*/
-      df_with_stablecoin_factors.withColumn(
+      dfWithStablecoinFactors.withColumn(
         fiatValueColumn,
         transform(
           col(fiatValueColumn),
           (x: Column) =>
-            (col(valueColumn) * x / col("decimal_divisor")).cast(FloatType)
+            (col(valueColumn) * x / col("decimalDivisor")).cast(FloatType)
         )
       )
     }
-    token_transfers
+    tokenTransfers
       .withColumnRenamed("txHash", "transaction")
       .join(
         transactionsIds,
@@ -505,19 +504,19 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .withColumnRenamed("toAddressId", "dstAddressId")
       .join(exchangeRates, Seq("blockId"), "left")
       .join(
-        token_configurations.select(
-          "token_address",
-          "currency_ticker",
-          "peg_currency",
+        tokenConfigurations.select(
+          "tokenAddress",
+          "currencyTicker",
+          "pegCurrency",
           "decimals",
-          "decimal_divisor"
+          "decimalDivisor"
         ),
-        Seq("token_address"),
+        Seq("tokenAddress"),
         "left"
       )
       .transform(toFiatCurrency("value", "fiatValues"))
-      .drop("decimals", "standard", "peg_currency", "decimal_divisor")
-      .withColumnRenamed("currency_ticker", "currency")
+      .drop("decimals", "standard", "pegCurrency", "decimalDivisor")
+      .withColumnRenamed("currencyTicker", "currency")
       .as[EncodedTokenTransfer]
   }
 
@@ -599,8 +598,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("srcAddressId").as("addressId"),
         col("transactionId")
-        /*        col("blockId"),
-        col("blockTimestamp")*/
       )
       .withColumn("isOutgoing", lit(true))
       .withColumn("currency", lit("ETH"))
@@ -616,7 +613,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .withColumn("currency", lit("ETH"))
       .withColumn("logIndex", lit(null))
 
-    val inputs_tokens = encodedTokenTransfers
+    val inputsTokens = encodedTokenTransfers
       .withColumn("isOutgoing", lit(true))
       .select(
         col("srcAddressId").as("addressId"),
@@ -626,7 +623,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("logIndex")
       )
 
-    val outputs_tokens = encodedTokenTransfers
+    val outputsTokens = encodedTokenTransfers
       .withColumn("isOutgoing", lit(false))
       .select(
         col("dstAddressId").as("addressId"),
@@ -636,9 +633,9 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("logIndex")
       )
     val atxs = inputs
-      .union(inputs_tokens)
+      .union(inputsTokens)
       .union(outputs)
-      .union(outputs_tokens)
+      .union(outputsTokens)
       .transform(withIdGroup("addressId", "addressIdGroup"))
       .transform(
         withSecondaryIdGroup(
@@ -679,20 +676,20 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
           .select("dstAddressId", "srcAddressId", "transactionId")
       )
 
-    val outStats_eth = encodedTransactions
+    val outStatsEth = encodedTransactions
       .groupBy("srcAddressId")
       .agg(
         createAggCurrencyStruct("value", "fiatValues", noFiatCurrencies.get)
           .as("TotalSpent")
       )
-    val outStats_relations = relations
+    val outStatsRelations = relations
       .groupBy("srcAddressId")
       .agg(
         count("transactionId").cast(IntegerType).as("noOutgoingTxs"),
         countDistinct("dstAddressId").cast(IntegerType).as("outDegree")
       )
 
-    val outStats_token = encodedTokenTransfers
+    val outStatsToken = encodedTokenTransfers
       .groupBy("srcAddressId", "currency")
       .agg(
         createAggCurrencyStructPerCurrency(
@@ -707,27 +704,25 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         map_from_entries(collect_set("TokensSpent")).as("totalTokensSpent")
       )
 
-    val outStats = outStats_eth
-      .join(outStats_relations, Seq("srcAddressId"), "full")
-      .join(outStats_token, Seq("srcAddressId"), "full")
-    /*
-    println(outStats.sort("srcAddressId").show())*/
+    val outStats = outStatsEth
+      .join(outStatsRelations, Seq("srcAddressId"), "full")
+      .join(outStatsToken, Seq("srcAddressId"), "full")
 
-    val inStats_eth = encodedTransactions
+    val inStatsEth = encodedTransactions
       .groupBy("dstAddressId")
       .agg(
         createAggCurrencyStruct("value", "fiatValues", noFiatCurrencies.get)
           .as("TotalReceived")
       )
 
-    val inStats_relations = relations
+    val inStatsRelations = relations
       .groupBy("dstAddressId")
       .agg(
         count("transactionId").cast(IntegerType).as("noIncomingTxs"),
         countDistinct("srcAddressId").cast(IntegerType).as("inDegree")
       )
 
-    val inStats_token = encodedTokenTransfers
+    val inStatsToken = encodedTokenTransfers
       .groupBy("dstAddressId", "currency")
       .agg(
         createAggCurrencyStructPerCurrency(
@@ -743,11 +738,9 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
           .as("totalTokensReceived")
       )
 
-    val inStats = inStats_eth
-      .join(inStats_relations, Seq("dstAddressId"), "full")
-      .join(inStats_token, Seq("dstAddressId"), "full")
-    /*
-    println(inStats.sort("dstAddressId").show())*/
+    val inStats = inStatsEth
+      .join(inStatsRelations, Seq("dstAddressId"), "full")
+      .join(inStatsToken, Seq("dstAddressId"), "full")
 
     addressTransactions
       .select("addressId", "transactionId")
@@ -798,7 +791,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
     )
 
-    val aggValues_tokens = encodedTokenTransfers
+    val aggValuesTokens = encodedTokenTransfers
       .groupBy("srcAddressId", "dstAddressId", "currency")
       .agg(
         createAggCurrencyStructPerCurrency(
@@ -841,7 +834,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
       // join aggregated token values
       .join(
-        aggValues_tokens,
+        aggValuesTokens,
         Seq("srcAddressId", "dstAddressId"),
         "left"
       )

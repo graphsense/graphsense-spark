@@ -2,7 +2,7 @@ package info.graphsense.storage
 
 import com.datastax.spark.connector.rdd.ValidRDDType
 import com.datastax.spark.connector.rdd.reader.RowReaderFactory
-import com.datastax.spark.connector.writer.{RowWriterFactory}
+import com.datastax.spark.connector.writer.RowWriterFactory
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
