@@ -1,18 +1,13 @@
 package info.graphsense.contract.tokens
 
-import info.graphsense.{TokenTransfer, Log}
-import info.graphsense.Conversion._
-
-import org.web3j.abi.datatypes.Event;
-import org.web3j.abi.TypeReference;
-import org.web3j.abi.FunctionReturnDecoder;
-
-import scala.collection.JavaConverters._
-import org.web3j.abi.EventEncoder
 import java.math.BigInteger
-import scala.util.Try
-import scala.util.Success
-import scala.util.Failure
+import org.web3j.abi.{EventEncoder, FunctionReturnDecoder, TypeReference}
+import org.web3j.abi.datatypes.Event
+import scala.collection.JavaConverters._
+import scala.util.{Failure, Success, Try}
+
+import info.graphsense.{Log, TokenTransfer}
+import info.graphsense.Conversion._
 
 object Erc20 {
 
@@ -78,5 +73,4 @@ object Erc20 {
       case e: Throwable => Failure(e)
     }
   }
-
 }

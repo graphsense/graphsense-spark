@@ -1,13 +1,12 @@
 package info.graphsense
-import info.graphsense.Conversion._
-import org.apache.spark.sql.{Dataset, DataFrame}
+
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions.{col, lit, udf}
+
+import info.graphsense.Conversion._
 import info.graphsense.contract.tokens.Erc20
-import org.apache.spark.sql.SparkSession
-import scala.util.Try
 import scala.math.pow
-import scala.util.Success
-import scala.util.Failure
+import scala.util.{Failure, Success, Try}
 
 class TokenTransfers(spark: SparkSession) {
 

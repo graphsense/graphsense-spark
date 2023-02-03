@@ -1,7 +1,6 @@
 package info.graphsense
 
 import info.graphsense.Conversion._
-
 import org.apache.spark.sql.{
   DataFrame,
   Dataset,
@@ -13,12 +12,11 @@ import org.apache.spark.sql.catalyst.ScalaReflection.universe.TypeTag
 import org.apache.spark.sql.functions.{col, length, lit, udf, when}
 import org.apache.spark.sql.types.{
   ArrayType,
+  MapType,
   StringType,
   StructField,
-  StructType,
-  MapType
+  StructType
 }
-/*import org.web3j.abi.datatypes*/
 
 trait SparkSessionTestWrapper {
 

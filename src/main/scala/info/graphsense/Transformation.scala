@@ -5,10 +5,12 @@ import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{
   when,
   array,
+  broadcast,
   element_at,
   coalesce,
   col,
   collect_list,
+  collect_set,
   count,
   countDistinct,
   date_format,
@@ -16,6 +18,7 @@ import org.apache.spark.sql.functions.{
   from_unixtime,
   hex,
   lit,
+  map_from_entries,
   map_keys,
   map_values,
   max,
@@ -27,10 +30,7 @@ import org.apache.spark.sql.functions.{
   sum,
   to_date,
   transform,
-  typedLit,
-  map_from_entries,
-  collect_set,
-  broadcast
+  typedLit
 }
 import org.apache.spark.sql.types.{DecimalType, FloatType, IntegerType}
 
