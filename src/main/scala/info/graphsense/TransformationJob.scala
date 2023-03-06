@@ -33,14 +33,14 @@ object TransformationJob {
     val addressPrefixLength: ScallopOption[Int] = opt[Int](
       "address-prefix-length",
       required = false,
-      default = Some(4),
+      default = Some(5),
       noshort = true,
       descr = "Prefix length of address hashes for Cassandra partitioning keys"
     )
     val txPrefixLength: ScallopOption[Int] = opt[Int](
       "tx-prefix-length",
       required = false,
-      default = Some(4),
+      default = Some(5),
       noshort = true,
       descr = "Prefix length for tx hashes Cassandra partitioning keys"
     )
