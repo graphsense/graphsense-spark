@@ -210,13 +210,16 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
       .select("blockId", "date")
 
-    val lastDateExchangeRates =
+    val maxDateExchangeRates =
       exchangeRates.select(max(col("date"))).first.getString(0)
-    val lastDateBlocks = blocksDate.select(max(col("date"))).first.getString(0)
-    if (lastDateExchangeRates < lastDateBlocks)
+    val maxDateBlocks = blocksDate.select(max(col("date"))).first.getString(0)
+    if (maxDateExchangeRates < maxDateBlocks) {
+      val noBlocksRemove =
+        blocksDate.filter(col("date") > maxDateExchangeRates).count()
       println(
-        "WARNING: exchange rates not available for all blocks, filling missing values with 0"
+        s"WARNING: exchange rates not available for all blocks, removing ${noBlocksRemove} blocks"
       )
+    }
 
     noFiatCurrencies = Some(
       exchangeRates.select(size(col("fiatValues"))).distinct.first.getInt(0)
@@ -224,8 +227,10 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
 
     blocksDate
       .join(exchangeRates, Seq("date"), "left")
-      // replace null values in column fiatValues
+      // remove blocks with missing exchange rate values at the end
+      .filter(col("date") <= maxDateExchangeRates)
       .withColumn("fiatValues", map_values(col("fiatValues")))
+      // fill remaining missing values in column fiatValue with zeros
       .withColumn(
         "fiatValues",
         coalesce(

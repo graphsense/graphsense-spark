@@ -2,7 +2,7 @@ package info.graphsense
 
 import com.datastax.spark.connector.ColumnName
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{col, max}
+import org.apache.spark.sql.functions.{col,from_unixtime, max}
 import org.rogach.scallop._
 
 import info.graphsense.storage.CassandraStorage
@@ -128,15 +128,6 @@ object TransformationJob {
       tokenConfigurations
     )
 
-    val noBlocks = blocks.count()
-    println("Number of blocks: " + noBlocks)
-    val lastBlockTimestamp = blocks
-      .select(max(col("timestamp")))
-      .first()
-      .getInt(0)
-    val noTransactions = transactions.count()
-    println("Number of transactions: " + noTransactions)
-
     println("Computing exchange rates")
     val exchangeRates =
       transformation
@@ -144,10 +135,34 @@ object TransformationJob {
         .persist()
     cassandra.store(conf.targetKeyspace(), "exchange_rates", exchangeRates)
 
+    val maxBlockExchangeRates =
+      exchangeRates.select(max(col("blockId"))).first.getInt(0)
+    val transactionsFiltered =
+      transactions.filter(col("blockId") <= maxBlockExchangeRates).persist()
+    val blocksFiltered = blocks.filter(col("blockId") <= maxBlockExchangeRates).persist()
+
+    val maxBlock = blocksFiltered
+      .select(
+        max(col("blockId")).as("maxBlockId"),
+        max(col("timestamp")).as("maxBlockTimestamp")
+      )
+      .withColumn("maxBlockDatetime", from_unixtime(col("maxBlockTimestamp")))
+    val maxBlockTimestamp =
+      maxBlock.select(col("maxBlockTimestamp")).first.getInt(0)
+    val maxBlockDatetime =
+      maxBlock.select(col("maxBlockDatetime")).first.getString(0)
+
+    val noBlocks = maxBlockExchangeRates.toLong + 1
+    val noTransactions = transactionsFiltered.count()
+
+    println(s"Max block timestamp: ${maxBlockDatetime}")
+    println(s"Max block ID: ${maxBlockExchangeRates}")
+    println(s"Max transaction ID: ${noTransactions-1}")
+
     println("Computing transaction IDs")
     spark.sparkContext.setJobDescription("Computing transaction IDs")
     val transactionIds =
-      transformation.computeTransactionIds(transactions).persist()
+      transformation.computeTransactionIds(transactionsFiltered).persist()
     val transactionIdsByTransactionIdGroup =
       transactionIds.toDF.transform(
         transformation.withSortedIdGroup[TransactionIdByTransactionIdGroup](
@@ -201,8 +216,8 @@ object TransformationJob {
 
     val balances = transformation
       .computeBalances(
-        blocks,
-        transactions,
+        blocksFiltered,
+        transactionsFiltered,
         traces,
         addressIds,
         tokenTransfers,
@@ -217,7 +232,7 @@ object TransformationJob {
     val encodedTransactions =
       transformation
         .computeEncodedTransactions(
-          transactions,
+          transactionsFiltered,
           transactionIds,
           addressIds,
           exchangeRates
@@ -237,7 +252,7 @@ object TransformationJob {
     println("Computing block transactions")
     spark.sparkContext.setJobDescription("Computing block transactions")
     val blockTransactions = transformation
-      .computeBlockTransactions(blocks, encodedTransactions)
+      .computeBlockTransactions(blocksFiltered, encodedTransactions)
     cassandra.store(
       conf.targetKeyspace(),
       "block_transactions",
@@ -328,7 +343,7 @@ object TransformationJob {
     spark.sparkContext.setJobDescription("Computing summary statistics")
     val summaryStatistics =
       transformation.summaryStatistics(
-        lastBlockTimestamp,
+        maxBlockTimestamp,
         noBlocks,
         noTransactions,
         noAddresses,
