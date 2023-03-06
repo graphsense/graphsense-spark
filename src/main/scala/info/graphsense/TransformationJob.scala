@@ -2,7 +2,7 @@ package info.graphsense
 
 import com.datastax.spark.connector.ColumnName
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{col,from_unixtime, max}
+import org.apache.spark.sql.functions.{col, from_unixtime, max}
 import org.rogach.scallop._
 
 import info.graphsense.storage.CassandraStorage
@@ -102,7 +102,6 @@ object TransformationJob {
           ),
         tt.tokenAddresses
       )
-      .persist()
 
     val transformation = new Transformation(spark, conf.bucketSize())
 
@@ -137,9 +136,16 @@ object TransformationJob {
 
     val maxBlockExchangeRates =
       exchangeRates.select(max(col("blockId"))).first.getInt(0)
+    val blocksFiltered =
+      blocks.filter(col("blockId") <= maxBlockExchangeRates).persist()
     val transactionsFiltered =
       transactions.filter(col("blockId") <= maxBlockExchangeRates).persist()
-    val blocksFiltered = blocks.filter(col("blockId") <= maxBlockExchangeRates).persist()
+    val tracesFiltered =
+      traces.filter(col("blockId") <= maxBlockExchangeRates).persist()
+    val tokenTransfersFiltered = tokenTransfers
+      .filter(col("blockId") <= maxBlockExchangeRates)
+      .persist()
+      .persist()
 
     val maxBlock = blocksFiltered
       .select(
@@ -157,7 +163,7 @@ object TransformationJob {
 
     println(s"Max block timestamp: ${maxBlockDatetime}")
     println(s"Max block ID: ${maxBlockExchangeRates}")
-    println(s"Max transaction ID: ${noTransactions-1}")
+    println(s"Max transaction ID: ${noTransactions - 1}")
 
     println("Computing transaction IDs")
     spark.sparkContext.setJobDescription("Computing transaction IDs")
@@ -192,7 +198,9 @@ object TransformationJob {
     println("Computing address IDs")
     spark.sparkContext.setJobDescription("Computing address IDs")
     val addressIds =
-      transformation.computeAddressIds(traces, tokenTransfers).persist()
+      transformation
+        .computeAddressIds(tracesFiltered, tokenTransfersFiltered)
+        .persist()
     val noAddresses = addressIds.count()
     val addressIdsByAddressPrefix =
       addressIds.toDF.transform(
@@ -210,7 +218,7 @@ object TransformationJob {
 
     println("Computing contracts")
     spark.sparkContext.setJobDescription("Computing contracts")
-    val contracts = transformation.computeContracts(traces, addressIds)
+    val contracts = transformation.computeContracts(tracesFiltered, addressIds)
 
     println("Computing balances")
 
@@ -218,9 +226,9 @@ object TransformationJob {
       .computeBalances(
         blocksFiltered,
         transactionsFiltered,
-        traces,
+        tracesFiltered,
         addressIds,
-        tokenTransfers,
+        tokenTransfersFiltered,
         tokenConfigurations
       )
       .persist()
@@ -241,7 +249,7 @@ object TransformationJob {
 
     val encodedTokenTransfers = transformation
       .computeEncodedTokenTransfers(
-        tokenTransfers,
+        tokenTransfersFiltered,
         tokenConfigurations,
         transactionIds,
         addressIds,
