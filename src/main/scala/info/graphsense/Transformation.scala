@@ -526,7 +526,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
   }
 
   def computeEncodedTransactions(
-      transactions: Dataset[Transaction],
+      traces: Dataset[Trace],
       transactionsIds: Dataset[TransactionId],
       addressIds: Dataset[AddressId],
       exchangeRates: Dataset[ExchangeRates]
@@ -542,7 +542,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         )
       )
     }
-    transactions
+    traces
+      .filter(col("status") === 1)
       .withColumnRenamed("txHash", "transaction")
       .join(
         transactionsIds,
@@ -564,9 +565,9 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         "left"
       )
       .drop(
-        "blockHash",
-        "txHashPrefix",
-        "transaction",
+        "blockIdGroup",
+        "status",
+        "callType",
         "toAddress",
         "fromAddress",
         "receiptGasUsed"

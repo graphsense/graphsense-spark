@@ -240,7 +240,7 @@ object TransformationJob {
     val encodedTransactions =
       transformation
         .computeEncodedTransactions(
-          transactionsFiltered,
+          tracesFiltered,
           transactionIds,
           addressIds,
           exchangeRates

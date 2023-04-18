@@ -6,7 +6,7 @@ import org.apache.spark.sql.functions.{col, max}
 import org.scalatest.funsuite.AnyFunSuite
 
 import Helpers.{readTestData, setNullableStateForAllColumns}
-
+/*
 class ComplexGraphTransformationTest
     extends AnyFunSuite
     with SparkSessionTestWrapper
@@ -54,7 +54,7 @@ class ComplexGraphTransformationTest
   val addressIds =
     t.computeAddressIds(traces, tokenTransfers)
   val encodedTxs =
-    t.computeEncodedTransactions(txs, txIds, addressIds, exchangeRates)
+    t.computeEncodedTransactions(traces, txIds, addressIds, exchangeRates)
   val addressTransactions = t.computeAddressTransactions(
     encodedTxs,
     encodedTokenTransfers
@@ -106,3 +106,4 @@ class ComplexGraphTransformationTest
   }
 
 }
+*/

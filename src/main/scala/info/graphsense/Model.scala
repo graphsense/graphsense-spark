@@ -156,7 +156,8 @@ case class Trace(
     toAddress: Option[Array[Byte]],
     value: BigInt,
     status: Int,
-    callType: Option[String]
+    callType: Option[String],
+    txHash: Array[Byte]
 )
 
 case class ExchangeRatesRaw(
@@ -202,17 +203,17 @@ case class EncodedTokenTransfer(
 
 case class EncodedTransaction(
     transactionId: Int,
-    nonce: Int,
+    //nonce: Int,
     blockId: Int,
-    transactionIndex: Short,
+    //transactionIndex: Short,
     srcAddressId: Int,
     dstAddressId: Option[Int],
     value: BigInt,
     fiatValues: Seq[Float],
-    gas: Int,
-    gasPrice: BigInt,
-    input: Array[Byte],
-    blockTimestamp: Int
+    //gas: Int,
+    //gasPrice: BigInt,
+    //input: Array[Byte],
+    //blockTimestamp: Int
 )
 
 case class AddressTransaction(
