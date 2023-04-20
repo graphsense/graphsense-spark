@@ -105,6 +105,7 @@ case class Contract(
 
 case class Currency(value: BigInt, fiatValues: Seq[Float])
 case class AddressSummary(totalReceived: Currency, totalSpent: Currency)
+case class TxReference(traceIndex: Option[Int], logIndex: Option[Int])
 
 // raw schema tables
 
@@ -152,12 +153,13 @@ case class Trace(
     blockIdGroup: Int,
     blockId: Int,
     traceId: String,
+    traceIndex: Int,
     fromAddress: Option[Array[Byte]],
     toAddress: Option[Array[Byte]],
     value: BigInt,
     status: Int,
     callType: Option[String],
-    txHash: Array[Byte]
+    txHash: Option[Array[Byte]]
 )
 
 case class ExchangeRatesRaw(
@@ -205,6 +207,7 @@ case class EncodedTransaction(
     transactionId: Int,
     //nonce: Int,
     blockId: Int,
+    traceIndex: Int,
     //transactionIndex: Short,
     srcAddressId: Int,
     dstAddressId: Option[Int],
@@ -221,7 +224,7 @@ case class AddressTransaction(
     addressIdSecondaryGroup: Int,
     addressId: Int,
     transactionId: Int,
-    logIndex: Option[Int],
+    txReference: TxReference,
     currency: String,
     isOutgoing: Boolean
 )

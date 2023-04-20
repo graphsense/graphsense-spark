@@ -80,11 +80,13 @@ object TransformationJob {
         "block_id_group",
         "block_id",
         "trace_id",
+        "trace_index",
         "from_address",
         "to_address",
         "value",
         "status",
-        "call_type"
+        "call_type",
+        "tx_hash"
       ).map(
         ColumnName(_)
       ): _*

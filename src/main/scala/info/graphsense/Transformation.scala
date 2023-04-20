@@ -156,6 +156,16 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .sort(prefixColumn)
   }
 
+  def withTxReference[T](ds: Dataset[T]): DataFrame = {
+    ds.withColumn(
+      "txReference",
+      struct(
+        col("traceIndex"),
+        col("logIndex")
+      )
+    )
+  }
+
   def withSecondaryIdGroup[T](
       idColumn: String,
       secondaryIdColumn: String,
@@ -380,7 +390,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("fromAddress").as("address"),
         col("blockId"),
-        col("traceId")
+        col("traceIndex")
       )
       .withColumn("isFromAddress", lit(true))
       .filter(col("address").isNotNull)
@@ -390,7 +400,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("toAddress").as("address"),
         col("blockId"),
-        col("traceId")
+        col("traceIndex")
       )
       .withColumn("isFromAddress", lit(false))
       .filter(col("address").isNotNull)
@@ -399,7 +409,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("to").as("address"),
         col("blockId"),
-        col("logIndex").as("traceId")
+        col("logIndex").as("traceIndex")
       )
       .withColumn("isFromAddress", lit(false))
 
@@ -407,13 +417,13 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("from").as("address"),
         col("blockId"),
-        col("logIndex").as("traceId")
+        col("logIndex").as("traceIndex")
       )
       .withColumn("isFromAddress", lit(true))
 
     val orderWindow = Window
       .partitionBy("address")
-      .orderBy("blockId", "traceId", "isFromAddress")
+      .orderBy("blockId", "traceIndex", "isFromAddress")
 
     fromAddress
       .union(toAddress)
@@ -421,7 +431,7 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .union(toAddressTT)
       .withColumn("rowNumber", row_number().over(orderWindow))
       .filter(col("rowNumber") === 1)
-      .sort("blockId", "traceId", "isFromAddress")
+      .sort("blockId", "traceIndex", "isFromAddress")
       .select("address")
       .map(_.getAs[Array[Byte]]("address"))
       .rdd
@@ -603,7 +613,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
     val inputs = encodedTransactions
       .select(
         col("srcAddressId").as("addressId"),
-        col("transactionId")
+        col("transactionId"),
+        col("traceIndex")
       )
       .withColumn("isOutgoing", lit(true))
       .withColumn("currency", lit("ETH"))
@@ -613,7 +624,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .filter(col("dstAddressId").isNotNull)
       .select(
         col("dstAddressId").as("addressId"),
-        col("transactionId")
+        col("transactionId"),
+        col("traceIndex")
       )
       .withColumn("isOutgoing", lit(false))
       .withColumn("currency", lit("ETH"))
@@ -621,23 +633,30 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
 
     val inputsTokens = encodedTokenTransfers
       .withColumn("isOutgoing", lit(true))
+      .withColumn("traceIndex", lit(null))
       .select(
         col("srcAddressId").as("addressId"),
         col("transactionId"),
+        col("traceIndex"),
         col("isOutgoing"),
         col("currency"),
         col("logIndex")
       )
+      
 
     val outputsTokens = encodedTokenTransfers
       .withColumn("isOutgoing", lit(false))
+      .withColumn("traceIndex", lit(null))
       .select(
         col("dstAddressId").as("addressId"),
         col("transactionId"),
+        col("traceIndex"),
         col("isOutgoing"),
         col("currency"),
         col("logIndex")
       )
+      
+
     val atxs = inputs
       .union(inputsTokens)
       .union(outputs)
@@ -650,7 +669,9 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
           "transactionId"
         )
       )
-      .sort("addressId", "addressIdSecondaryGroup", "transactionId")
+      .transform(withTxReference)
+      .drop("traceIndex", "logIndex")
+      .sort("addressId", "addressIdSecondaryGroup", "transactionId", "txReference")
       .filter(
         col("addressId").isNotNull
       ) /*They cant be selected for anyways should only contain sender of coinbase*/
