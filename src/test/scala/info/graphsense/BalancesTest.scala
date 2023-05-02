@@ -50,6 +50,7 @@ class BalancesTest
     val tokenTransfers = tt.getTokenTransfers(logs, tokenSelection)
 
     val addressIds = t.computeAddressIds(traces, tokenTransfers)
+
     val balances =
       t.computeBalances(
         blocks,

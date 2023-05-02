@@ -10,8 +10,8 @@ services:
       - TGT_KEYSPACE=eth_transformed
     # volumes:
     #   - "./src:/opt/graphsense/src"
-    #command: bash -c "timeout 3m bash -c 'until cqlsh cassandra_eth_transform; do sleep 10; done' && ./init_test_db.sh && ./scripts/dsbulk_load.sh && ./submit.sh "
-    command: ./submit.sh
+    command: bash -c "timeout 3m bash -c 'until cqlsh cassandra_eth_transform; do sleep 10; done' && ./init_test_db.sh && ./scripts/dsbulk_load.sh && ./submit.sh "
+    #command: ./submit.sh
     networks:
       - backend
 

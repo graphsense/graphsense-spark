@@ -147,7 +147,6 @@ object TransformationJob {
     val tokenTransfersFiltered = tokenTransfers
       .filter(col("blockId") <= maxBlockExchangeRates)
       .persist()
-      .persist()
 
     val maxBlock = blocksFiltered
       .select(

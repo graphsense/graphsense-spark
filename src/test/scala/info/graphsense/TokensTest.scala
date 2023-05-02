@@ -8,7 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import Helpers.{readTestData, setNullableStateForAllColumns}
 import info.graphsense.Conversion._
 import info.graphsense.contract.tokens.Erc20
-/*
+
 class TokenTest
     extends AnyFunSuite
     with SparkSessionTestWrapper
@@ -79,7 +79,7 @@ class TokenTest
 
   }
 
-  test("full transform with logs") {
+test("full transform with logs") {
 
     val inputDir = "src/test/resources/tokens/"
     spark.sparkContext.setLogLevel("WARN")
@@ -106,8 +106,8 @@ class TokenTest
     assertDataFrameEquality(transfers, transfersRef)
 
   }
-
-  test("encoded token transfers test") {
+  
+/*    test("encoded token transfers test") {
     import spark.implicits._
     val inputDir = "src/test/resources/tokens/"
 
@@ -299,6 +299,5 @@ class TokenTest
 
     assertDataFrameEquality(addressRelations, addressRelationsRef)
 
-  }
+  }*/
 }
-*/

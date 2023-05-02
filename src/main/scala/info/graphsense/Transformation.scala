@@ -390,7 +390,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("fromAddress").as("address"),
         col("blockId"),
-        col("traceIndex")
+        col("traceIndex"),
+        lit(false).as("isLog")
       )
       .withColumn("isFromAddress", lit(true))
       .filter(col("address").isNotNull)
@@ -400,7 +401,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("toAddress").as("address"),
         col("blockId"),
-        col("traceIndex")
+        col("traceIndex"),
+        lit(false).as("isLog")
       )
       .withColumn("isFromAddress", lit(false))
       .filter(col("address").isNotNull)
@@ -409,7 +411,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("to").as("address"),
         col("blockId"),
-        col("logIndex").as("traceIndex")
+        col("logIndex").as("traceIndex"),
+        lit(true).as("isLog")
       )
       .withColumn("isFromAddress", lit(false))
 
@@ -417,7 +420,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("from").as("address"),
         col("blockId"),
-        col("logIndex").as("traceIndex")
+        col("logIndex").as("traceIndex"),
+        lit(true).as("isLog")
       )
       .withColumn("isFromAddress", lit(true))
 
@@ -425,13 +429,14 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .partitionBy("address")
       .orderBy("blockId", "traceIndex", "isFromAddress")
 
+
     fromAddress
       .union(toAddress)
       .union(fromAddressTT)
       .union(toAddressTT)
       .withColumn("rowNumber", row_number().over(orderWindow))
       .filter(col("rowNumber") === 1)
-      .sort("blockId", "traceIndex", "isFromAddress")
+      .sort("blockId", "isLog", "traceIndex", "isFromAddress")
       .select("address")
       .map(_.getAs[Array[Byte]]("address"))
       .rdd
