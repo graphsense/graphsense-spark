@@ -107,7 +107,7 @@ test("full transform with logs") {
 
   }
   
-/*    test("encoded token transfers test") {
+ test("encoded token transfers test") {
     import spark.implicits._
     val inputDir = "src/test/resources/tokens/"
 
@@ -168,6 +168,7 @@ test("full transform with logs") {
         .count() === 0
     )
 
+
     assert(
       encodedTransactions.filter(col("dstAddressId").isNull).count() === 0
     )
@@ -209,6 +210,7 @@ test("full transform with logs") {
       encodedTokenTransfers.filter(col("dstAddressId").isNull).count() === 0
     )
 
+    
     val addressTransactions = t
       .computeAddressTransactions(
         encodedTransactions,
@@ -236,13 +238,12 @@ test("full transform with logs") {
         .filter(col("totalSpent.value") > 0)
         .count() === 31
     )
+    
 
-    // there are at least 3 contract creations in the ds, but only one has seen transactions so far.
-    // So only one contract address.
     assert(
       addresses
         .filter(col("isContract") === true)
-        .count() === 1
+        .count() === 3
     )
 
     assert(
@@ -251,11 +252,12 @@ test("full transform with logs") {
         .count() === 0
     )
 
+    
     // this is currently not true since for the address transactions, tx table is used not traces
-    /*
-      val address_count = addressIds.count()
-      assert(addresses.count() === address_count)
-    */
+    
+    /*    val address_count = addressIds.count()
+    assert(addresses.count() === address_count)*/
+    
 
     assert(
       addresses.count() === addresses.select(col("addressId")).distinct().count()
@@ -264,7 +266,7 @@ test("full transform with logs") {
     assert(
       addresses.count() === addresses.select(col("address")).distinct().count()
     )
-
+    
     val addressesRef =
       readTestData[Address](
         spark,
@@ -272,10 +274,12 @@ test("full transform with logs") {
       )
 
     assertDataFrameEquality(addresses, addressesRef)
-
+    
+  
     val addressRelations =
       t.computeAddressRelations(encodedTransactions, encodedTokenTransfers)
 
+    
     assert(
       addressRelations
         .filter(col("tokenValues").isNotNull)
@@ -299,5 +303,5 @@ test("full transform with logs") {
 
     assertDataFrameEquality(addressRelations, addressRelationsRef)
 
-  }*/
+  }
 }

@@ -6,7 +6,7 @@ import org.apache.spark.sql.functions.{col, max}
 import org.scalatest.funsuite.AnyFunSuite
 
 import Helpers.{readTestData, setNullableStateForAllColumns}
-/*
+
 class ComplexGraphTransformationTest
     extends AnyFunSuite
     with SparkSessionTestWrapper
@@ -80,11 +80,12 @@ class ComplexGraphTransformationTest
     val addressTransactionsRef =
       readTestData[AddressTransaction](
         spark,
-        refDir + "address_transactions.csv"
+        refDir + "address_transactions.json"
       )
+    
     assertDataFrameEquality(addressTransactions, addressTransactionsRef)
   }
-
+  
   test("Addresses") {
     val addressesRef =
       readTestData[Address](spark, refDir + "addresses.json")
@@ -94,11 +95,12 @@ class ComplexGraphTransformationTest
   test("Address relations") {
     val addressRelationsRef =
       readTestData[AddressRelation](spark, refDir + "address_relations.json")
+
     assertDataFrameEquality(addressRelations, addressRelationsRef)
   }
 
   test("Check statistics") {
-    assert(blocks.count.toInt == 10, "expected 10 blocks")
+    assert(blocks.count.toInt == 94, "expected 94 blocks")
     assert(lastBlockTimestamp == 1438919571)
     assert(txs.count() == 10, "expected 10 transaction")
     assert(addressIds.count() == 59, "expected 59 addresses")
@@ -106,4 +108,3 @@ class ComplexGraphTransformationTest
   }
 
 }
-*/

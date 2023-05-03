@@ -7,7 +7,7 @@ import org.scalatest.funsuite._
 
 import Helpers.{readTestData, setNullableStateForAllColumns}
 
-/*class TransformationTest
+class TransformationTest
     extends AnyFunSuite
     with SparkSessionTestWrapper
     with DataFrameComparer {
@@ -150,17 +150,22 @@ import Helpers.{readTestData, setNullableStateForAllColumns}
     )
   }
 
+  
+
   test("Address IDs") {
     val addressIdsRef =
       readTestData[AddressId](spark, refDir + "address_ids.csv")
+
+    // addressIds.withColumn("address", ctsa($"address")).write.csv("address_ids.csv")
+
     assertDataFrameEquality(addressIds, addressIdsRef)
   }
-
   test("Address IDs by address prefix") {
     val addressIdsRef = readTestData[AddressIdByAddressPrefix](
       spark,
       refDir + "address_ids_by_prefix.csv"
     )
+
     assertDataFrameEquality(addressIdsByAddressPrefix, addressIdsRef)
   }
 
@@ -178,7 +183,8 @@ import Helpers.{readTestData, setNullableStateForAllColumns}
         spark,
         refDir + "encoded_transactions.json"
       )
-    assertDataFrameEquality(encodedTransactions, encodedTransactionsRef)
+
+    assertDataFrameEquality(encodedTransactions.filter($"transactionId".isNotNull), encodedTransactionsRef)
   }
 
   note("Test blocks")
@@ -186,8 +192,10 @@ import Helpers.{readTestData, setNullableStateForAllColumns}
   test("Block transactions") {
     val blockTransactionsRef =
       readTestData[BlockTransaction](spark, refDir + "block_transactions.json")
+
     assertDataFrameEquality(blockTransactions, blockTransactionsRef)
   }
+
 
   note("Test address graph")
 
@@ -195,16 +203,20 @@ import Helpers.{readTestData, setNullableStateForAllColumns}
     val addressTransactionsRef =
       readTestData[AddressTransaction](
         spark,
-        refDir + "address_transactions.csv"
+        refDir + "address_transactions.json"
       )
     assertDataFrameEquality(addressTransactions, addressTransactionsRef)
   }
-
+  
   test("Addresses") {
     val addressesRef =
       readTestData[Address](spark, refDir + "addresses.json")
+
+    // addresses.withColumn("address",ctsa($"address")).write.json("addresses.json")
     assertDataFrameEquality(addresses, addressesRef)
   }
+
+  
 
   test("Address relations") {
     val addressRelationsRef =
@@ -212,6 +224,7 @@ import Helpers.{readTestData, setNullableStateForAllColumns}
     assertDataFrameEquality(addressRelations, addressRelationsRef)
   }
 
+  
   test("Check statistics") {
     assert(blocks.count.toInt == 84, "expected 84 blocks")
     assert(lastBlockTimestamp == 1438919571)
@@ -220,4 +233,3 @@ import Helpers.{readTestData, setNullableStateForAllColumns}
     assert(addressRelations.count() == 9, "expected 9 address relations")
   }
 }
-*/

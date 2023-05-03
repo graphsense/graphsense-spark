@@ -205,18 +205,18 @@ case class EncodedTokenTransfer(
 
 case class EncodedTransaction(
     transactionId: Int,
-    //nonce: Int,
+    // nonce: Int,
     blockId: Int,
     traceIndex: Int,
-    //transactionIndex: Short,
+    // transactionIndex: Short,
     srcAddressId: Int,
     dstAddressId: Option[Int],
     value: BigInt,
-    fiatValues: Seq[Float],
-    //gas: Int,
-    //gasPrice: BigInt,
-    //input: Array[Byte],
-    //blockTimestamp: Int
+    fiatValues: Seq[Float]
+    // gas: Int,
+    // gasPrice: BigInt,
+    // input: Array[Byte],
+    // blockTimestamp: Int
 )
 
 case class AddressTransaction(

@@ -429,7 +429,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       .partitionBy("address")
       .orderBy("blockId", "traceIndex", "isFromAddress")
 
-
     fromAddress
       .union(toAddress)
       .union(fromAddressTT)
@@ -585,7 +584,9 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         "callType",
         "toAddress",
         "fromAddress",
-        "receiptGasUsed"
+        "receiptGasUsed",
+        "transaction",
+        "traceId"
       )
       .withColumnRenamed("fromAddressId", "srcAddressId")
       .withColumnRenamed("toAddressId", "dstAddressId")
@@ -647,7 +648,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("currency"),
         col("logIndex")
       )
-      
 
     val outputsTokens = encodedTokenTransfers
       .withColumn("isOutgoing", lit(false))
@@ -660,7 +660,6 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
         col("currency"),
         col("logIndex")
       )
-      
 
     val atxs = inputs
       .union(inputsTokens)
@@ -676,7 +675,12 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
       )
       .transform(withTxReference)
       .drop("traceIndex", "logIndex")
-      .sort("addressId", "addressIdSecondaryGroup", "transactionId", "txReference")
+      .sort(
+        "addressId",
+        "addressIdSecondaryGroup",
+        "transactionId",
+        "txReference"
+      )
       .filter(
         col("addressId").isNotNull
       ) /*They cant be selected for anyways should only contain sender of coinbase*/
