@@ -3,9 +3,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [23.05/1.5.0] 2023-06-10
+## [23.06/1.5.0] 2023-06-10
 ### Changed
-- Include ethereum internal transactions in address, address_relations tables.
+- Include ethereum internal transactions in address, address_relations tables. [#8](https://github.com/graphsense/graphsense-ethereum-transformation/issues/8)
 
 ## [23.01/1.4.0] 2023-03-29
 ### Changed
