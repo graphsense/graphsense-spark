@@ -1,4 +1,4 @@
-val packagename = "graphsense-transformation"
+val packagename = "graphsense-ethereum-transformation"
 // used for local builds
 val defaultVersion = "1.5.0"
 // taken from https://alterationx10.com/2022/05/26/publish-to-github/
@@ -43,7 +43,7 @@ ThisBuild / credentials += Credentials(
 
 lazy val root = (project in file(".")).
   settings(
-    name := "graphsense-ethereum-transformation",
+    name := packagename,
     fork := true,
     Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oD"),
     scalacOptions ++= List(
