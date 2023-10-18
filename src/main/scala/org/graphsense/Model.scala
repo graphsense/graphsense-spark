@@ -1,6 +1,6 @@
-package info.graphsense
+package org.graphsense
 
-import info.graphsense.Conversion._
+import org.graphsense.Conversion._
 
 // lookup tables
 

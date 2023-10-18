@@ -1,10 +1,9 @@
-package info.graphsense
+package org.graphsense
 
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions.{col, lit, udf}
-
-import info.graphsense.Conversion._
-import info.graphsense.contract.tokens.Erc20
+import org.graphsense.Conversion._
+import org.graphsense.contract.tokens.Erc20
 import scala.math.pow
 import scala.util.{Failure, Success, Try}
 

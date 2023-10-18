@@ -1,6 +1,5 @@
-package info.graphsense
+package org.graphsense
 
-import info.graphsense.Conversion._
 import org.apache.spark.sql.{
   DataFrame,
   Dataset,
@@ -17,6 +16,7 @@ import org.apache.spark.sql.types.{
   StructField,
   StructType
 }
+import org.graphsense.Conversion._
 
 trait SparkSessionTestWrapper {
 

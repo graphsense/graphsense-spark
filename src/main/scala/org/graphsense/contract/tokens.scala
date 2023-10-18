@@ -1,13 +1,12 @@
-package info.graphsense.contract.tokens
+package org.graphsense.contract.tokens
 
 import java.math.BigInteger
+import org.graphsense.{Log, TokenTransfer}
+import org.graphsense.Conversion._
 import org.web3j.abi.{EventEncoder, FunctionReturnDecoder, TypeReference}
 import org.web3j.abi.datatypes.Event
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
-
-import info.graphsense.{Log, TokenTransfer}
-import info.graphsense.Conversion._
 
 object Erc20 {
 

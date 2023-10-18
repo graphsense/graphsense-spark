@@ -1,11 +1,10 @@
-package info.graphsense
+package org.graphsense
 
 import com.datastax.spark.connector.ColumnName
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.{col, from_unixtime, max}
+import org.graphsense.storage.CassandraStorage
 import org.rogach.scallop._
-
-import info.graphsense.storage.CassandraStorage
 
 object TransformationJob {
 
