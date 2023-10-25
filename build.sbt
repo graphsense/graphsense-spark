@@ -1,6 +1,6 @@
 val packagename = "graphsense-ethereum-transformation"
 // used for local builds
-val defaultVersion = "1.5.0"
+val defaultVersion = "1.5.1"
 // taken from https://alterationx10.com/2022/05/26/publish-to-github/
 val tagWithQualifier: String => String => String =
   qualifier =>
