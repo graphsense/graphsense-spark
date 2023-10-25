@@ -2,7 +2,7 @@ package org.graphsense
 
 import com.github.mrpowers.spark.fast.tests.DataFrameComparer
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.functions.{col, max}
+import org.apache.spark.sql.functions.{col, max, size, array_distinct, not}
 import org.scalatest.funsuite._
 
 import Helpers.{readTestData, setNullableStateForAllColumns}
@@ -150,7 +150,9 @@ class TransformationTest
     )
   }
 
-  
+  test("no duplicates in block txs") {
+    assert(blockTransactions.filter(not(size(col("txs")) === size(array_distinct(col("txs"))))).count() === 0)
+  }
 
   test("Address IDs") {
     val addressIdsRef =

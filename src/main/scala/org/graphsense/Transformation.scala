@@ -7,7 +7,6 @@ import org.apache.spark.sql.functions.{
   broadcast,
   coalesce,
   col,
-  collect_list,
   collect_set,
   count,
   countDistinct,
@@ -30,7 +29,8 @@ import org.apache.spark.sql.functions.{
   to_date,
   transform,
   typedLit,
-  when
+  when,
+  sort_array
 }
 import org.apache.spark.sql.types.{DecimalType, FloatType, IntegerType}
 
@@ -601,7 +601,8 @@ class Transformation(spark: SparkSession, bucketSize: Int) {
   ): Dataset[BlockTransaction] = {
     encodedTransactions
       .groupBy("blockId")
-      .agg(collect_list("transactionId").as("txs"))
+      .agg(collect_set("transactionId").as("txs"))
+      .withColumn("txs", sort_array(col("txs")))
       .join(
         blocks.select(col("blockId")),
         Seq("blockId"),

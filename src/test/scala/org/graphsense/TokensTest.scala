@@ -2,7 +2,7 @@ package org.graphsense
 
 import com.github.mrpowers.spark.fast.tests.DataFrameComparer
 import org.apache.spark.sql.{Column, Dataset}
-import org.apache.spark.sql.functions.{col, forall, lit}
+import org.apache.spark.sql.functions.{col, forall, lit, size, array_distinct, not}
 import org.scalatest.funsuite.AnyFunSuite
 
 import Helpers.{readTestData, setNullableStateForAllColumns}
@@ -157,6 +157,12 @@ test("full transform with logs") {
         addressIds,
         exchangeRates
       )
+
+    val blockTransactions = t
+    .computeBlockTransactions(blocks, encodedTransactions)
+    .sort("blockId")
+
+    assert(blockTransactions.filter(not(size(col("txs")) === size(array_distinct(col("txs"))))).count() === 0, "duplicates in block transactions")
 
     assert(
       encodedTransactions
