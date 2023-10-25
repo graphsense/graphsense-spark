@@ -1,6 +1,16 @@
+import scala.io.Source._
+
 val packagename = "graphsense-ethereum-transformation"
 // used for local builds
-val defaultVersion = "1.5.1"
+val defaultVersion = fromFile("Makefile")
+                      .getLines
+                      .filter(_.startsWith("RELEASESEM"))
+                      .toList
+                      .headOption
+                      .getOrElse("=Unknown")
+                      .replaceAll("RELEASESEM := ", "")
+                      .replaceAll("'", "")
+
 // taken from https://alterationx10.com/2022/05/26/publish-to-github/
 val tagWithQualifier: String => String => String =
   qualifier =>

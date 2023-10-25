@@ -33,7 +33,7 @@ echo -en "Starting Spark job ...\n" \
          "- Bucket Size:         $TRANSFORM_BUCKET_SIZE\n"
 
 "$SPARK_HOME"/bin/spark-submit \
-  --class "info.graphsense.TransformationJob" \
+  --class "org.graphsense.TransformationJob" \
   --master "$SPARK_MASTER" \
   --conf spark.driver.bindAddress="0.0.0.0" \
   --conf spark.driver.host="$SPARK_DRIVER_HOST" \
