@@ -5,7 +5,7 @@
 
 The GraphSense Transformation Pipeline reads raw block and transaction data,
 which is ingested into [Apache Cassandra][apache-cassandra]
-by the [graphsense-ethereum-etl][graphsense-ethereum-etl] component.
+by the [graphsense-lib][graphsense-ethereum-etl] component.
 The transformation pipeline computes an address graph and de-normalized views
 using [Apache Spark][apache-spark], which are again stored in Cassandra.
 
@@ -25,7 +25,7 @@ Make sure [Java 8][java] and [sbt >= 1.0][scala-sbt] is installed:
     java -version
     sbt about
 
-Download, install, and run [Apache Spark][apache-spark] (version 3.2.1)
+Download, install, and run [Apache Spark][apache-spark] (version 3.2.4)
 in `$SPARK_HOME`:
 
     $SPARK_HOME/sbin/start-master.sh
@@ -97,10 +97,9 @@ sbt scalafmt && sbt test
 ```
 before committing.
 
-[graphsense-ethereum-etl]: https://github.com/graphsense/graphsense-ethereum-etl
+[graphsense-ethereum-etl]: https://github.com/graphsense/graphsense-lib
 [graphsense-dashboard]: https://github.com/graphsense/graphsense-dashboard
 [graphsense-rest]: https://github.com/graphsense/graphsense-rest
-[graphsense-setup]: https://github.com/graphsense/graphsense-setup
 [java]: https://adoptopenjdk.net
 [scala-lang]: https://www.scala-lang.org
 [scala-sbt]: http://www.scala-sbt.org

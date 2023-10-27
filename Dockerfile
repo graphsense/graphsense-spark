@@ -1,5 +1,11 @@
 FROM openjdk:8
 
+LABEL org.opencontainers.image.title="graphsense-ethereum-transform"
+LABEL org.opencontainers.image.maintainer="contact@iknaio.com"
+LABEL org.opencontainers.image.url="https://www.ikna.io/"
+LABEL org.opencontainers.image.description="The GraphSense Transformation Pipeline reads raw block and transaction data and computes the transformed keyspace holding aggregate data and statistics."
+LABEL org.opencontainers.image.source="https://github.com/graphsense/graphsense-ethereum-transform"
+
 ARG UID=10000
 ADD requirements.txt /tmp/requirements.txt
 
