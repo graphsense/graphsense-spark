@@ -2,7 +2,7 @@ package org.graphsense
 
 import com.github.mrpowers.spark.fast.tests.DataFrameComparer
 import org.apache.spark.sql.{Column, Dataset}
-import org.apache.spark.sql.functions.{col, forall, lit, size, array_distinct, not}
+import org.apache.spark.sql.functions.{array_distinct, col, forall, lit, size}
 import org.scalatest.funsuite.AnyFunSuite
 
 import Helpers.{readTestData, setNullableStateForAllColumns}
@@ -79,7 +79,7 @@ class TokenTest
 
   }
 
-test("full transform with logs") {
+  test("full transform with logs") {
 
     val inputDir = "src/test/resources/tokens/"
     spark.sparkContext.setLogLevel("WARN")
@@ -106,8 +106,8 @@ test("full transform with logs") {
     assertDataFrameEquality(transfers, transfersRef)
 
   }
-  
- test("encoded token transfers test") {
+
+  test("encoded token transfers test") {
     import spark.implicits._
     val inputDir = "src/test/resources/tokens/"
 
@@ -159,10 +159,15 @@ test("full transform with logs") {
       )
 
     val blockTransactions = t
-    .computeBlockTransactions(blocks, encodedTransactions)
-    .sort("blockId")
+      .computeBlockTransactions(blocks, encodedTransactions)
+      .sort("blockId")
 
-    assert(blockTransactions.filter(not(size(col("txs")) === size(array_distinct(col("txs"))))).count() === 0, "duplicates in block transactions")
+    assert(
+      blockTransactions
+        .filter(size(col("txs")) =!= size(array_distinct(col("txs"))))
+        .count() === 0,
+      "duplicates in block transactions"
+    )
 
     assert(
       encodedTransactions
@@ -173,7 +178,6 @@ test("full transform with logs") {
         .filter(col("allfiatset") === lit(false))
         .count() === 0
     )
-
 
     assert(
       encodedTransactions.filter(col("dstAddressId").isNull).count() === 0
@@ -216,7 +220,6 @@ test("full transform with logs") {
       encodedTokenTransfers.filter(col("dstAddressId").isNull).count() === 0
     )
 
-    
     val addressTransactions = t
       .computeAddressTransactions(
         encodedTransactions,
@@ -244,7 +247,6 @@ test("full transform with logs") {
         .filter(col("totalSpent.value") > 0)
         .count() === 31
     )
-    
 
     assert(
       addresses
@@ -258,21 +260,20 @@ test("full transform with logs") {
         .count() === 0
     )
 
-    
     // this is currently not true since for the address transactions, tx table is used not traces
-    
+
     /*    val address_count = addressIds.count()
     assert(addresses.count() === address_count)*/
-    
 
     assert(
-      addresses.count() === addresses.select(col("addressId")).distinct().count()
+      addresses
+        .count() === addresses.select(col("addressId")).distinct().count()
     )
 
     assert(
       addresses.count() === addresses.select(col("address")).distinct().count()
     )
-    
+
     val addressesRef =
       readTestData[Address](
         spark,
@@ -280,12 +281,10 @@ test("full transform with logs") {
       )
 
     assertDataFrameEquality(addresses, addressesRef)
-    
-  
+
     val addressRelations =
       t.computeAddressRelations(encodedTransactions, encodedTokenTransfers)
 
-    
     assert(
       addressRelations
         .filter(col("tokenValues").isNotNull)

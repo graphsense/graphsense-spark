@@ -2,7 +2,7 @@ package org.graphsense
 
 import com.github.mrpowers.spark.fast.tests.DataFrameComparer
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.functions.{col, max, size, array_distinct, not}
+import org.apache.spark.sql.functions.{array_distinct, col, max, size}
 import org.scalatest.funsuite._
 
 import Helpers.{readTestData, setNullableStateForAllColumns}
@@ -151,15 +151,16 @@ class TransformationTest
   }
 
   test("no duplicates in block txs") {
-    assert(blockTransactions.filter(not(size(col("txs")) === size(array_distinct(col("txs"))))).count() === 0)
+    assert(
+      blockTransactions
+        .filter(size(col("txs")) =!= size(array_distinct(col("txs"))))
+        .count() === 0
+    )
   }
 
   test("Address IDs") {
     val addressIdsRef =
       readTestData[AddressId](spark, refDir + "address_ids.csv")
-
-    // addressIds.withColumn("address", ctsa($"address")).write.csv("address_ids.csv")
-
     assertDataFrameEquality(addressIds, addressIdsRef)
   }
   test("Address IDs by address prefix") {
@@ -186,7 +187,10 @@ class TransformationTest
         refDir + "encoded_transactions.json"
       )
 
-    assertDataFrameEquality(encodedTransactions.filter($"transactionId".isNotNull), encodedTransactionsRef)
+    assertDataFrameEquality(
+      encodedTransactions.filter($"transactionId".isNotNull),
+      encodedTransactionsRef
+    )
   }
 
   note("Test blocks")
@@ -198,7 +202,6 @@ class TransformationTest
     assertDataFrameEquality(blockTransactions, blockTransactionsRef)
   }
 
-
   note("Test address graph")
 
   test("Address transactions") {
@@ -209,16 +212,12 @@ class TransformationTest
       )
     assertDataFrameEquality(addressTransactions, addressTransactionsRef)
   }
-  
+
   test("Addresses") {
     val addressesRef =
       readTestData[Address](spark, refDir + "addresses.json")
-
-    // addresses.withColumn("address",ctsa($"address")).write.json("addresses.json")
     assertDataFrameEquality(addresses, addressesRef)
   }
-
-  
 
   test("Address relations") {
     val addressRelationsRef =
@@ -226,7 +225,6 @@ class TransformationTest
     assertDataFrameEquality(addressRelations, addressRelationsRef)
   }
 
-  
   test("Check statistics") {
     assert(blocks.count.toInt == 84, "expected 84 blocks")
     assert(lastBlockTimestamp == 1438919571)

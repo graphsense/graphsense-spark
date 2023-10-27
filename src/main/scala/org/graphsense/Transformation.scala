@@ -23,14 +23,14 @@ import org.apache.spark.sql.functions.{
   min,
   row_number,
   size,
+  sort_array,
   struct,
   substring,
   sum,
   to_date,
   transform,
   typedLit,
-  when,
-  sort_array
+  when
 }
 import org.apache.spark.sql.types.{DecimalType, FloatType, IntegerType}
 
