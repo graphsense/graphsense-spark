@@ -10,11 +10,13 @@ FOO="${SPARK_PARALLELISM:=16}"
 FOO="${SPARK_EXECUTOR_MEMORY:=4g}"
 FOO="${SPARK_DRIVER_MEMORY:=4g}"
 
-FOO="${TRANSFORM_VERSION:=1.4.0}"
+FOO="${TRANSFORM_VERSION:=1.5.1}"
 FOO="${TRANSFORM_BUCKET_SIZE:=10000}"
+FOO="${NETWORK:=ETH}"
 
 FOO="${SPARK_PACKAGES:=com.datastax.spark:spark-cassandra-connector_2.12:3.2.0,org.rogach:scallop_2.12:4.1.0,joda-time:joda-time:2.10.10,org.web3j:core:4.8.7,org.web3j:abi:4.8.7 \
-  target/scala-2.12/graphsense-ethereum-transformation_2.12-$TRANSFORM_VERSION.jar}"
+  graphframes:graphframes:0.8.2-spark3.2-s_2.12, org.apache.spark:spark-graphx:3.2.4 \
+  target/scala-2.12/graphsense-spark_2.12-$TRANSFORM_VERSION.jar}"
 
 FOO="${CASSANDRA_HOST:=localhost}"
 
@@ -49,6 +51,7 @@ echo -en "Starting Spark job ...\n" \
   --conf spark.sql.session.timeZone=UTC \
   --conf spark.serializer="org.apache.spark.serializer.KryoSerializer" \
   --packages $SPARK_PACKAGES \
+  --network "$NETWORK" \
   --raw-keyspace "$RAW_KEYSPACE" \
   --target-keyspace "$TGT_KEYSPACE" \
   --bucket-size $TRANSFORM_BUCKET_SIZE

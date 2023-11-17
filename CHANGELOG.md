@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 - Upgrade to Spark 3.2.4
 - Change package name
+- revised namespace structure (breaking call is different path)
+- integrated utxo (btc, zec, ltc transform)
 
 ## [23.09/1.5.1] 2023-10-25
 ### Fixed

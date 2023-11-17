@@ -14,6 +14,10 @@ class CassandraStorage(spark: SparkSession) {
   import spark.implicits._
   import com.datastax.spark.connector._
 
+  def session(): SparkSession = {
+    spark
+  }
+
   def load[T <: Product: ClassTag: RowReaderFactory: ValidRDDType: Encoder](
       keyspace: String,
       tableName: String,

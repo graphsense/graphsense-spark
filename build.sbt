@@ -1,6 +1,6 @@
 import scala.io.Source._
 
-val packagename = "graphsense-ethereum-transformation"
+val packagename = "graphsense-spark"
 // used for local builds
 val defaultVersion = fromFile("Makefile")
                       .getLines
@@ -71,6 +71,7 @@ lazy val root = (project in file(".")).
       "-Ywarn-unused",
       "-Ywarn-unused-import",
       "-Ywarn-value-discard"),
+    resolvers += "SparkPackages" at "https://repos.spark-packages.org/",
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.12" % Test,
       "com.github.mrpowers" % "spark-fast-tests_2.12" % "1.0.0" % Test,
@@ -79,5 +80,7 @@ lazy val root = (project in file(".")).
       "com.datastax.spark" %% "spark-cassandra-connector" % "3.2.0" % Provided,
       "joda-time" % "joda-time" % "2.10.10" % Provided,
       "org.web3j" % "core" % "4.8.7" % Provided,
-      "org.web3j" % "abi" % "4.8.7" % Provided),
+      "org.web3j" % "abi" % "4.8.7" % Provided,
+      "org.apache.spark" %% "spark-graphx" % "3.2.4" % Provided,
+      "graphframes" % "graphframes" % "0.8.2-spark3.2-s_2.12" % Provided),
   )
