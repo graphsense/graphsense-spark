@@ -36,22 +36,22 @@ build-fat:
 build-docker:
 	docker build . -t graphsense-spark
 
-run-docker-eth-tranform-local: build-docker
+run-docker-eth-transform-local: build-docker
 	${RUNTRANSFORM} eth
 
-run-docker-ltc-tranform-local: build-docker
+run-docker-ltc-transform-local: build-docker
 	${RUNTRANSFORM} ltc
 
-run-docker-btc-tranform-local: build-docker
+run-docker-btc-transform-local: build-docker
 	${RUNTRANSFORM} btc
 
-run-docker-zec-tranform-local: build-docker
+run-docker-zec-transform-local: build-docker
 	${RUNTRANSFORM} zec
 
-run-docker-bch-tranform-local: build-docker
+run-docker-bch-transform-local: build-docker
 	${RUNTRANSFORM} bch
 
-run-docker-trx-tranform-local: build-docker
+run-docker-trx-transform-local: build-docker
 	${RUNTRANSFORM} trx
 
 tag-version:
