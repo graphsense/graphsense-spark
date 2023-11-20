@@ -44,7 +44,8 @@ ADD Makefile .
 ADD build.sbt .
 RUN sbt package && \
     chown -R dockeruser /opt/graphsense && \
-    rm -rf /root/.ivy2 /root/.cache /root/.sbt
+    rm -rf /root/.ivy2 /root/.cache /root/.sbt && \
+    cp target/scala-2.12/graphsense-spark*.jar graphsense-spark.jar
 
 ADD docker/ .
 ADD scripts/ ./scripts

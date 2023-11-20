@@ -10,7 +10,7 @@ FOO="${SPARK_PARALLELISM:=16}"
 FOO="${SPARK_EXECUTOR_MEMORY:=4g}"
 FOO="${SPARK_DRIVER_MEMORY:=4g}"
 
-FOO="${TRANSFORM_VERSION:=v1.5.1}"
+# FOO="${TRANSFORM_VERSION:=v1.5.1}"
 FOO="${TRANSFORM_BUCKET_SIZE:=10000}"
 FOO="${NETWORK:=ETH}"
 
@@ -49,7 +49,7 @@ echo -en "Starting Spark job ...\n" \
   --conf spark.sql.session.timeZone=UTC \
   --conf spark.serializer="org.apache.spark.serializer.KryoSerializer" \
   --packages $SPARK_PACKAGES \
-  target/scala-2.12/graphsense-spark_2.12-$TRANSFORM_VERSION.jar \
+  graphsense-spark.jar \
   --network "$NETWORK" \
   --raw-keyspace "$RAW_KEYSPACE" \
   --target-keyspace "$TGT_KEYSPACE" \
