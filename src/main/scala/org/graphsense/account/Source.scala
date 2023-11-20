@@ -65,7 +65,7 @@ abstract class CassandraAccountSource(store: CassandraStorage, keyspace: String)
   }
 
   def transactions(): Dataset[Transaction] = {
-    store.load[Transaction](keyspace, "transactions")
+    store.load[Transaction](keyspace, "transaction")
   }
 
   def logs(): Dataset[Log] = {

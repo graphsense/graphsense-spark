@@ -3,14 +3,13 @@ RELEASESEM := 'v1.5.1'
 
 all: format lint
 
-stop-local-cassandra:
-	docker-compose -f local_transform.compose.yml down
-
-start-local-cassandra: stop-local-cassandra
-	docker-compose -f local_transform.compose.yml up cassandra_eth_transform
-
-run-local-transform: stop-local-cassandra
-	docker-compose -f local_transform.compose.yml up --build
+RUNTRANSFORM=sh -c '\
+  docker run \
+	-e RAW_KEYSPACE=$$1_raw_dev \
+	-e TGT_KEYSPACE=$$1_transformed_dev \
+	-e NETWORK=$$1 \
+	--network="host" \
+	graphsense-spark ./submit.sh' RUNTRANSFORM
 
 test:
 	sbt test
@@ -37,12 +36,23 @@ build-fat:
 build-docker:
 	docker build . -t graphsense-spark
 
-run-docker-eth-tranform-local:
-	docker run \
-	-e RAW_KEYSPACE=eth_raw_dev \
-	-e TGT_KEYSPACE=eth_transformed_dev \
-	-e NETWORK=eth \
-	graphsense-spark ./submit.sh
+run-docker-eth-tranform-local: build-docker
+	${RUNTRANSFORM} eth
+
+run-docker-ltc-tranform-local: build-docker
+	${RUNTRANSFORM} ltc
+
+run-docker-btc-tranform-local: build-docker
+	${RUNTRANSFORM} btc
+
+run-docker-zec-tranform-local: build-docker
+	${RUNTRANSFORM} zec
+
+run-docker-bch-tranform-local: build-docker
+	${RUNTRANSFORM} bch
+
+run-docker-trx-tranform-local: build-docker
+	${RUNTRANSFORM} trx
 
 tag-version:
 	-git diff --exit-code && git diff --staged --exit-code && git tag -a $(RELEASE) -m 'Release $(RELEASE)' || (echo "Repo is dirty please commit first" && exit 1)

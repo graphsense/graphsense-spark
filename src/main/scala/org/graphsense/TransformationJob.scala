@@ -1,7 +1,7 @@
 package org.graphsense
 
 import org.graphsense.utxo.{TransformationJob => Utxo}
-import org.graphsense.utxo.{TransformationJob => Account}
+import org.graphsense.account.{TransformationJob => Account}
 import org.rogach.scallop._
 
 class CliArgs(arguments: Seq[String]) extends ScallopConf(arguments) {
@@ -19,7 +19,15 @@ object TransformationJob {
 
   def main(args: Array[String]) {
 
-    val conf = new CliArgs(args)
+    /*
+    extract only network arg, scallop does not ignore
+    extra argument
+     */
+
+    val index = args.indexOf("network")
+    val networkArgs = args.slice(index, index + 3)
+
+    val conf = new CliArgs(networkArgs)
 
     conf.network().toLowerCase() match {
       case "eth" | "trx"                 => Account.main(args)
