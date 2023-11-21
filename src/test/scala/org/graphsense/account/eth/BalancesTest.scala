@@ -1,6 +1,6 @@
 package org.graphsense.account.eth
 
-import org.apache.spark.sql.functions.{col}
+import org.apache.spark.sql.functions.col
 import org.graphsense.account.models.Balance
 import org.graphsense.TestBase
 

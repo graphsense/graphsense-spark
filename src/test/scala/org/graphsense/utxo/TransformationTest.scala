@@ -10,8 +10,7 @@ import org.graphsense.utxo.models._
 import org.graphsense.models._
 import org.graphsense.TestBase
 
-class TransformationTest
-    extends TestBase {
+class TransformationTest extends TestBase {
   import spark.implicits._
 
   spark.sparkContext.setLogLevel("WARN")
@@ -251,7 +250,8 @@ class TransformationTest
   }
   test("plainClusterRelations") {
     val plainClusterRelationsRef =
-      readTestData[PlainClusterRelation](refDir + "plain_cluster_relations.json"
+      readTestData[PlainClusterRelation](
+        refDir + "plain_cluster_relations.json"
       ).sort(F.txId, F.srcClusterId, F.dstClusterId)
     val sortedRelations =
       plainClusterRelations.sort(F.txId, F.srcClusterId, F.dstClusterId)

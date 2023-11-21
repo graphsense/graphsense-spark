@@ -1,6 +1,5 @@
 package org.graphsense
 
-
 /*import org.apache.spark.sql.functions.{col, when}*/
 
 object Util {

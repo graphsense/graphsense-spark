@@ -1,91 +1,103 @@
 package org.graphsense.account.eth
 
-import org.apache.spark.sql.functions.{ col, max, size, array_distinct }
-import org.graphsense.account.models.{TransactionId, EncodedTransaction, BlockTransaction, AddressId, AddressIdByAddressPrefix, Address, AddressRelation, AddressTransaction, Contract, EncodedTokenTransfer, TokenTransfer, TransactionIdByTransactionIdGroup, TransactionIdByTransactionPrefix}
+import org.apache.spark.sql.functions.{array_distinct, col, max, size}
+import org.graphsense.account.models.{
+  Address,
+  AddressId,
+  AddressIdByAddressPrefix,
+  AddressRelation,
+  AddressTransaction,
+  BlockTransaction,
+  Contract,
+  EncodedTokenTransfer,
+  EncodedTransaction,
+  TokenTransfer,
+  TransactionId,
+  TransactionIdByTransactionIdGroup,
+  TransactionIdByTransactionPrefix
+}
 import org.graphsense.TestBase
 import org.graphsense.TransformHelpers
 import org.graphsense.models.ExchangeRates
 
-class TransformationTest
-    extends TestBase {
-    import spark.implicits._
-    spark.sparkContext.setLogLevel("WARN")
-  
-    private val inputDir = "src/test/resources/account/eth/simple_graph/"
-    private val refDir = inputDir + "reference/"
-    private val ds = new TestEthSource(spark, inputDir)
-    private val bucketSize = 2
-    private val prefixLength = 4
-    private val t = new EthTransformation(spark,bucketSize)
+class TransformationTest extends TestBase {
+  import spark.implicits._
+  spark.sparkContext.setLogLevel("WARN")
 
-    // read raw data
-    val blocks = ds.blocks()
-    val transactions = ds.transactions()
-    val traces = ds.traces()
-    val exchangeRatesRaw = ds.exchangeRates()
+  private val inputDir = "src/test/resources/account/eth/simple_graph/"
+  private val refDir = inputDir + "reference/"
+  private val ds = new TestEthSource(spark, inputDir)
+  private val bucketSize = 2
+  private val prefixLength = 4
+  private val t = new EthTransformation(spark, bucketSize)
 
-    val tokenTransfers = spark.emptyDataset[TokenTransfer]
-    val encodedTokenTransfers = spark.emptyDataset[EncodedTokenTransfer]
-    val contracts = spark.emptyDataset[Contract]
+  // read raw data
+  val blocks = ds.blocks()
+  val transactions = ds.transactions()
+  val traces = ds.traces()
+  val exchangeRatesRaw = ds.exchangeRates()
 
-    // read ref values
-    val transactionIdsRef =
-      readTestData[TransactionId](refDir + "transactions_ids.csv")
+  val tokenTransfers = spark.emptyDataset[TokenTransfer]
+  val encodedTokenTransfers = spark.emptyDataset[EncodedTokenTransfer]
+  val contracts = spark.emptyDataset[Contract]
 
-    val transactionIdsGroupRef =
-      readTestData[TransactionIdByTransactionIdGroup](
-        refDir + "transactions_ids_by_id_group.csv"
-      )
+  // read ref values
+  val transactionIdsRef =
+    readTestData[TransactionId](refDir + "transactions_ids.csv")
 
-    val transactionIdsPrefixRef =
-      readTestData[TransactionIdByTransactionPrefix](
-        refDir + "transactions_ids_by_prefix.csv"
-      )
-
-    val addressIdsRef =
-      readTestData[AddressId](refDir + "address_ids.csv")
-
-    val addressIdsPrefixRef = readTestData[AddressIdByAddressPrefix](
-      refDir + "address_ids_by_prefix.csv"
+  val transactionIdsGroupRef =
+    readTestData[TransactionIdByTransactionIdGroup](
+      refDir + "transactions_ids_by_id_group.csv"
     )
 
-    val exchangeRatesRef =
-      readTestData[ExchangeRates](refDir + "exchange_rates.json")
+  val transactionIdsPrefixRef =
+    readTestData[TransactionIdByTransactionPrefix](
+      refDir + "transactions_ids_by_prefix.csv"
+    )
 
-    val encodedTransactionsRef =
-      readTestData[EncodedTransaction](
-        refDir + "encoded_transactions.json"
-      )
+  val addressIdsRef =
+    readTestData[AddressId](refDir + "address_ids.csv")
 
-    val addressTransactionsRef =
-      readTestData[AddressTransaction](
-        refDir + "address_transactions.json"
-      )
+  val addressIdsPrefixRef = readTestData[AddressIdByAddressPrefix](
+    refDir + "address_ids_by_prefix.csv"
+  )
 
-    val blockTransactionsRef =
-      readTestData[BlockTransaction](refDir + "block_transactions.json")
+  val exchangeRatesRef =
+    readTestData[ExchangeRates](refDir + "exchange_rates.json")
 
-    val addressesRef =
-      readTestData[Address](refDir + "addresses.json")
+  val encodedTransactionsRef =
+    readTestData[EncodedTransaction](
+      refDir + "encoded_transactions.json"
+    )
 
-    val addressRelationsRef =
-      readTestData[AddressRelation](refDir + "address_relations.json")
+  val addressTransactionsRef =
+    readTestData[AddressTransaction](
+      refDir + "address_transactions.json"
+    )
 
+  val blockTransactionsRef =
+    readTestData[BlockTransaction](refDir + "block_transactions.json")
 
-    // Compute values
-    val noBlocks = blocks.count.toInt
-    val lastBlockTimestamp = blocks
-        .select(max(col("timestamp")))
-        .first
-        .getInt(0)
-    val noTransactions = transactions.count()
+  val addressesRef =
+    readTestData[Address](refDir + "addresses.json")
 
-    val exchangeRates =
-        t.computeExchangeRates(blocks, exchangeRatesRaw)
-          .persist()
+  val addressRelationsRef =
+    readTestData[AddressRelation](refDir + "address_relations.json")
 
-    val transactionIds = t.computeTransactionIds(transactions)
-    val transactionIdsByTransactionIdGroup =
+  // Compute values
+  val noBlocks = blocks.count.toInt
+  val lastBlockTimestamp = blocks
+    .select(max(col("timestamp")))
+    .first
+    .getInt(0)
+  val noTransactions = transactions.count()
+
+  val exchangeRates =
+    t.computeExchangeRates(blocks, exchangeRatesRaw)
+      .persist()
+
+  val transactionIds = t.computeTransactionIds(transactions)
+  val transactionIdsByTransactionIdGroup =
     transactionIds.toDF.transform(
       TransformHelpers.withSortedIdGroup[TransactionIdByTransactionIdGroup](
         "transactionId",

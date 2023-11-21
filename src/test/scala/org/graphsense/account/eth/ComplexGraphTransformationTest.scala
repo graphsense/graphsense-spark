@@ -1,11 +1,17 @@
 package org.graphsense.account.eth
 
-import org.apache.spark.sql.functions.{ col, max }
-import org.graphsense.account.models.{Address, AddressRelation, AddressTransaction, Contract, EncodedTokenTransfer, TokenTransfer}
+import org.apache.spark.sql.functions.{col, max}
+import org.graphsense.account.models.{
+  Address,
+  AddressRelation,
+  AddressTransaction,
+  Contract,
+  EncodedTokenTransfer,
+  TokenTransfer
+}
 import org.graphsense.TestBase
 
-class ComplexGraphTransformationTest
-    extends TestBase{
+class ComplexGraphTransformationTest extends TestBase {
   import spark.implicits._
 
   spark.sparkContext.setLogLevel("WARN")
@@ -26,14 +32,14 @@ class ComplexGraphTransformationTest
 
   // read ref values
   val addressTransactionsRef =
-      readTestData[AddressTransaction](
-        refDir + "address_transactions.json"
-      )
+    readTestData[AddressTransaction](
+      refDir + "address_transactions.json"
+    )
 
   val addressesRef =
-      readTestData[Address](refDir + "addresses.json")
+    readTestData[Address](refDir + "addresses.json")
   val addressRelationsRef =
-      readTestData[AddressRelation](refDir + "address_relations.json")
+    readTestData[AddressRelation](refDir + "address_relations.json")
 
   // Compute values
 
@@ -59,7 +65,7 @@ class ComplexGraphTransformationTest
   val addressRelations = t
     .computeAddressRelations(encodedTxs, encodedTokenTransfers)
     .sort("srcAddressId", "dstAddressId")
-  
+
   // test equality
 
   note("Testing address graph:")
@@ -77,9 +83,9 @@ class ComplexGraphTransformationTest
 
   test("Check statistics") {
     val lastBlockTimestamp = blocks
-    .select(max(col("timestamp")))
-    .first
-    .getInt(0)
+      .select(max(col("timestamp")))
+      .first
+      .getInt(0)
 
     assert(blocks.count.toInt == 94, "expected 94 blocks")
     assert(lastBlockTimestamp == 1438919571)

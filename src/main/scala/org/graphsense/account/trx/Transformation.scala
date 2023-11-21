@@ -2,12 +2,7 @@ package org.graphsense.account.trx
 
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.expressions.Window
-import org.apache.spark.sql.functions.{
-  col,
-  lit,
-  row_number,
-  sum
-}
+import org.apache.spark.sql.functions.{col, lit, row_number, sum}
 import org.apache.spark.sql.types.DecimalType
 import org.graphsense.TransformHelpers
 import org.graphsense.account.trx.models._
@@ -168,16 +163,18 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       traces: Dataset[Trace],
       tokenTransfers: Dataset[TokenTransfer]
   ): Dataset[AddressId] = {
-  // tron traces:
-  //  block_id_group | block_id | trace_index | call_info_index | call_token_id | call_value |
-  //  caller_address | internal_index | note | rejected | transferto_address  | tx_hash
-  // ethereum traces:
-  //  vs block_id_group | block_id | trace_index | call_type | error | from_address | gas
-  //  | gas_used | input | output | reward_type | status | subtraces | to_address
-  //  | trace_address | trace_id  | trace_type | transaction_index | tx_hash | value
+    // tron traces:
+    //  block_id_group | block_id | trace_index | call_info_index | call_token_id | call_value |
+    //  caller_address | internal_index | note | rejected | transferto_address  | tx_hash
+    // ethereum traces:
+    //  vs block_id_group | block_id | trace_index | call_type | error | from_address | gas
+    //  | gas_used | input | output | reward_type | status | subtraces | to_address
+    //  | trace_address | trace_id  | trace_type | transaction_index | tx_hash | value
 
     val fromAddress = traces
-      .filter(col("callValue") > 0) // not sure; nothing transferred, so do we need it?
+      .filter(
+        col("callValue") > 0
+      ) // not sure; nothing transferred, so do we need it?
       .filter(col("rejected") === false)
       .select(
         col("callerAddress").as("address"),
@@ -189,7 +186,9 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .filter(col("address").isNotNull)
 
     val toAddress = traces
-      .filter(col("callValue") > 0) // not sure; nothing transferred, so do we need it?
+      .filter(
+        col("callValue") > 0
+      ) // not sure; nothing transferred, so do we need it?
       .filter(col("rejected") === false)
       .select(
         col("transfertoAddress").as("address"),

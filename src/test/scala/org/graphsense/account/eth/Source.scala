@@ -5,14 +5,14 @@ import org.graphsense.account.{AccountSourceWithTokens, TokenSet}
 import org.graphsense.account.contract.tokens.TokenTransferHelper
 import org.graphsense.account.eth.tokens.EthTokenSet
 import org.graphsense.account.eth.models.Trace
-import org.graphsense.Helpers.{readTestData}
+import org.graphsense.Helpers.readTestData
 import org.graphsense.account.models.{
   Block,
-  Transaction,
   Log,
-  TokenConfiguration
+  TokenConfiguration,
+  Transaction
 }
-import org.graphsense.models.{ExchangeRatesRaw}
+import org.graphsense.models.ExchangeRatesRaw
 
 object TestTokenSet extends TokenSet {
 

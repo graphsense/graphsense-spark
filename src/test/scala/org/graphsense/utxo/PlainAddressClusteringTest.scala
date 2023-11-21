@@ -8,8 +8,7 @@ import org.graphsense.utxo.models._
 import org.graphsense.models._
 import org.graphsense.TestBase
 
-class PlainAddressClusteringTest
-    extends TestBase{
+class PlainAddressClusteringTest extends TestBase {
 
   val bucketSize: Int = 2
   val t = new Transformator(spark, bucketSize)
@@ -36,7 +35,8 @@ class PlainAddressClusteringTest
       Seq(
         (100L, 1, false), // lowest id, will become clusterId
         (100L, 2, false),
-        (404L, 3, false)) // addr 3 will not be clustered because it's not multiple-input
+        (404L, 3, false)
+      ) // addr 3 will not be clustered because it's not multiple-input
         .toDF("txId", "addressId", "coinJoin")
 
     val expected = Seq(
@@ -94,7 +94,11 @@ class PlainAddressClusteringTest
   test("three tx, two tx share address input, two clusters are found") {
     import spark.implicits._
     val tx = Seq(
-      (100L, 2, false), // address 2 appears in most transactions in this cluster
+      (
+        100L,
+        2,
+        false
+      ), // address 2 appears in most transactions in this cluster
       (100L, 3, false),
       (404L, 1, false),
       (404L, 2, false),

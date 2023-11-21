@@ -105,8 +105,9 @@ abstract class TestBase
     with SparkSessionTestWrapper
     with DataFrameComparer {
 
-  def readTestData[T <: Product: Encoder: TypeTag](file: String
-  ): Dataset[T] = { Helpers.readTestData(spark, file) }
+  def readTestData[T <: Product: Encoder: TypeTag](file: String): Dataset[T] = {
+    Helpers.readTestData(spark, file)
+  }
 
   def setNullableStateForAllColumns[T](
       ds: Dataset[T],

@@ -53,6 +53,7 @@ ThisBuild / credentials += Credentials(
 ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 ThisBuild / scalafixOnCompile := true
+ThisBuild / scalafmtOnCompile := true
 
 lazy val root = (project in file(".")).
   settings(
