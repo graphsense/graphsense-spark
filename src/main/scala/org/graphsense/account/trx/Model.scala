@@ -8,7 +8,7 @@ case class Trace(
     callerAddress: Option[Array[Byte]],
     transfertoAddress: Option[Array[Byte]],
     callInfoIndex: Int,
-    callTokenId: Int,
+    callTokenId: Option[Int],
     callValue: Int,
     note: String,
     rejected: Boolean

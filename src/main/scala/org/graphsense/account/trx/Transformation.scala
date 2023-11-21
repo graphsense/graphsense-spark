@@ -86,15 +86,87 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       traces: Dataset[Trace],
       tokenTransfers: Dataset[TokenTransfer]
   ): Dataset[AddressId] = {
-    throw new UnsupportedOperationException
+  // tron traces:
+  //  block_id_group | block_id | trace_index | call_info_index | call_token_id | call_value |
+  //  caller_address | internal_index | note | rejected | transferto_address  | tx_hash
+  // ethereum traces:
+  //  vs block_id_group | block_id | trace_index | call_type | error | from_address | gas
+  //  | gas_used | input | output | reward_type | status | subtraces | to_address
+  //  | trace_address | trace_id  | trace_type | transaction_index | tx_hash | value
 
+    val fromAddress = traces
+      .filter(col("callValue") > 0) // not sure; nothing transferred, so do we need it?
+      .filter(col("rejected") === false)
+      .select(
+        col("callerAddress").as("address"),
+        col("blockId"),
+        col("traceIndex"),
+        lit(false).as("isLog")
+      )
+      .withColumn("isFromAddress", lit(true))
+      .filter(col("address").isNotNull)
+
+    val toAddress = traces
+      .filter(col("callValue") > 0) // not sure; nothing transferred, so do we need it?
+      .filter(col("rejected") === false)
+      .select(
+        col("transfertoAddress").as("address"),
+        col("blockId"),
+        col("traceIndex"),
+        lit(false).as("isLog")
+      )
+      .withColumn("isFromAddress", lit(false))
+      .filter(col("address").isNotNull)
+
+    val toAddressTT = tokenTransfers
+      .select(
+        col("to").as("address"),
+        col("blockId"),
+        col("logIndex").as("traceIndex"),
+        lit(true).as("isLog")
+      )
+      .withColumn("isFromAddress", lit(false))
+
+    val fromAddressTT = tokenTransfers
+      .select(
+        col("from").as("address"),
+        col("blockId"),
+        col("logIndex").as("traceIndex"),
+        lit(true).as("isLog")
+      )
+      .withColumn("isFromAddress", lit(true))
+
+    val orderWindow = Window
+      .partitionBy("address")
+      .orderBy("blockId", "traceIndex", "isFromAddress")
+
+    fromAddress
+      .union(toAddress)
+      .union(fromAddressTT)
+      .union(toAddressTT)
+      .withColumn("rowNumber", row_number().over(orderWindow))
+      .filter(col("rowNumber") === 1)
+      .sort("blockId", "isLog", "traceIndex", "isFromAddress")
+      .select("address")
+      .map(_.getAs[Array[Byte]]("address"))
+      .rdd
+      .zipWithIndex()
+      .map { case ((a, id)) => AddressId(a, id.toInt) }
+      .toDS()
   }
 
   def computeContracts(
       traces: Dataset[Trace],
       addressIds: Dataset[AddressId]
   ): Dataset[Contract] = {
-    throw new UnsupportedOperationException
+    traces
+      .filter(col("rejected") === false)
+      .filter(col("note") === "create")
+      .select(col("transfertoAddress").as("address"))
+      .join(addressIds, Seq("address"))
+      .select("addressId")
+      .distinct
+      .as[Contract]
   }
 
   def computeEncodedTokenTransfers(
