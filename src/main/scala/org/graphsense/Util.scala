@@ -1,6 +1,5 @@
 package org.graphsense
 
-import scala.language.implicitConversions
 
 /*import org.apache.spark.sql.functions.{col, when}*/
 

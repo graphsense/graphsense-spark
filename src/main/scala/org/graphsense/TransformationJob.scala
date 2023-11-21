@@ -17,7 +17,7 @@ class CliArgs(arguments: Seq[String]) extends ScallopConf(arguments) {
 
 object TransformationJob {
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
 
     /*
     extract only network arg, scallop does not ignore

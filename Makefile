@@ -25,7 +25,7 @@ format:
 
 lint:
 	sbt compile
-	sbt scalastyle
+	sbt scalafix
 
 build:
 	sbt package

@@ -1,33 +1,14 @@
 package org.graphsense.account.trx
 
-import org.apache.spark.sql.{Column, DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{
-  array,
-  broadcast,
-  coalesce,
   col,
-  collect_set,
-  count,
-  countDistinct,
-  date_format,
-  element_at,
-  from_unixtime,
   lit,
-  map_from_entries,
-  map_values,
-  max,
-  min,
   row_number,
-  size,
-  sort_array,
-  sum,
-  to_date,
-  transform,
-  typedLit,
-  when
+  sum
 }
-import org.apache.spark.sql.types.{DecimalType, FloatType, IntegerType}
+import org.apache.spark.sql.types.DecimalType
 import org.graphsense.TransformHelpers
 import org.graphsense.account.trx.models._
 import org.graphsense.account.models._
@@ -40,7 +21,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
   val ethTransform = new EthTransformation(spark, bucketSize)
 
-  private var noFiatCurrencies: Option[Int] = None
+  None
 
   def configuration(
       keyspaceName: String,
@@ -73,7 +54,6 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       tokenTransfers: Dataset[TokenTransfer],
       tokenConfigurations: Dataset[TokenConfiguration]
   ): Dataset[Balance] = {
-    val excludedCallTypes = Seq("delegatecall", "callcode", "staticcall")
     val callFilter = col("callTokenId").isNull && col("rejected") == false
 
     val debits = traces

@@ -9,7 +9,7 @@ import org.graphsense.storage.CassandraStorage
 
 object TransformationJob {
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     // import spark.implicits._
 
     val conf = new AccountConfig(args)

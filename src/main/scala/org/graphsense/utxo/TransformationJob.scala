@@ -11,7 +11,7 @@ import org.graphsense.utxo.models._
 
 object TransformationJob {
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
 
     val conf = new UtxoConf(args)
 

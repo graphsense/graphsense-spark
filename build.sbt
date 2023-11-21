@@ -50,6 +50,9 @@ ThisBuild / credentials += Credentials(
   "graphsense", // user
   sys.env.getOrElse("GITHUB_TOKEN", "thisisnottherealpassword") // password
 )
+ThisBuild / semanticdbEnabled := true
+ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
+ThisBuild / scalafixOnCompile := true
 
 lazy val root = (project in file(".")).
   settings(
