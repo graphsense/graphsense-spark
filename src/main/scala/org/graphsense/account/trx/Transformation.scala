@@ -73,7 +73,109 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       tokenTransfers: Dataset[TokenTransfer],
       tokenConfigurations: Dataset[TokenConfiguration]
   ): Dataset[Balance] = {
-    throw new UnsupportedOperationException
+    val excludedCallTypes = Seq("delegatecall", "callcode", "staticcall")
+    val callFilter = col("callTokenId").isNull && col("rejected") == false
+
+    val debits = traces
+      .filter(callFilter)
+      .groupBy("transfertoAddress")
+      .agg(sum("callValue").as("debits"))
+      .withColumnRenamed("transfertoAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    val credits = traces
+      .filter(callFilter)
+      .groupBy("callerAddress")
+      .agg((-sum(col("callValue"))).as("credits"))
+      .withColumnRenamed("callerAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    val txFeeDebits = transactions
+      .join(blocks, Seq("blockId"), "inner")
+      .withColumn("calculatedValue", col("receiptGasUsed") * col("gasPrice"))
+      .groupBy("miner")
+      .agg(sum("calculatedValue").as("txFeeDebits"))
+      .withColumnRenamed("miner", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    val txFeeCredits = transactions
+      .withColumn("calculatedValue", -col("receiptGasUsed") * col("gasPrice"))
+      .groupBy("fromAddress")
+      .agg(sum("calculatedValue").as("txFeeCredits"))
+      .withColumnRenamed("fromAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    val burntFees = blocks.na
+      .fill(0, Seq("baseFeePerGas"))
+      .withColumn(
+        "value",
+        -col("baseFeePerGas").cast(DecimalType(38, 0)) * col("gasUsed")
+      )
+      .groupBy("miner")
+      .agg(sum("value").as("burntFees"))
+      .withColumnRenamed("miner", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    val balance = burntFees
+      .join(debits, Seq("addressId"), "full")
+      .join(credits, Seq("addressId"), "full")
+      .join(txFeeDebits, Seq("addressId"), "full")
+      .join(txFeeCredits, Seq("addressId"), "full")
+      .na
+      .fill(0)
+      .withColumn(
+        "balance",
+        col("burntFees") +
+          col("debits") + col("credits") +
+          col("txFeeDebits") + col("txFeeCredits")
+      )
+      .withColumn("currency", lit("TRX"))
+      .transform(
+        TransformHelpers
+          .withSortedIdGroup[Balance]("addressId", "addressIdGroup", bucketSize)
+      )
+      .select("addressIdGroup", "addressId", "balance", "currency")
+      .as[Balance]
+
+    val tokenCredits = tokenTransfers
+      .groupBy("from", "tokenAddress")
+      .agg((-sum(col("value"))).as("credits"))
+      .withColumnRenamed("from", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    val tokenDebits = tokenTransfers
+      .groupBy("to", "tokenAddress")
+      .agg((sum(col("value"))).as("debits"))
+      .withColumnRenamed("to", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    val balanceTokensTmp = tokenCredits
+      .join(tokenDebits, Seq("addressId", "tokenAddress"), "full")
+      .na
+      .fill(0, Seq("credits", "debits"))
+      .withColumn(
+        "balance",
+        col("debits") + col("credits")
+      )
+      .join(tokenConfigurations, Seq("tokenAddress"), "left")
+      .withColumn("currency", col("currencyTicker"))
+
+    val balanceTokens = balanceTokensTmp
+      .transform(
+        TransformHelpers
+          .withSortedIdGroup[Balance]("addressId", "addressIdGroup", bucketSize)
+      )
+      .select("addressIdGroup", "addressId", "balance", "currency")
+      .as[Balance]
+
+    balance.union(balanceTokens)
   }
 
   def computeTransactionIds(
