@@ -274,6 +274,7 @@ case class AddressIncomingRelationSecondaryIds(
 )
 
 case class SummaryStatistics(
+    id: Int,
     timestamp: Int,
     timestampTransform: Int,
     noBlocks: Long,
