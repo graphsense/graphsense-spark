@@ -1,7 +1,6 @@
 package org.graphsense.account.models
 
 import org.graphsense.account.Implicits._
-import org.graphsense.models._
 
 // lookup tables
 
@@ -258,6 +257,7 @@ case class AddressIncomingRelationSecondaryIds(
 )
 
 case class SummaryStatistics(
+    id: Int,
     timestamp: Int,
     timestampTransform: Int,
     noBlocks: Long,

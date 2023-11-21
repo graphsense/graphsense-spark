@@ -811,6 +811,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
   ) = {
     Seq(
       SummaryStatistics(
+        0,
         lastBlockTimestamp,
         lastBlockTimestamp,
         noBlocks,

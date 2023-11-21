@@ -1,5 +1,5 @@
 RELEASE := 'v23.09'
-RELEASESEM := 'v1.5.1'
+RELEASESEM := 'v1.6.0'
 
 all: format lint
 
