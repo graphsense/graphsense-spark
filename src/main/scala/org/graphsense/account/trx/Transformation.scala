@@ -1,9 +1,16 @@
 package org.graphsense.account.trx
 
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.{Column, DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.expressions.Window
-import org.apache.spark.sql.functions.{col, lit, row_number, sum}
-import org.apache.spark.sql.types.DecimalType
+import org.apache.spark.sql.functions.{
+  broadcast,
+  col,
+  lit,
+  row_number,
+  sum,
+  transform
+}
+import org.apache.spark.sql.types.{DecimalType, FloatType}
 import org.graphsense.TransformHelpers
 import org.graphsense.account.trx.models._
 import org.graphsense.account.models._
@@ -173,7 +180,9 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
     val fromAddress = traces
       .filter(
-        col("callValue") > 0
+        col(
+          "callValue"
+        ) > 0 // Do we ever need zero-call-value-traces? - could pull this upstream
       ) // not sure; nothing transferred, so do we need it?
       .filter(col("rejected") === false)
       .select(
@@ -187,7 +196,9 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
     val toAddress = traces
       .filter(
-        col("callValue") > 0
+        col(
+          "callValue"
+        ) > 0 // Do we ever need zero-call-value-traces? - could pull this upstream
       ) // not sure; nothing transferred, so do we need it?
       .filter(col("rejected") === false)
       .select(
@@ -272,7 +283,65 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       addressIds: Dataset[AddressId],
       exchangeRates: Dataset[ExchangeRates]
   ): Dataset[EncodedTransaction] = {
-    throw new UnsupportedOperationException
+
+    def toFiatCurrency(valueColumn: String, fiatValueColumn: String)(
+        df: DataFrame
+    ) = {
+      df.withColumn(
+        fiatValueColumn,
+        transform(
+          col(fiatValueColumn),
+          (x: Column) =>
+            (col(valueColumn) * x / 1e6).cast(
+              FloatType
+            ) // should make it more generic and save native coin decimal somewhere centrally,
+          // perhaps in the Tokens file? eth:18 trx:6
+        )
+      )
+    }
+
+    traces
+      .filter(col("rejected") === false)
+      .filter(col("callTokenId").isNull) // could be trc10 values otherwise
+      // .filter(
+      //  col("callValue") > 0 // Do we ever need zero-call-value-traces? - could pull this upstream
+      // ) // not sure; nothing transferred, so do we need it?
+      .withColumnRenamed("txHash", "transaction")
+      .join(
+        transactionsIds,
+        Seq("transaction"),
+        "left"
+      )
+      .join(
+        addressIds
+          .withColumnRenamed("address", "callerAddress")
+          .withColumnRenamed("addressId", "fromAddressId"),
+        Seq("callerAddress"),
+        "left"
+      )
+      .join(
+        addressIds
+          .withColumnRenamed("address", "transfertoAddress")
+          .withColumnRenamed("addressId", "toAddressId"),
+        Seq("transfertoAddress"),
+        "left"
+      )
+      .drop(
+        "blockIdGroup",
+        "status",
+        "callType",
+        "transfertoAddress",
+        "callerAddress",
+        "receiptGasUsed",
+        "transaction",
+        "traceId"
+      )
+      .withColumnRenamed("fromAddressId", "srcAddressId")
+      .withColumnRenamed("toAddressId", "dstAddressId")
+      .join(broadcast(exchangeRates), Seq("blockId"), "left")
+      .withColumnRenamed("callValue", "value")
+      .transform(toFiatCurrency("value", "fiatValues"))
+      .as[EncodedTransaction]
   }
 
   def computeBlockTransactions(

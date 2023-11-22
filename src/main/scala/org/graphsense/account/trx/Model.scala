@@ -11,7 +11,8 @@ case class Trace(
     callTokenId: Option[Int],
     callValue: Int,
     note: String,
-    rejected: Boolean
+    rejected: Boolean,
+    txHash: Option[Array[Byte]]
 )
 
 case class Trc10(

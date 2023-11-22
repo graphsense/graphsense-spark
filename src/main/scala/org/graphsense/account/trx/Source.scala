@@ -61,7 +61,8 @@ class CassandraTrxSource(store: CassandraStorage, keyspace: String)
         "call_token_id",
         "call_value",
         "note",
-        "rejected"
+        "rejected",
+        "tx_hash"
       ).map(
         ColumnName(_)
       ): _*
