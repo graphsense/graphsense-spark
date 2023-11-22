@@ -41,6 +41,10 @@ ENV PATH="$PATH:/opt/graphsense/bin/dsbulk-1.10.0/bin"
 
 ADD src/ ./src
 ADD Makefile .
+ADD project/build.properties ./project/build.properties
+ADD project/plugins.sbt ./project/plugins.sbt
+ADD .scalafix.conf .
+ADD .scalafmt.conf .
 ADD build.sbt .
 RUN sbt package && \
     chown -R dockeruser /opt/graphsense && \
