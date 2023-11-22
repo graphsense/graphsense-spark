@@ -58,19 +58,35 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
   ): Dataset[Balance] = {
     val callFilter = col("callTokenId").isNull && col("rejected") == false
 
-    val debits = traces
+    val traceDebits = traces
       .filter(callFilter)
       .groupBy("transfertoAddress")
-      .agg(sum("callValue").as("debits"))
+      .agg(sum("callValue").as("traceDebits"))
       .withColumnRenamed("transfertoAddress", "address")
       .join(addressIds, Seq("address"), "left")
       .drop("address")
 
-    val credits = traces
+    val traceCredits = traces
       .filter(callFilter)
       .groupBy("callerAddress")
-      .agg((-sum(col("callValue"))).as("credits"))
+      .agg((-sum(col("callValue"))).as("traceCredits"))
       .withColumnRenamed("callerAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    val txDebits = transactions
+      .filter(col("receiptStatus") === 1)
+      .groupBy("toAddress")
+      .agg(sum("value").as("txDebits"))
+      .withColumnRenamed("toAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    val txCredits = transactions
+      .filter(col("receiptStatus") === 1)
+      .groupBy("fromAddress")
+      .agg((-sum("value")).as("txCredits"))
+      .withColumnRenamed("fromAddress", "address")
       .join(addressIds, Seq("address"), "left")
       .drop("address")
 
@@ -104,16 +120,19 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .drop("address")
 
     val balance = burntFees
-      .join(debits, Seq("addressId"), "full")
-      .join(credits, Seq("addressId"), "full")
+      .join(traceDebits, Seq("addressId"), "full")
+      .join(traceCredits, Seq("addressId"), "full")
       .join(txFeeDebits, Seq("addressId"), "full")
       .join(txFeeCredits, Seq("addressId"), "full")
+      .join(txDebits, Seq("addressId"), "full")
+      .join(txCredits, Seq("addressId"), "full")
       .na
       .fill(0)
       .withColumn(
         "balance",
         col("burntFees") +
-          col("debits") + col("credits") +
+          col("traceDebits") + col("traceCredits") +
+          col("txDebits") + col("txCredits") +
           col("txFeeDebits") + col("txFeeCredits")
       )
       .withColumn("currency", lit("TRX"))

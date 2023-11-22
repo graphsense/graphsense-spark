@@ -149,7 +149,8 @@ case class Transaction(
     gasPrice: BigInt,
     input: Array[Byte],
     blockTimestamp: Int,
-    receiptGasUsed: BigInt
+    receiptGasUsed: BigInt,
+    receiptStatus: BigInt // TODO: check if this is fine for ethereum
 )
 
 case class Log(
