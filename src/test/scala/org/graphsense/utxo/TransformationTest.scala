@@ -1,9 +1,6 @@
 package org.graphsense.utxo
 
-import com.github.mrpowers.spark.fast.tests.DataFrameComparer
-import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.col
-import org.scalatest.funsuite._
 
 import org.graphsense.utxo.{Fields => F}
 import org.graphsense.utxo.models._

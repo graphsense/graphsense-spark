@@ -78,7 +78,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       val noBlocksRemove =
         blocksDate.filter(col("date") > maxDateExchangeRates).count()
       println(
-        s"WARNING: exchange rates not available for all blocks, removing ${noBlocksRemove} blocks"
+        s"WARNING: exchange rates (${maxDateExchangeRates}) not available for all blocks, removing ${noBlocksRemove} blocks"
       )
     }
 

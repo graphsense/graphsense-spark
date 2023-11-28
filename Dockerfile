@@ -32,6 +32,8 @@ RUN mkdir -p /opt/graphsense && \
 
 
 ENV SPARK_HOME /opt/spark
+ENV HADOOP_HOME /opt/hadoop
+ENV HADOOP_OPTS "$HADOOP_OPTS -Djava.library.path=$HADOOP_HOME/lib/native"
 
 WORKDIR /opt/graphsense
 

@@ -29,6 +29,10 @@ object TransformHelpers {
       exchangeRatesRaw.select(map_keys(col("fiatValues"))).distinct
     if (currencies.count() > 1L)
       throw new Exception("Non-unique map keys in raw exchange rates table")
+    else if (currencies.count() == 0L)
+      throw new Exception(
+        "No fiat currencies found. Exchange rates table might be empty."
+      )
     currencies.rdd.map(r => r(0).asInstanceOf[Seq[String]]).collect()(0)
   }
 

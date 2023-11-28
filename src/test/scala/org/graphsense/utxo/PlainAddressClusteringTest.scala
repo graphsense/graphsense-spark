@@ -1,11 +1,5 @@
 package org.graphsense.utxo
 
-import com.github.mrpowers.spark.fast.tests.DataFrameComparer
-import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.functions.col
-import org.scalatest.funsuite.AnyFunSuite
-import org.graphsense.utxo.models._
-import org.graphsense.models._
 import org.graphsense.TestBase
 
 class PlainAddressClusteringTest extends TestBase {

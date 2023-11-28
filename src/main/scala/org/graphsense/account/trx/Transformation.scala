@@ -187,23 +187,25 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
   def computeAddressIds(
       traces: Dataset[Trace],
+      transactions: Dataset[Transaction],
       tokenTransfers: Dataset[TokenTransfer]
   ): Dataset[AddressId] = {
-    // tron traces:
-    //  block_id_group | block_id | trace_index | call_info_index | call_token_id | call_value |
-    //  caller_address | internal_index | note | rejected | transferto_address  | tx_hash
-    // ethereum traces:
-    //  vs block_id_group | block_id | trace_index | call_type | error | from_address | gas
-    //  | gas_used | input | output | reward_type | status | subtraces | to_address
-    //  | trace_address | trace_id  | trace_type | transaction_index | tx_hash | value
+    println("nr traces: " + traces.count())
+    println("nr txs: " + transactions.count())
+    println("nr erc20 txs: " + tokenTransfers.count())
+
+    /*
+     this constant is used to sort txs before traces
+     */
+    val max_tx_per_block = 1000000
 
     val fromAddress = traces
-      .filter(
-        col(
-          "callValue"
-        ) > 0 // Do we ever need zero-call-value-traces? - could pull this upstream
-      ) // not sure; nothing transferred, so do we need it?
-      .filter(col("rejected") === false)
+      // .filter(
+      //   col(
+      //     "callValue"
+      //   ) > 0 // Do we ever need zero-call-value-traces? - could pull this upstream
+      // ) // not sure; nothing transferred, so do we need it?
+      // .filter(col("rejected") === false)
       .select(
         col("callerAddress").as("address"),
         col("blockId"),
@@ -213,13 +215,17 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .withColumn("isFromAddress", lit(true))
       .filter(col("address").isNotNull)
 
+    // println("trace from address to short")
+    // fromAddressWithShort.filter(length($"address") < 20).show(100)
+    // val fromAddress = fromAddressWithShort.filter(length($"address") >= 20)
+
     val toAddress = traces
-      .filter(
-        col(
-          "callValue"
-        ) > 0 // Do we ever need zero-call-value-traces? - could pull this upstream
-      ) // not sure; nothing transferred, so do we need it?
-      .filter(col("rejected") === false)
+      // .filter(
+      //   col(
+      //     "callValue"
+      //   ) > 0 // Do we ever need zero-call-value-traces? - could pull this upstream
+      // ) // not sure; nothing transferred, so do we need it?
+      // .filter(col("rejected") === false)
       .select(
         col("transfertoAddress").as("address"),
         col("blockId"),
@@ -229,6 +235,39 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .withColumn("isFromAddress", lit(false))
       .filter(col("address").isNotNull)
 
+    // println("trace to address to short")
+    // toAddressWithShort.filter(length($"address") < 20).show(100)
+    // val toAddress = toAddressWithShort.filter(length($"address") >= 20)
+
+    val fromAddressTxs = transactions
+      .select(
+        col("fromAddress").as("address"),
+        col("blockId"),
+        (col("transactionIndex") - lit(max_tx_per_block)).as("traceIndex"),
+        lit(false).as("isLog")
+      )
+      .withColumn("isFromAddress", lit(true))
+      .filter(col("address").isNotNull)
+
+    // println("tx from address to short")
+    // fromAddressTxsWithShort.filter(length($"address") < 20).show(100)
+    // val fromAddressTxs =
+    //   fromAddressTxsWithShort.filter(length($"address") >= 20)
+
+    val toAddressTxs = transactions
+      .select(
+        col("toAddress").as("address"),
+        col("blockId"),
+        (col("transactionIndex") - lit(max_tx_per_block)).as("traceIndex"),
+        lit(false).as("isLog")
+      )
+      .withColumn("isFromAddress", lit(false))
+      .filter(col("address").isNotNull)
+
+    // println("tx from address to short")
+    // toAddressTxsWithShort.filter(length($"address") < 20).show(100)
+    // val toAddressTxs = toAddressTxsWithShort.filter(length($"address") >= 20)
+
     val toAddressTT = tokenTransfers
       .select(
         col("to").as("address"),
@@ -237,6 +276,11 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
         lit(true).as("isLog")
       )
       .withColumn("isFromAddress", lit(false))
+      .filter(col("address").isNotNull)
+
+    // println("token to address to short")
+    // toAddressTTWithShort.filter(length($"address") < 20).show(100)
+    // val toAddressTT = toAddressTTWithShort.filter(length($"address") >= 20)
 
     val fromAddressTT = tokenTransfers
       .select(
@@ -246,6 +290,11 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
         lit(true).as("isLog")
       )
       .withColumn("isFromAddress", lit(true))
+      .filter(col("address").isNotNull)
+
+    // println("token from address to short")
+    // fromAddressTTWithShort.filter(length($"address") < 20).show(100)
+    // val fromAddressTT = fromAddressTTWithShort.filter(length($"address") >= 20)
 
     val orderWindow = Window
       .partitionBy("address")
@@ -253,6 +302,8 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
     fromAddress
       .union(toAddress)
+      .union(fromAddressTxs)
+      .union(toAddressTxs)
       .union(fromAddressTT)
       .union(toAddressTT)
       .withColumn("rowNumber", row_number().over(orderWindow))
@@ -299,6 +350,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
   def computeEncodedTransactions(
       traces: Dataset[Trace],
       transactionsIds: Dataset[TransactionId],
+      transactions: Dataset[Transaction],
       addressIds: Dataset[AddressId],
       exchangeRates: Dataset[ExchangeRates]
   ): Dataset[EncodedTransaction] = {
@@ -319,7 +371,39 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       )
     }
 
-    traces
+    val txsEncoded = transactions
+      .filter(col("receiptStatus") === 0)
+      .filter(col("toAddress").isNotNull)
+      .withColumnRenamed("txHash", "transaction")
+      .join(
+        transactionsIds,
+        Seq("transaction"),
+        "left"
+      )
+      .join(
+        addressIds
+          .withColumnRenamed("address", "toAddress")
+          .withColumnRenamed("addressId", "toAddressId"),
+        Seq("toAddress"),
+        "left"
+      )
+      .join(
+        addressIds
+          .withColumnRenamed("address", "fromAddress")
+          .withColumnRenamed("addressId", "fromAddressId"),
+        Seq("fromAddress"),
+        "left"
+      )
+      .select(
+        col("transactionId"),
+        col("blockId"),
+        lit(-1).as("traceIndex"),
+        col("fromAddressId").as("srcAddressId"),
+        col("toAddressId").as("dstAddressId"),
+        col("value")
+      )
+
+    val tracesEncoded = traces
       .filter(col("rejected") === false)
       .filter(col("callTokenId").isNull) // could be trc10 values otherwise
       // .filter(
@@ -357,8 +441,19 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       )
       .withColumnRenamed("fromAddressId", "srcAddressId")
       .withColumnRenamed("toAddressId", "dstAddressId")
-      .join(broadcast(exchangeRates), Seq("blockId"), "left")
       .withColumnRenamed("callValue", "value")
+      .select(
+        col("transactionId"),
+        col("blockId"),
+        col("traceIndex"),
+        col("srcAddressId"),
+        col("dstAddressId"),
+        col("value")
+      )
+
+    txsEncoded
+      .union(tracesEncoded)
+      .join(broadcast(exchangeRates), Seq("blockId"), "left")
       .transform(toFiatCurrency("value", "fiatValues"))
       .as[EncodedTransaction]
   }

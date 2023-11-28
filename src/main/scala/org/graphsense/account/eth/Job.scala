@@ -26,6 +26,8 @@ class EthereumJob(
   private val transformation = new EthTransformation(spark, config.bucketSize())
 
   def run(from: Option[Integer], to: Option[Integer]): Unit = {
+    println("Running ethereum specific transformations.")
+
     val exchangeRatesRaw = source.exchangeRates()
     val blocks = source.blocks()
     val transactions = source.transactions()

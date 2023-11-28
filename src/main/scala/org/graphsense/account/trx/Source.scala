@@ -3,6 +3,7 @@ package org.graphsense.account.trx
 import com.datastax.spark.connector.ColumnName
 import org.apache.spark.sql.Dataset
 import org.graphsense.account.{AccountSource, CassandraAccountSource, TokenSet}
+import org.apache.spark.sql.functions.{col, length, when}
 import org.graphsense.account.trx.models.{Trace, Trc10}
 import org.graphsense.account.trx.tokens.TrxTokenSet
 import org.graphsense.storage.CassandraStorage
@@ -47,25 +48,36 @@ class CassandraTrxSource(store: CassandraStorage, keyspace: String)
   def traces(): Dataset[Trace] = {
     val spark = store.session()
     import spark.implicits._
-    store.load[Trace](
-      keyspace,
-      "trace",
-      Array(
-        "block_id_group",
-        "block_id",
-        "internal_index",
-        "trace_index",
-        "caller_address",
-        "transferto_address",
-        "call_info_index",
-        "call_token_id",
-        "call_value",
-        "note",
-        "rejected",
-        "tx_hash"
-      ).map(
-        ColumnName(_)
-      ): _*
-    )
+    /*
+      transferto_address, can hold 0x instead of null values thus we need to transform to keep the logic
+       select * from trace where block_id = 50718672 and block_id_group = 50718;
+     */
+    store
+      .load[Trace](
+        keyspace,
+        "trace",
+        Array(
+          "block_id_group",
+          "block_id",
+          "internal_index",
+          "trace_index",
+          "caller_address",
+          "transferto_address",
+          "call_info_index",
+          "call_token_id",
+          "call_value",
+          "note",
+          "rejected",
+          "tx_hash"
+        ).map(
+          ColumnName(_)
+        ): _*
+      )
+      .withColumn(
+        "transfertoAddress",
+        when(length(col("transfertoAddress")) === 0, null)
+          .otherwise(col("transfertoAddress"))
+      )
+      .as[Trace]
   }
 }
