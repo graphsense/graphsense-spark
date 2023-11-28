@@ -224,6 +224,8 @@ case class Address(
     address: Array[Byte],
     noIncomingTxs: Int,
     noOutgoingTxs: Int,
+    noIncomingTxsCode: Int,
+    noOutgoingTxsCode: Int,
     firstTxId: Int,
     lastTxId: Int,
     totalReceived: Currency,
@@ -232,6 +234,8 @@ case class Address(
     totalTokensSpent: Map[String, Currency],
     inDegree: Int,
     outDegree: Int,
+    inDegreeCode: Int,
+    outDegreeCode: Int,
     isContract: Boolean
 )
 

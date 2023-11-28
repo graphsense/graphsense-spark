@@ -21,6 +21,7 @@ import org.graphsense.TransformHelpers
 import org.graphsense.models.ExchangeRates
 import org.graphsense.account.trx.models.Trace
 import org.graphsense.account.models.TokenConfiguration
+import org.graphsense.Util._
 
 class TronJob(
     spark: SparkSession,
@@ -47,9 +48,8 @@ class TronJob(
     val blocks = source.blocks()
     val tokenConfigurations = source.tokenConfigurations().persist()
 
-    println("Store configuration")
-    val configuration =
-      transformation.configuration(
+    time("Store configuration") {
+      val conf = transformation.configuration(
         config.targetKeyspace(),
         config.bucketSize(),
         config.txPrefixLength(),
@@ -57,59 +57,84 @@ class TronJob(
         TransformHelpers.getFiatCurrencies(exchangeRatesRaw)
       )
 
-    sink.saveConfiguration(configuration)
+      sink.saveConfiguration(conf)
+    }
 
-    println("Store token configuration")
-    sink.saveTokenConfiguration(tokenConfigurations)
+    time("Store token configuration") {
+      sink.saveTokenConfiguration(tokenConfigurations)
+    }
 
-    println("Computing exchange rates")
-    val exchangeRates =
-      transformation
-        .computeExchangeRates(blocks, exchangeRatesRaw)
-        .persist()
+    val exchangeRates = time("Computing exchange rates") {
+      val rates =
+        transformation
+          .computeExchangeRates(blocks, exchangeRatesRaw)
+          .persist()
 
-    sink.saveExchangeRates(exchangeRates)
+      sink.saveExchangeRates(rates)
+      rates
+    }
 
     val maxBlockExchangeRates =
       exchangeRates.select(max(col("blockId"))).first.getInt(0)
-    val blocksFiltered =
-      blocks.filter(col("blockId") <= maxBlockExchangeRates).persist()
-    val transactionsFiltered =
-      source
+
+    val (
+      blks,
+      txs,
+      traces,
+      tokenTxs,
+      noBlocks,
+      noTransactions,
+      maxBlockTimestamp
+    ) = time(s"Filter source data above ${maxBlockExchangeRates}") {
+
+      val blocksFiltered =
+        blocks.filter(col("blockId") <= maxBlockExchangeRates).persist()
+
+      val txsFiltred = source
         .transactions()
         .filter(col("blockId") <= maxBlockExchangeRates)
         .persist()
-    val tracesFiltered =
-      source.traces().filter(col("blockId") <= maxBlockExchangeRates).persist()
-    val tokenTransfersFiltered = source
-      .tokenTransfers()
-      .filter(col("blockId") <= maxBlockExchangeRates)
-      .persist()
 
-    val maxBlock = blocksFiltered
-      .select(
-        max(col("blockId")).as("maxBlockId"),
-        max(col("timestamp")).as("maxBlockTimestamp")
+      val maxBlock = blocksFiltered
+        .select(
+          max(col("blockId")).as("maxBlockId"),
+          max(col("timestamp")).as("maxBlockTimestamp")
+        )
+        .withColumn("maxBlockDatetime", from_unixtime(col("maxBlockTimestamp")))
+      val maxBlockTimestamp =
+        maxBlock.select(col("maxBlockTimestamp")).first.getInt(0)
+      val maxBlockDatetime =
+        maxBlock.select(col("maxBlockDatetime")).first.getString(0)
+
+      val noBlocks = maxBlockExchangeRates.toLong + 1
+      val noTransactions = txsFiltred.count()
+
+      printStat("Max block timestamp", maxBlockDatetime)
+      printStat("Max block ID", maxBlockExchangeRates)
+      printStat("Max transaction ID", noTransactions - 1)
+      (
+        blocksFiltered,
+        txsFiltred,
+        source
+          .traces()
+          .filter(col("blockId") <= maxBlockExchangeRates)
+          .persist(),
+        source
+          .tokenTransfers()
+          .filter(col("blockId") <= maxBlockExchangeRates)
+          .persist(),
+        noBlocks,
+        noTransactions,
+        maxBlockTimestamp
       )
-      .withColumn("maxBlockDatetime", from_unixtime(col("maxBlockTimestamp")))
-    val maxBlockTimestamp =
-      maxBlock.select(col("maxBlockTimestamp")).first.getInt(0)
-    val maxBlockDatetime =
-      maxBlock.select(col("maxBlockDatetime")).first.getString(0)
-
-    val noBlocks = maxBlockExchangeRates.toLong + 1
-    val noTransactions = transactionsFiltered.count()
-
-    println(s"Max block timestamp: ${maxBlockDatetime}")
-    println(s"Max block ID: ${maxBlockExchangeRates}")
-    println(s"Max transaction ID: ${noTransactions - 1}")
+    }
 
     (
       exchangeRates,
-      blocksFiltered,
-      transactionsFiltered,
-      tracesFiltered,
-      tokenTransfersFiltered,
+      blks,
+      txs,
+      traces,
+      tokenTxs,
       tokenConfigurations,
       noBlocks,
       noTransactions,
@@ -134,25 +159,23 @@ class TronJob(
       maxBlockTimestamp
     ) = prepareAndLoad()
 
-    println("Computing address IDs")
-    spark.sparkContext.setJobDescription("Computing address IDs")
-
-    val addressIds =
-      transformation
-        .computeAddressIds(
-          traces,
-          txs,
-          tokenTxs
-        )
-        .persist()
-
-    val noAddresses = addressIds.count()
-    println("no addresses")
-    println(noAddresses.toString() + " addresses")
+    val (addressIds, noAddresses) =
+      time("Computing Address Ids") {
+        spark.sparkContext.setJobDescription("Computing address IDs")
+        val ids = transformation
+          .computeAddressIds(
+            traces,
+            txs,
+            tokenTxs
+          )
+          .persist()
+        val noAddresses = ids.count()
+        printStat("#addresses", noAddresses.toString())
+        (ids, noAddresses)
+      }
 
     /* computing and storing balances */
-    {
-      println("Computing balances")
+    time("Computing balances") {
       val balances = transformation
         .computeBalances(
           blocks,
@@ -168,14 +191,12 @@ class TronJob(
       balances.filter(col("addressId").isNull).show(100)
 
       sink.saveBalances(balances.filter(col("addressId").isNotNull))
-      println("Number of balances: " + balances.count())
+      printStat("#balances", balances.count())
       balances.unpersist()
     }
 
     /* computing and storing address id prefixes */
-    println("Computing and storing addr id lookups")
-
-    {
+    time("Computing and storing addr id lookups") {
       val addressIdsByAddressPrefix =
         addressIds.toDF.transform(
           TransformHelpers.withSortedPrefix[AddressIdByAddressPrefix](
@@ -193,15 +214,13 @@ class TronJob(
       )
     }
 
-    println("Computing transaction IDs")
-    spark.sparkContext.setJobDescription("Computing transaction IDs")
-    val transactionIds =
+    val transactionIds = time("Computing transaction IDs") {
+      spark.sparkContext.setJobDescription("Computing transaction IDs")
       transformation.computeTransactionIds(txs).persist()
+    }
 
     /* computing and storing address id prefixes */
-    println("Computing and storing txid lookups")
-
-    {
+    time("Computing and storing txid lookups") {
       val transactionIdsByTransactionIdGroup =
         transactionIds.toDF.transform(
           TransformHelpers.withSortedIdGroup[TransactionIdByTransactionIdGroup](
@@ -224,9 +243,9 @@ class TronJob(
       sink.saveTransactionIdsByTxPrefix(transactionIdsByTransactionPrefix)
     }
 
-    println("Encoding transactions")
-    spark.sparkContext.setJobDescription("Encoding transactions")
-    val encodedTransactions =
+    val encodedTransactions = time("Encoding transactions") {
+      spark.sparkContext.setJobDescription("Encoding transactions")
+
       transformation
         .computeEncodedTransactions(
           traces,
@@ -236,28 +255,26 @@ class TronJob(
           exchangeRates
         )
         .persist()
-
+    }
     txs.unpersist()
 
-    // encodedTransactions.filter(col("transactionId").isNull).show(1000)
-
-    val encodedTokenTransfers = transformation
-      .computeEncodedTokenTransfers(
-        tokenTxs,
-        tokenConfigurations,
-        transactionIds,
-        addressIds,
-        exchangeRates
-      )
-      .persist()
+    val encodedTokenTransfers =
+      time("Compute encoded token txs") {
+        transformation
+          .computeEncodedTokenTransfers(
+            tokenTxs,
+            tokenConfigurations,
+            transactionIds,
+            addressIds,
+            exchangeRates
+          )
+          .persist()
+      }
 
     exchangeRates.unpersist()
     tokenTxs.unpersist()
 
-    println("Computing and storing block transactions")
-    /* computing and storing block txs */
-
-    {
+    time("Computing and storing block transactions") {
       spark.sparkContext.setJobDescription("Computing block transactions")
       val blockTransactions = transformation
         .computeBlockTransactions(blocks, encodedTransactions)
@@ -265,13 +282,14 @@ class TronJob(
       sink.saveBlockTransactions(blockTransactions)
     }
 
-    println("Computing and storing address transactions")
-    spark.sparkContext.setJobDescription("Computing address transactions")
-    val addressTransactions = transformation
-      .computeAddressTransactions(encodedTransactions, encodedTokenTransfers)
-      .persist()
+    val addressTransactions = time("Computing address transactions") {
+      spark.sparkContext.setJobDescription("Computing address transactions")
+      transformation
+        .computeAddressTransactions(encodedTransactions, encodedTokenTransfers)
+        .persist()
+    }
 
-    {
+    time("Saving address transactions and lookups") {
       sink.saveAddressTransactions(addressTransactions)
 
       val addressTransactionsSecondaryIds =
@@ -285,13 +303,13 @@ class TronJob(
       sink.saveAddressTransactionBySecondaryId(addressTransactionsSecondaryIds)
     }
 
-    println("Computing contracts")
-    spark.sparkContext.setJobDescription("Computing contracts")
-    val contracts = transformation.computeContracts(traces, addressIds)
+    val contracts = time("Computing contracts") {
+      spark.sparkContext.setJobDescription("Computing contracts")
+      transformation.computeContracts(traces, addressIds)
+    }
     traces.unpersist()
 
-    {
-      println("Computing address statistics")
+    time("Computing address and storing statistics") {
       spark.sparkContext.setJobDescription("Computing address statistics")
       val addresses = transformation.computeAddresses(
         encodedTransactions,
@@ -304,8 +322,7 @@ class TronJob(
       sink.saveAddresses(addresses)
     }
 
-    val noAddressRelations = {
-      println("Computing address relations")
+    val noAddressRelations = time("Computing and storing address relations") {
       spark.sparkContext.setJobDescription("Computing address relations")
       val addressRelations =
         transformation
@@ -351,19 +368,20 @@ class TronJob(
       addressRelations.count()
     }
 
-    println("Computing summary statistics")
-    spark.sparkContext.setJobDescription("Computing summary statistics")
-    val summaryStatistics =
-      transformation.summaryStatistics(
-        maxBlockTimestamp,
-        noBlocks,
-        noTransactions,
-        noAddresses,
-        noAddressRelations
-      )
-    summaryStatistics.show()
+    time("Computing summary statistics") {
+      spark.sparkContext.setJobDescription("Computing summary statistics")
+      val summaryStatistics =
+        transformation.summaryStatistics(
+          maxBlockTimestamp,
+          noBlocks,
+          noTransactions,
+          noAddresses,
+          noAddressRelations
+        )
+      summaryStatistics.show()
 
-    sink.saveSummaryStatistics(summaryStatistics)
+      sink.saveSummaryStatistics(summaryStatistics)
+    }
 
   }
 

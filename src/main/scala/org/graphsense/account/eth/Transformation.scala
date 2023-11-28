@@ -581,11 +581,24 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
           .createAggCurrencyStruct("value", "fiatValues", noFiatCurrencies.get)
           .as("TotalSpent")
       )
+
     val outStatsRelations = relations
       .groupBy("srcAddressId")
       .agg(
         count("transactionId").cast(IntegerType).as("noOutgoingTxs"),
         countDistinct("dstAddressId").cast(IntegerType).as("outDegree")
+      )
+
+    val outStatsRelationsCode = relations
+      .join(
+        contracts.withColumnRenamed("addressId", "dstAddressId"),
+        Seq("dstAddressId"),
+        "right"
+      )
+      .groupBy("srcAddressId")
+      .agg(
+        count("transactionId").cast(IntegerType).as("noOutgoingTxsCode"),
+        countDistinct("dstAddressId").cast(IntegerType).as("outDegreeCode")
       )
 
     val outStatsToken = encodedTokenTransfers
@@ -606,6 +619,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
 
     val outStats = outStatsEth
       .join(outStatsRelations, Seq("srcAddressId"), "full")
+      .join(outStatsRelationsCode, Seq("srcAddressId"), "full")
       .join(outStatsToken, Seq("srcAddressId"), "full")
 
     val inStatsEth = encodedTransactions
@@ -621,6 +635,18 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       .agg(
         count("transactionId").cast(IntegerType).as("noIncomingTxs"),
         countDistinct("srcAddressId").cast(IntegerType).as("inDegree")
+      )
+
+    val inStatsRelationsCode = relations
+      .join(
+        contracts.withColumnRenamed("addressId", "srcAddressId"),
+        Seq("srcAddressId"),
+        "right"
+      )
+      .groupBy("dstAddressId")
+      .agg(
+        count("transactionId").cast(IntegerType).as("noIncomingTxsCode"),
+        countDistinct("dstAddressId").cast(IntegerType).as("inDegreeCode")
       )
 
     val inStatsToken = encodedTokenTransfers
@@ -642,6 +668,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
 
     val inStats = inStatsEth
       .join(inStatsRelations, Seq("dstAddressId"), "full")
+      .join(inStatsRelationsCode, Seq("dstAddressId"), "full")
       .join(inStatsToken, Seq("dstAddressId"), "full")
 
     addressTransactions
@@ -667,7 +694,19 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
         "left"
       )
       .na
-      .fill(0, Seq("noIncomingTxs", "noOutgoingTxs", "inDegree", "outDegree"))
+      .fill(
+        0,
+        Seq(
+          "noIncomingTxs",
+          "noOutgoingTxs",
+          "inDegree",
+          "outDegree",
+          "noIncomingTxsCode",
+          "noOutgoingTxsCode",
+          "inDegreeCode",
+          "outDegreeCode"
+        )
+      )
       .na
       .fill(false, Seq("isContract"))
       .transform(

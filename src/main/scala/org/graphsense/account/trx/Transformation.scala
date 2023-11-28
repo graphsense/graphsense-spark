@@ -16,6 +16,7 @@ import org.graphsense.account.trx.models._
 import org.graphsense.account.models._
 import org.graphsense.models.{ExchangeRates, ExchangeRatesRaw}
 import org.graphsense.account.eth.EthTransformation
+import org.graphsense.Util._
 
 class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
@@ -190,9 +191,9 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       transactions: Dataset[Transaction],
       tokenTransfers: Dataset[TokenTransfer]
   ): Dataset[AddressId] = {
-    println("nr traces: " + traces.count())
-    println("nr txs: " + transactions.count())
-    println("nr erc20 txs: " + tokenTransfers.count())
+    printStat("#traces", traces.count())
+    printStat("#txs", transactions.count())
+    printStat("#erc20 txs", tokenTransfers.count())
 
     /*
      this constant is used to sort txs before traces

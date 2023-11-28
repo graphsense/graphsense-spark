@@ -1,7 +1,7 @@
 RELEASE := 'v23.09'
-RELEASESEM := 'v1.6.0'
+RELEASESEM := 'v1.6.1'
 
-all: format lint
+all: format lint build
 
 RUNTRANSFORM=sh -c '\
   docker run \
