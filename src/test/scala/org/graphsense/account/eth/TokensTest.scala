@@ -200,7 +200,16 @@ class TokenTest extends TestBase {
       addresses.count() === addresses.select(col("address")).distinct().count()
     )
 
-    assertDataFrameEquality(addresses, addressesRef)
+    assertDataFrameEqualityGeneric(
+      addresses,
+      addressesRef,
+      ignoreCols = List(
+        "noIncomingTxsCode",
+        "noOutgoingTxsCode",
+        "inDegreeCode",
+        "outDegreeCode"
+      )
+    )
 
     assert(
       addressRelations

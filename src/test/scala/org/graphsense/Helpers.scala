@@ -142,4 +142,32 @@ abstract class TestBase
     )
   }
 
+  def assertDataFrameEqualityGeneric[T](
+      actualDS: Dataset[T],
+      expectedDS: Dataset[T],
+      ignoreCols: Seq[String] = List()
+  ): Unit = {
+    assertDataFrameEqualityGenericDF(
+      actualDS.toDF(),
+      expectedDS.toDF(),
+      ignoreCols
+    )
+  }
+
+  def assertDataFrameEqualityGenericDF(
+      actualDS: DataFrame,
+      expectedDS: DataFrame,
+      ignoreCols: Seq[String] = List()
+  ): Unit = {
+    val colOrder: Array[Column] =
+      expectedDS.columns.filterNot(ignoreCols.contains).map(col)
+
+    assertSmallDataFrameEquality(
+      setNullableStateForAllColumns(
+        actualDS.drop(ignoreCols: _*).select(colOrder: _*)
+      ),
+      setNullableStateForAllColumns(expectedDS.drop(ignoreCols: _*))
+    )
+  }
+
 }

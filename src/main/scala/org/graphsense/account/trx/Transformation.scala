@@ -54,6 +54,142 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
     ethTransform.computeExchangeRates(blocks, exchangeRates)
   }
 
+  // TODO: remove old compute with balances if this is right.
+  def computeBalancesWithFeesTable(
+      blocks: Dataset[Block],
+      transactions: Dataset[Transaction],
+      txFees: Dataset[TxFee],
+      traces: Dataset[Trace],
+      addressIds: Dataset[AddressId],
+      tokenTransfers: Dataset[TokenTransfer],
+      tokenConfigurations: Dataset[TokenConfiguration]
+  ): Dataset[Balance] = {
+    val callFilter = col("callTokenId").isNull && col("rejected") == false
+
+    val traceDebits = traces
+      .filter(callFilter)
+      .groupBy("transfertoAddress")
+      .agg(sum("callValue").as("traceDebits"))
+      .withColumnRenamed("transfertoAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    val traceCredits = traces
+      .filter(callFilter)
+      .groupBy("callerAddress")
+      .agg((-sum(col("callValue"))).as("traceCredits"))
+      .withColumnRenamed("callerAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    val txDebits = transactions
+      .filter(col("receiptStatus") === 1)
+      .groupBy("toAddress")
+      .agg(sum("value").as("txDebits"))
+      .withColumnRenamed("toAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    val txCredits = transactions
+      .filter(col("receiptStatus") === 1)
+      .groupBy("fromAddress")
+      .agg((-sum("value")).as("txCredits"))
+      .withColumnRenamed("fromAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    // TODO: check what miners really get of the fees
+    val txFeeDebits = transactions
+      .join(txFees, Seq("txHash"), "inner")
+      .join(blocks, Seq("blockId"), "inner")
+      .withColumn("calculatedValue", col("fee"))
+      .groupBy("miner")
+      .agg(sum("calculatedValue").as("txFeeDebits"))
+      .withColumnRenamed("miner", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    // TODO: check if this is really all that is deduced from the sender.
+    val txFeeCredits = transactions
+      .join(txFees, Seq("txHash"), "inner")
+      .withColumn("calculatedValue", -col("fee"))
+      .groupBy("fromAddress")
+      .agg(sum("calculatedValue").as("txFeeCredits"))
+      .withColumnRenamed("fromAddress", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    // TODO: Check if there are burned fees.
+    // val burntFees = blocks.na
+    //   .fill(0, Seq("baseFeePerGas"))
+    //   .withColumn(
+    //     "value",
+    //     -col("baseFeePerGas").cast(DecimalType(38, 0)) * col("gasUsed")
+    //   )
+    //   .groupBy("miner")
+    //   .agg(sum("value").as("burntFees"))
+    //   .withColumnRenamed("miner", "address")
+    //   .join(addressIds, Seq("address"), "left")
+    //   .drop("address")
+
+    val balance = traceDebits
+      .join(traceCredits, Seq("addressId"), "full")
+      .join(txFeeDebits, Seq("addressId"), "full")
+      .join(txFeeCredits, Seq("addressId"), "full")
+      .join(txDebits, Seq("addressId"), "full")
+      .join(txCredits, Seq("addressId"), "full")
+      .na
+      .fill(0)
+      .withColumn(
+        "balance",
+        col("traceDebits") + col("traceCredits") +
+          col("txDebits") + col("txCredits") +
+          col("txFeeDebits") + col("txFeeCredits")
+      )
+      .withColumn("currency", lit("TRX"))
+      .transform(
+        TransformHelpers
+          .withSortedIdGroup[Balance]("addressId", "addressIdGroup", bucketSize)
+      )
+      .select("addressIdGroup", "addressId", "balance", "currency")
+      .as[Balance]
+
+    val tokenCredits = tokenTransfers
+      .groupBy("from", "tokenAddress")
+      .agg((-sum(col("value"))).as("credits"))
+      .withColumnRenamed("from", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    val tokenDebits = tokenTransfers
+      .groupBy("to", "tokenAddress")
+      .agg((sum(col("value"))).as("debits"))
+      .withColumnRenamed("to", "address")
+      .join(addressIds, Seq("address"), "left")
+      .drop("address")
+
+    val balanceTokensTmp = tokenCredits
+      .join(tokenDebits, Seq("addressId", "tokenAddress"), "full")
+      .na
+      .fill(0, Seq("credits", "debits"))
+      .withColumn(
+        "balance",
+        col("debits") + col("credits")
+      )
+      .join(tokenConfigurations, Seq("tokenAddress"), "left")
+      .withColumn("currency", col("currencyTicker"))
+
+    val balanceTokens = balanceTokensTmp
+      .transform(
+        TransformHelpers
+          .withSortedIdGroup[Balance]("addressId", "addressIdGroup", bucketSize)
+      )
+      .select("addressIdGroup", "addressId", "balance", "currency")
+      .as[Balance]
+
+    balance.union(balanceTokens)
+  }
+
   def computeBalances(
       blocks: Dataset[Block],
       transactions: Dataset[Transaction],

@@ -19,7 +19,7 @@ import org.graphsense.account.models.{
 }
 import org.graphsense.TransformHelpers
 import org.graphsense.models.ExchangeRates
-import org.graphsense.account.trx.models.Trace
+import org.graphsense.account.trx.models.{Trace, TxFee}
 import org.graphsense.account.models.TokenConfiguration
 import org.graphsense.Util._
 
@@ -37,6 +37,7 @@ class TronJob(
       Dataset[ExchangeRates],
       Dataset[Block],
       Dataset[Transaction],
+      Dataset[TxFee],
       Dataset[Trace],
       Dataset[TokenTransfer],
       Dataset[TokenConfiguration],
@@ -133,6 +134,7 @@ class TronJob(
       exchangeRates,
       blks,
       txs,
+      source.txFee(), // For now unfiltered.
       traces,
       tokenTxs,
       tokenConfigurations,
@@ -151,6 +153,7 @@ class TronJob(
       exchangeRates,
       blocks,
       txs,
+      txFees,
       traces,
       tokenTxs,
       tokenConfigurations,
@@ -177,9 +180,10 @@ class TronJob(
     /* computing and storing balances */
     time("Computing balances") {
       val balances = transformation
-        .computeBalances(
+        .computeBalancesWithFeesTable(
           blocks,
           txs,
+          txFees,
           traces,
           addressIds,
           tokenTxs,

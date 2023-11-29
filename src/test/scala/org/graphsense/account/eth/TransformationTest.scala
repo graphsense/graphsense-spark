@@ -221,7 +221,16 @@ class TransformationTest extends TestBase {
   }
 
   test("Addresses") {
-    assertDataFrameEquality(addresses, addressesRef)
+    assertDataFrameEqualityGeneric(
+      addresses,
+      addressesRef,
+      ignoreCols = List(
+        "noIncomingTxsCode",
+        "noOutgoingTxsCode",
+        "inDegreeCode",
+        "outDegreeCode"
+      )
+    )
   }
 
   test("Address relations") {

@@ -26,6 +26,20 @@ case class Trc10(
     precision: Int
 )
 
+case class TxFee(
+    txHashPrefix: String,
+    txHash: Array[Byte],
+    fee: Long,
+    energyUsage: Long,
+    energyFee: Long,
+    originEnergyUsage: Long,
+    energyUsageTotal: Long,
+    netUsage: Long,
+    netFee: Long,
+    result: Int,
+    energyPenaltyTotal: Long
+)
+
 // case class TrcFrozenSupply(
 //     frozenAnmount: BigInt,
 //     frozenDays:BigInt
