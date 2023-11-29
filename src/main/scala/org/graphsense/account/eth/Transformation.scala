@@ -474,7 +474,8 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
 
   def computeAddressTransactions(
       encodedTransactions: Dataset[EncodedTransaction],
-      encodedTokenTransfers: Dataset[EncodedTokenTransfer]
+      encodedTokenTransfers: Dataset[EncodedTokenTransfer],
+      baseCurrencySymbol: String = "ETH"
   ): Dataset[AddressTransaction] = {
     val inputs = encodedTransactions
       .select(
@@ -483,7 +484,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
         col("traceIndex")
       )
       .withColumn("isOutgoing", lit(true))
-      .withColumn("currency", lit("ETH"))
+      .withColumn("currency", lit(baseCurrencySymbol))
       .withColumn("logIndex", lit(null))
 
     val outputs = encodedTransactions
@@ -494,7 +495,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
         col("traceIndex")
       )
       .withColumn("isOutgoing", lit(false))
-      .withColumn("currency", lit("ETH"))
+      .withColumn("currency", lit(baseCurrencySymbol))
       .withColumn("logIndex", lit(null))
 
     val inputsTokens = encodedTokenTransfers

@@ -32,7 +32,7 @@ echo -en "Starting Spark job ...\n" \
          "- Target keyspace:     $TGT_KEYSPACE\n" \
          "- Bucket Size:         $TRANSFORM_BUCKET_SIZE\n"
 
-"$SPARK_HOME"/bin/spark-submit \
+time "$SPARK_HOME"/bin/spark-submit \
   --class "org.graphsense.TransformationJob" \
   --master "$SPARK_MASTER" \
   --conf spark.driver.bindAddress="0.0.0.0" \
@@ -48,6 +48,9 @@ echo -en "Starting Spark job ...\n" \
   --conf spark.driver.memory=$SPARK_DRIVER_MEMORY \
   --conf spark.sql.session.timeZone=UTC \
   --conf spark.serializer="org.apache.spark.serializer.KryoSerializer" \
+  --conf spark.kryo.referenceTracking=false \
+  --conf "spark.executor.extraJavaOptions=-XX:+UnlockExperimentalVMOptions -XX:hashCode=0" \
+  --conf "spark.driver.extraJavaOptions=-XX:+UnlockExperimentalVMOptions -XX:hashCode=0" \
   --packages $SPARK_PACKAGES \
   graphsense-spark.jar \
   --network "$NETWORK" \

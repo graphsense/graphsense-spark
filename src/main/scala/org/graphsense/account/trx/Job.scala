@@ -192,7 +192,7 @@ class TronJob(
 
       sink.saveBalances(balances.filter(col("addressId").isNotNull))
       printStat("#balances", balances.count())
-      balances.unpersist()
+      // balances.unpersist()
     }
 
     /* computing and storing address id prefixes */
@@ -256,7 +256,7 @@ class TronJob(
         )
         .persist()
     }
-    txs.unpersist()
+    // txs.unpersist()
 
     val encodedTokenTransfers =
       time("Compute encoded token txs") {
@@ -271,8 +271,8 @@ class TronJob(
           .persist()
       }
 
-    exchangeRates.unpersist()
-    tokenTxs.unpersist()
+    // exchangeRates.unpersist()
+    // tokenTxs.unpersist()
 
     time("Computing and storing block transactions") {
       spark.sparkContext.setJobDescription("Computing block transactions")
@@ -292,6 +292,8 @@ class TronJob(
     time("Saving address transactions and lookups") {
       sink.saveAddressTransactions(addressTransactions)
 
+      addressTransactions.show(100)
+
       val addressTransactionsSecondaryIds =
         TransformHelpers
           .computeSecondaryPartitionIdLookup[AddressTransactionSecondaryIds](
@@ -307,7 +309,7 @@ class TronJob(
       spark.sparkContext.setJobDescription("Computing contracts")
       transformation.computeContracts(traces, addressIds)
     }
-    traces.unpersist()
+    // traces.unpersist()
 
     time("Computing address and storing statistics") {
       spark.sparkContext.setJobDescription("Computing address statistics")
@@ -321,6 +323,10 @@ class TronJob(
 
       sink.saveAddresses(addresses)
     }
+
+    // addressTransactions.unpersist()
+    // addressIds.unpersist()
+    // contracts.unpersist()
 
     val noAddressRelations = time("Computing and storing address relations") {
       spark.sparkContext.setJobDescription("Computing address relations")

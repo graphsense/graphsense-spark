@@ -5,10 +5,12 @@ import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{
   broadcast,
   col,
+  count,
   lit,
   row_number,
   sum,
-  transform
+  transform,
+  xxhash64
 }
 import org.apache.spark.sql.types.{DecimalType, FloatType}
 import org.graphsense.TransformHelpers
@@ -24,7 +26,10 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
   val ethTransform = new EthTransformation(spark, bucketSize)
 
-  None
+  /*
+   this constant is used to sort txs before traces
+   */
+  val max_tx_per_block = 1000000
 
   def configuration(
       keyspaceName: String,
@@ -195,11 +200,6 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
     printStat("#txs", transactions.count())
     printStat("#erc20 txs", tokenTransfers.count())
 
-    /*
-     this constant is used to sort txs before traces
-     */
-    val max_tx_per_block = 1000000
-
     val fromAddress = traces
       // .filter(
       //   col(
@@ -301,12 +301,27 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .partitionBy("address")
       .orderBy("blockId", "traceIndex", "isFromAddress")
 
-    fromAddress
+    val all = fromAddress
       .union(toAddress)
       .union(fromAddressTxs)
       .union(toAddressTxs)
       .union(fromAddressTT)
       .union(toAddressTT)
+
+    time("evaluate hashes for address ids: duplicate hashes") {
+      val windowSpec = Window.partitionBy("address").orderBy("address")
+      val hashIds = all
+        .select("address")
+        .dropDuplicates()
+        .withColumn("h", xxhash64($"address"))
+      hashIds
+        .withColumn("CountColumns", count($"h").over(windowSpec))
+        .filter($"CountColumns" > 1)
+        .drop("CountColumns")
+        .show(100)
+    }
+
+    all
       .withColumn("rowNumber", row_number().over(orderWindow))
       .filter(col("rowNumber") === 1)
       .sort("blockId", "isLog", "traceIndex", "isFromAddress")
@@ -398,7 +413,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("transactionId"),
         col("blockId"),
-        lit(-1).as("traceIndex"),
+        lit(null).as("traceIndex"), // sort txs before traces
         col("fromAddressId").as("srcAddressId"),
         col("toAddressId").as("dstAddressId"),
         col("value")
@@ -472,7 +487,8 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
   ): Dataset[AddressTransaction] = {
     ethTransform.computeAddressTransactions(
       encodedTransactions,
-      encodedTokenTransfers
+      encodedTokenTransfers,
+      baseCurrencySymbol = "TRX"
     )
   }
 
