@@ -11,6 +11,7 @@ import org.graphsense.account.models.{
   AddressTransactionSecondaryIds,
   Balance,
   BlockTransaction,
+  BlockTransactionRelational,
   Configuration,
   SummaryStatistics,
   TokenConfiguration,
@@ -33,6 +34,9 @@ trait AccountSink {
   def saveAddressIdsByPrefix(ids: Dataset[AddressIdByAddressPrefix]): Unit
   def saveBalances(balances: Dataset[Balance]): Unit
   def saveBlockTransactions(blockTxs: Dataset[BlockTransaction]): Unit
+  def saveBlockTransactionsRelational(
+      blockTxs: Dataset[BlockTransactionRelational]
+  ): Unit
   def saveAddressTransactions(addressTxs: Dataset[AddressTransaction]): Unit
   def saveAddressTransactionBySecondaryId(
       ids: Dataset[AddressTransactionSecondaryIds]
@@ -105,6 +109,16 @@ class CassandraAccountSink(store: CassandraStorage, keyspace: String)
   }
 
   def saveBlockTransactions(blockTxs: Dataset[BlockTransaction]): Unit = {
+    store.store(
+      keyspace,
+      "block_transactions",
+      blockTxs
+    )
+  }
+
+  def saveBlockTransactionsRelational(
+      blockTxs: Dataset[BlockTransactionRelational]
+  ): Unit = {
     store.store(
       keyspace,
       "block_transactions",

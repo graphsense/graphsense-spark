@@ -32,6 +32,7 @@ import org.graphsense.TransformHelpers
 import org.graphsense.account.eth.models._
 import org.graphsense.account.models._
 import org.graphsense.models.{ExchangeRates, ExchangeRatesRaw}
+import org.graphsense.Util._
 
 class EthTransformation(spark: SparkSession, bucketSize: Int) {
 
@@ -233,7 +234,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       .map(_.getAs[Array[Byte]]("txHash"))
       .rdd
       .zipWithIndex()
-      .map { case ((tx, id)) => TransactionId(tx, id.toInt) }
+      .map { case ((tx, id)) => TransactionId(tx, toIntSafe(id)) }
       .toDS()
   }
 
@@ -297,7 +298,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       .map(_.getAs[Array[Byte]]("address"))
       .rdd
       .zipWithIndex()
-      .map { case ((a, id)) => AddressId(a, id.toInt) }
+      .map { case ((a, id)) => AddressId(a, toIntSafe(id)) }
       .toDS()
   }
 
@@ -569,10 +570,12 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
   ): Dataset[Address] = {
 
     val relations = encodedTransactions
-      .select("dstAddressId", "srcAddressId", "transactionId")
+      .withColumn("zero", col("value") === lit(0))
+      .select("dstAddressId", "srcAddressId", "transactionId", "zero")
       .union(
         encodedTokenTransfers
-          .select("dstAddressId", "srcAddressId", "transactionId")
+          .withColumn("zero", col("value") === lit(0))
+          .select("dstAddressId", "srcAddressId", "transactionId", "zero")
       )
 
     val outStatsEth = encodedTransactions
@@ -590,16 +593,12 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
         countDistinct("dstAddressId").cast(IntegerType).as("outDegree")
       )
 
-    val outStatsRelationsCode = relations
-      .join(
-        contracts.withColumnRenamed("addressId", "dstAddressId"),
-        Seq("dstAddressId"),
-        "right"
-      )
+    val outStatsRelationsZeroValue = relations
+      .where(col("zero") === true)
       .groupBy("srcAddressId")
       .agg(
-        count("transactionId").cast(IntegerType).as("noOutgoingTxsCode"),
-        countDistinct("dstAddressId").cast(IntegerType).as("outDegreeCode")
+        count("transactionId").cast(IntegerType).as("noOutgoingTxsZeroValue"),
+        countDistinct("dstAddressId").cast(IntegerType).as("outDegreeZeroValue")
       )
 
     val outStatsToken = encodedTokenTransfers
@@ -620,7 +619,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
 
     val outStats = outStatsEth
       .join(outStatsRelations, Seq("srcAddressId"), "full")
-      .join(outStatsRelationsCode, Seq("srcAddressId"), "full")
+      .join(outStatsRelationsZeroValue, Seq("srcAddressId"), "full")
       .join(outStatsToken, Seq("srcAddressId"), "full")
 
     val inStatsEth = encodedTransactions
@@ -638,16 +637,12 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
         countDistinct("srcAddressId").cast(IntegerType).as("inDegree")
       )
 
-    val inStatsRelationsCode = relations
-      .join(
-        contracts.withColumnRenamed("addressId", "srcAddressId"),
-        Seq("srcAddressId"),
-        "right"
-      )
+    val inStatsRelationsZeroValue = relations
+      .where($"zero" === true)
       .groupBy("dstAddressId")
       .agg(
-        count("transactionId").cast(IntegerType).as("noIncomingTxsCode"),
-        countDistinct("dstAddressId").cast(IntegerType).as("inDegreeCode")
+        count("transactionId").cast(IntegerType).as("noIncomingTxsZeroValue"),
+        countDistinct("dstAddressId").cast(IntegerType).as("inDegreeZeroValue")
       )
 
     val inStatsToken = encodedTokenTransfers
@@ -669,7 +664,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
 
     val inStats = inStatsEth
       .join(inStatsRelations, Seq("dstAddressId"), "full")
-      .join(inStatsRelationsCode, Seq("dstAddressId"), "full")
+      .join(inStatsRelationsZeroValue, Seq("dstAddressId"), "full")
       .join(inStatsToken, Seq("dstAddressId"), "full")
 
     addressTransactions
@@ -702,10 +697,10 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
           "noOutgoingTxs",
           "inDegree",
           "outDegree",
-          "noIncomingTxsCode",
-          "noOutgoingTxsCode",
-          "inDegreeCode",
-          "outDegreeCode"
+          "noIncomingTxsZeroValue",
+          "noOutgoingTxsZeroValue",
+          "inDegreeZeroValue",
+          "outDegreeZeroValue"
         )
       )
       .na

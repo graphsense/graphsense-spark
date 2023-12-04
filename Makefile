@@ -1,5 +1,5 @@
 RELEASE := 'v23.09'
-RELEASESEM := 'v1.6.1'
+RELEASESEM := 'v1.6.2'
 
 all: format lint build
 

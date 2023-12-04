@@ -176,6 +176,11 @@ case class Balance(
 )
 
 case class BlockTransaction(blockIdGroup: Int, blockId: Int, txs: Seq[Int])
+case class BlockTransactionRelational(
+    blockIdGroup: Int,
+    blockId: Int,
+    txId: Int
+)
 
 case class EncodedTokenTransfer(
     transactionId: Int,
@@ -224,8 +229,8 @@ case class Address(
     address: Array[Byte],
     noIncomingTxs: Int,
     noOutgoingTxs: Int,
-    noIncomingTxsCode: Int,
-    noOutgoingTxsCode: Int,
+    noIncomingTxsZeroValue: Int,
+    noOutgoingTxsZeroValue: Int,
     firstTxId: Int,
     lastTxId: Int,
     totalReceived: Currency,
@@ -234,8 +239,8 @@ case class Address(
     totalTokensSpent: Map[String, Currency],
     inDegree: Int,
     outDegree: Int,
-    inDegreeCode: Int,
-    outDegreeCode: Int,
+    inDegreeZeroValue: Int,
+    outDegreeZeroValue: Int,
     isContract: Boolean
 )
 

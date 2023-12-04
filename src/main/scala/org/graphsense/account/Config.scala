@@ -44,5 +44,12 @@ class AccountConfig(arguments: Seq[String]) extends ScallopConf(arguments) {
     descr =
       "Select which network we are processing (supported at the moment are, eth, trx)"
   )
+  val maxBlock: ScallopOption[Int] = opt[Int](
+    "max-block",
+    required = false,
+    default = None,
+    noshort = true,
+    descr = "Limit the max block to process"
+  )
   verify()
 }

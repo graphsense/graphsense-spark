@@ -40,4 +40,12 @@ object Util {
     (result, t1 - t0)
   }
 
+  def toIntSafe(value: Long): Int = {
+    if (value.isValidInt) {
+      return value.toInt
+    } else {
+      throw new ArithmeticException(f"${value} is out of an integers range.")
+    }
+  }
+
 }

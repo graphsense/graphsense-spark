@@ -78,10 +78,10 @@ class ComplexGraphTransformationTest extends TestBase {
       addresses,
       addressesRef,
       ignoreCols = List(
-        "noIncomingTxsCode",
-        "noOutgoingTxsCode",
-        "inDegreeCode",
-        "outDegreeCode"
+        "noIncomingTxsZeroValue",
+        "noOutgoingTxsZeroValue",
+        "inDegreeZeroValue",
+        "outDegreeZeroValue"
       )
     )
   }

@@ -28,6 +28,7 @@ import org.graphsense.TransformHelpers
 import org.graphsense.models._
 import org.graphsense.utxo.{Fields => F}
 import org.graphsense.utxo.models._
+import org.graphsense.Util._
 
 class Transformation(
     spark: SparkSession,
@@ -183,7 +184,7 @@ class Transformation(
       .map(_.getString(0))
       .rdd
       .zipWithIndex()
-      .map { case ((a, id)) => AddressId(a, id.toInt + 1) }
+      .map { case ((a, id)) => AddressId(a, toIntSafe(id) + 1) }
       .toDS()
       .union(Seq(AddressId("coinbase", 0)).toDF().as[AddressId])
   }
