@@ -9,6 +9,14 @@ object Util {
 
   import java.util.concurrent.TimeUnit
 
+  def computeMonotonicTxId(block: Int, positionInBlock: Int): Long = {
+    ((block.toLong) << 32) | (positionInBlock & 0xffffffffL);
+  }
+
+  def decomposeMontonicTxId(txId: Long): Tuple2[Int, Int] = {
+    ((txId >> 32).toInt, (txId).toInt)
+  }
+
   val dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
   def printStat[R](name: String, value: R): Unit = {

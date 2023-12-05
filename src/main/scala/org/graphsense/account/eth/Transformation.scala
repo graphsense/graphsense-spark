@@ -234,7 +234,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       .map(_.getAs[Array[Byte]]("txHash"))
       .rdd
       .zipWithIndex()
-      .map { case ((tx, id)) => TransactionId(tx, toIntSafe(id)) }
+      .map { case ((tx, id)) => TransactionId(tx, id) }
       .toDS()
   }
 

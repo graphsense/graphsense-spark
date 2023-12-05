@@ -325,7 +325,10 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
   def computeTransactionIds(
       transactions: Dataset[Transaction]
   ): Dataset[TransactionId] = {
-    ethTransform.computeTransactionIds(transactions)
+    transactions.map(
+      (row) => TransactionId(row.txHash, computeMonotonicTxId(row.blockId, row.transactionIndex.toInt))
+    )
+
   }
 
   def computeAddressIds(
@@ -465,7 +468,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .select("address")
       .map(_.getAs[Array[Byte]]("address"))
       .rdd
-      .zipWithUniqueId()
+      .zipWithIndex()
       .map { case ((a, id)) => AddressId(a, toIntSafe(id)) }
       .toDS()
   }
@@ -644,7 +647,6 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .transform(
         TransformHelpers.withIdGroup("blockId", "blockIdGroup", bucketSize)
       )
-      .sort("blockId")
       .as[BlockTransactionRelational]
   }
 

@@ -194,6 +194,7 @@ class TronJob(
   def computeIntermediateTables(): Unit = {}
 
   def run(from: Option[Integer], to: Option[Integer]): Unit = {
+    val debug = true
     println("Running tron specific transformations.")
 
     val (
@@ -281,6 +282,14 @@ class TronJob(
     val transactionIds = time("Computing transaction IDs") {
       spark.sparkContext.setJobDescription("Computing transaction IDs")
       transformation.computeTransactionIds(txs).persist()
+    }
+
+    if (debug) {
+      val txs = transactionIds.count()
+      val blub = transactionIds.dropDuplicates("transaction", "transactionId").count()
+      printStat("nr txid", txs)
+      printStat("nr txid without duplicates", blub)
+      
     }
 
     /* computing and storing address id prefixes */

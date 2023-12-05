@@ -56,6 +56,6 @@ time "$SPARK_HOME"/bin/spark-submit \
   --network "$NETWORK" \
   --raw-keyspace "$RAW_KEYSPACE" \
   --target-keyspace "$TGT_KEYSPACE" \
-  --bucket-size $TRANSFORM_BUCKET_SIZE \
+  # --bucket-size $TRANSFORM_BUCKET_SIZE \
 
 exit $?

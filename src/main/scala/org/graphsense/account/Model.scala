@@ -4,32 +4,37 @@ import org.graphsense.account.Implicits._
 
 // lookup tables
 
+package object types {
+  type TransactionIdType = Long
+  type AddressIdType = Int
+}
+
 case class TransactionId(
     transaction: Array[Byte],
-    transactionId: Int
+    transactionId: types.TransactionIdType
 )
 
 case class TransactionIdByTransactionPrefix(
     transactionPrefix: String,
     transaction: Array[Byte],
-    transactionId: Int
+    transactionId: types.TransactionIdType
 )
 
 case class TransactionIdByTransactionIdGroup(
     transactionIdGroup: Int,
-    transactionId: Int,
+    transactionId: types.TransactionIdType,
     transaction: Array[Byte]
 )
 
 case class AddressId(
     address: Array[Byte],
-    addressId: Int
+    addressId: types.AddressIdType
 )
 
 case class AddressIdByAddressPrefix(
     addressPrefix: String,
     address: Array[Byte],
-    addressId: Int
+    addressId: types.AddressIdType
 )
 
 // Helper types
@@ -170,36 +175,40 @@ case class Log(
 
 case class Balance(
     addressIdGroup: Int,
-    addressId: Int,
+    addressId: types.AddressIdType,
     balance: BigInt,
     currency: String
 )
 
-case class BlockTransaction(blockIdGroup: Int, blockId: Int, txs: Seq[Int])
+case class BlockTransaction(
+    blockIdGroup: Int,
+    blockId: Int,
+    txs: Seq[types.TransactionIdType]
+)
 case class BlockTransactionRelational(
     blockIdGroup: Int,
     blockId: Int,
-    txId: Int
+    txId: types.TransactionIdType
 )
 
 case class EncodedTokenTransfer(
-    transactionId: Int,
+    transactionId: types.TransactionIdType,
     logIndex: Int,
     currency: String,
-    srcAddressId: Int,
-    dstAddressId: Option[Int],
+    srcAddressId: types.AddressIdType,
+    dstAddressId: Option[types.AddressIdType],
     value: BigInt,
     fiatValues: Seq[Float]
 )
 
 case class EncodedTransaction(
-    transactionId: Int,
+    transactionId: types.TransactionIdType,
     // nonce: Int,
     blockId: Int,
     traceIndex: Int,
     // transactionIndex: Short,
-    srcAddressId: Int,
-    dstAddressId: Option[Int],
+    srcAddressId: types.AddressIdType,
+    dstAddressId: Option[types.AddressIdType],
     value: BigInt,
     fiatValues: Seq[Float]
     // gas: Int,
@@ -211,8 +220,8 @@ case class EncodedTransaction(
 case class AddressTransaction(
     addressIdGroup: Int,
     addressIdSecondaryGroup: Int,
-    addressId: Int,
-    transactionId: Int,
+    addressId: types.AddressIdType,
+    transactionId: types.TransactionIdType,
     txReference: TxReference,
     currency: String,
     isOutgoing: Boolean
@@ -225,14 +234,14 @@ case class AddressTransactionSecondaryIds(
 
 case class Address(
     addressIdGroup: Int,
-    addressId: Int,
+    addressId: types.AddressIdType,
     address: Array[Byte],
     noIncomingTxs: Int,
     noOutgoingTxs: Int,
     noIncomingTxsZeroValue: Int,
     noOutgoingTxsZeroValue: Int,
-    firstTxId: Int,
-    lastTxId: Int,
+    firstTxId: types.TransactionIdType,
+    lastTxId: types.TransactionIdType,
     totalReceived: Currency,
     totalSpent: Currency,
     totalTokensReceived: Map[String, Currency],
@@ -247,10 +256,10 @@ case class Address(
 case class AddressRelation(
     srcAddressIdGroup: Int,
     srcAddressIdSecondaryGroup: Int,
-    srcAddressId: Int,
+    srcAddressId: types.AddressIdType,
     dstAddressIdGroup: Int,
     dstAddressIdSecondaryGroup: Int,
-    dstAddressId: Int,
+    dstAddressId: types.AddressIdType,
     noTransactions: Int,
     value: Currency,
     tokenValues: Map[String, Currency]
