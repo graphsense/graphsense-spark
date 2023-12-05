@@ -2,7 +2,7 @@ package org.graphsense.account.trx
 
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{col, from_unixtime, max}
+import org.apache.spark.sql.functions.{col, from_unixtime, max, min}
 import org.graphsense.Job
 import org.graphsense.account.AccountSink
 import org.graphsense.account.config.AccountConfig
@@ -75,6 +75,15 @@ class TronJob(
       rates
     }
 
+    val minBlockToProcess = config.minBlock.toOption match {
+      case None => exchangeRates.select(min(col("blockId"))).first.getInt(0)
+      case Some(user_min_block) =>
+        scala.math.max(
+          exchangeRates.select(min(col("blockId"))).first.getInt(0),
+          user_min_block
+        )
+    }
+
     val maxBlockToProcess = config.maxBlock.toOption match {
       case None => exchangeRates.select(max(col("blockId"))).first.getInt(0)
       case Some(user_max_block) =>
@@ -92,15 +101,37 @@ class TronJob(
       noBlocks,
       noTransactions,
       maxBlockTimestamp
-    ) = time(s"Filter source data above ${maxBlockToProcess}") {
+    ) = time(
+      s"Filter source data from ${minBlockToProcess} to ${maxBlockToProcess}"
+    ) {
 
       val blocksFiltered =
-        blocks.filter(col("blockId") <= maxBlockToProcess).persist()
+        blocks
+          .filter(
+            col("blockId") >= minBlockToProcess && col(
+              "blockId"
+            ) <= maxBlockToProcess
+          )
+          .persist()
 
-      val txsFiltred = source
+      val txsFiltered = source
         .transactions()
-        .filter(col("blockId") <= maxBlockToProcess)
+        .filter(
+          col("blockId") >= minBlockToProcess && col(
+            "blockId"
+          ) <= maxBlockToProcess
+        )
         .persist()
+
+      val minBlock = blocksFiltered
+        .select(
+          min(col("blockId")).as("minBlockId"),
+          min(col("timestamp")).as("minBlockTimestamp")
+        )
+        .withColumn("minBlockDatetime", from_unixtime(col("minBlockTimestamp")))
+      minBlock.select(col("minBlockTimestamp")).first.getInt(0)
+      val minBlockDatetime =
+        minBlock.select(col("minBlockDatetime")).first.getString(0)
 
       val maxBlock = blocksFiltered
         .select(
@@ -113,22 +144,32 @@ class TronJob(
       val maxBlockDatetime =
         maxBlock.select(col("maxBlockDatetime")).first.getString(0)
 
-      val noBlocks = maxBlockToProcess.toLong + 1
-      val noTransactions = txsFiltred.count()
+      val noBlocks = blocksFiltered.count()
+      val noTransactions = txsFiltered.count()
 
+      printStat("Min block timestamp", minBlockDatetime)
+      printStat("Min block ID", minBlockToProcess)
       printStat("Max block timestamp", maxBlockDatetime)
       printStat("Max block ID", maxBlockToProcess)
-      printStat("Max transaction ID", noTransactions - 1)
+      printStat("Transaction count", noTransactions)
       (
         blocksFiltered,
-        txsFiltred,
+        txsFiltered,
         source
           .traces()
-          .filter(col("blockId") <= maxBlockToProcess)
+          .filter(
+            col("blockId") >= minBlockToProcess && col(
+              "blockId"
+            ) <= maxBlockToProcess
+          )
           .persist(),
         source
           .tokenTransfers()
-          .filter(col("blockId") <= maxBlockToProcess)
+          .filter(
+            col("blockId") >= minBlockToProcess && col(
+              "blockId"
+            ) <= maxBlockToProcess
+          )
           .persist(),
         noBlocks,
         noTransactions,
