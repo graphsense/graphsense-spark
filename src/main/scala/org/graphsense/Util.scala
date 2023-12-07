@@ -2,12 +2,24 @@ package org.graphsense
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import org.apache.spark.sql.Dataset
 
 /*import org.apache.spark.sql.functions.{col, when}*/
 
 object Util {
 
   import java.util.concurrent.TimeUnit
+
+  def printDatasetStats[T](df: Dataset[T], name: String) = {
+    df.explain()
+    printStat(name ++ " partitions", df.rdd.getNumPartitions)
+    printStat(
+      name ++ " is persisted",
+      df.storageLevel.useMemory || df.storageLevel.useDisk
+    )
+    printStat(name ++ " use memory", df.storageLevel.useMemory)
+    printStat(name ++ " use disk", df.storageLevel.useDisk)
+  }
 
   def computeMonotonicTxId(block: Int, positionInBlock: Int): Long = {
     ((block.toLong) << 32) | (positionInBlock & 0xffffffffL);
@@ -20,7 +32,7 @@ object Util {
   val dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
   def printStat[R](name: String, value: R): Unit = {
-    println(f"${name}%-20s: ${value}%40s")
+    println(f"${name}%-40s: ${value}%40s")
   }
 
   def time[R](title: String)(block: => R): R = {

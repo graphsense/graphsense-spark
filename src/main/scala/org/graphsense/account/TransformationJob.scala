@@ -24,6 +24,20 @@ object TransformationJob {
     println("Bucket size:                   " + conf.bucketSize())
     println("Address prefix length:         " + conf.addressPrefixLength())
     println("Tx prefix length:              " + conf.txPrefixLength())
+    println(
+      "Min block:                     " + conf.minBlock.toOption.getOrElse(-1)
+    )
+    println(
+      "Max block:                     " + conf.maxBlock.toOption.getOrElse(-1)
+    )
+    println(
+      "Cache dataset dir:             " + conf.cacheDirectory.toOption
+        .getOrElse("not set")
+    )
+    println(
+      "Debug level:             " + conf.debug.toOption
+        .getOrElse(0)
+    )
 
     val cassandra = new CassandraStorage(spark)
 

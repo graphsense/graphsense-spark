@@ -47,6 +47,8 @@ time "$SPARK_HOME"/bin/spark-submit \
   --conf spark.default.parallelism=$SPARK_PARALLELISM \
   --conf spark.driver.memory=$SPARK_DRIVER_MEMORY \
   --conf spark.sql.session.timeZone=UTC \
+  --conf spark.sql.adaptive.enabled=true \
+  --conf spark.sql.adaptive.coalescePartitions.enabled=true \
   --conf spark.serializer="org.apache.spark.serializer.KryoSerializer" \
   --conf spark.kryo.referenceTracking=false \
   --conf "spark.executor.extraJavaOptions=-XX:+UnlockExperimentalVMOptions -XX:hashCode=0" \
@@ -56,6 +58,7 @@ time "$SPARK_HOME"/bin/spark-submit \
   --network "$NETWORK" \
   --raw-keyspace "$RAW_KEYSPACE" \
   --target-keyspace "$TGT_KEYSPACE" \
+  --gs-cache-dir file:///tmp/spark/ \
   # --bucket-size $TRANSFORM_BUCKET_SIZE \
 
 exit $?

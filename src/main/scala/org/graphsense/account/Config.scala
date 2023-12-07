@@ -58,5 +58,19 @@ class AccountConfig(arguments: Seq[String]) extends ScallopConf(arguments) {
     noshort = true,
     descr = "Limit the max block to process"
   )
+  val cacheDirectory: ScallopOption[String] = opt[String](
+    "gs-cache-dir",
+    required = false,
+    default = None,
+    noshort = true,
+    descr = "Directory to cache datasets"
+  )
+  val debug: ScallopOption[Int] = opt[Int](
+    "debug",
+    required = false,
+    default = Some(0),
+    noshort = true,
+    descr = "Debug level 0, no debug level. 1 and above produce debug output."
+  )
   verify()
 }

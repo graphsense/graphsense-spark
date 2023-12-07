@@ -325,8 +325,11 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
   def computeTransactionIds(
       transactions: Dataset[Transaction]
   ): Dataset[TransactionId] = {
-    transactions.map(
-      (row) => TransactionId(row.txHash, computeMonotonicTxId(row.blockId, row.transactionIndex.toInt))
+    transactions.map((row) =>
+      TransactionId(
+        row.txHash,
+        computeMonotonicTxId(row.blockId, row.transactionIndex.toInt)
+      )
     )
 
   }

@@ -19,8 +19,51 @@ import org.apache.spark.sql.functions.{
 }
 import org.apache.spark.sql.types.{DataType, FloatType, IntegerType}
 import org.graphsense.models.ExchangeRatesRaw
+import org.apache.spark.sql.AnalysisException
+import org.graphsense.Util._
+import org.apache.spark.sql.SparkSession
 
 object TransformHelpers {
+
+  def computeCached[
+      R: Encoder
+  ](base_path: Option[String], spark: SparkSession)(
+      dataset_name: String
+  )(block: => Dataset[R]): Dataset[R] = {
+    base_path match {
+      case Some(path) => {
+        val path_complete = path + "/" + dataset_name
+        try {
+          val df_loaded =
+            time(f"Try Reading cached dataset ${path_complete} from parquet") {
+              spark.read.parquet(path_complete)
+            }
+          return df_loaded.as[R]
+        } catch {
+          case e: AnalysisException => {
+            println(
+              f"Warn - Could not load cached dataset ${path_complete}: " + e
+            )
+            val df = time(f"Computing ${path_complete}") {
+              block
+            }.persist()
+
+            time(f"Writing cache dataset at ${path_complete} as parquet") {
+              df.write.mode("overwrite").parquet(path_complete)
+            }
+
+            return df
+          }
+        }
+      }
+      case None => {
+        val df = time(f"Computing ${dataset_name} (gs-cache-dir not set)") {
+          block
+        }
+        df
+      }
+    }
+  }
 
   def getFiatCurrencies(
       exchangeRatesRaw: Dataset[ExchangeRatesRaw]
