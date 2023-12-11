@@ -16,7 +16,10 @@ import org.apache.spark.sql.types.{
   StructField,
   StructType
 }
-import org.graphsense.Conversion._
+import com.github.mrpowers.spark.fast.tests.DataFrameComparer
+import org.scalatest.funsuite.AnyFunSuite
+import org.apache.spark.sql.Column
+import org.graphsense.account.Implicits._
 
 trait SparkSessionTestWrapper {
 
@@ -31,7 +34,8 @@ trait SparkSessionTestWrapper {
   }
 }
 
-case object Helpers {
+object Helpers {
+
   def readTestData[T <: Product: Encoder: TypeTag](
       spark: SparkSession,
       file: String
@@ -94,6 +98,17 @@ case object Helpers {
     df3.as[T]
   }
 
+}
+
+abstract class TestBase
+    extends AnyFunSuite
+    with SparkSessionTestWrapper
+    with DataFrameComparer {
+
+  def readTestData[T <: Product: Encoder: TypeTag](file: String): Dataset[T] = {
+    Helpers.readTestData(spark, file)
+  }
+
   def setNullableStateForAllColumns[T](
       ds: Dataset[T],
       nullable: Boolean = true,
@@ -104,14 +119,55 @@ case object Helpers {
         val newDataType = dataType match {
           case t: StructType          => set(t)
           case ArrayType(dataType, _) => ArrayType(dataType, containsNull)
-          case MapType(kt, dataType:StructType, _)  => MapType(kt, set(dataType), containsNull)
-          case MapType(kt, dataType, _)  => MapType(kt, dataType, containsNull)
-          case _                      => dataType
+          case MapType(kt, dataType: StructType, _) =>
+            MapType(kt, set(dataType), containsNull)
+          case MapType(kt, dataType, _) => MapType(kt, dataType, containsNull)
+          case _                        => dataType
         }
         StructField(name, newDataType, nullable = nullable, metadata)
       })
     }
     ds.sqlContext.createDataFrame(ds.toDF.rdd, set(ds.schema))
+  }
+
+  def assertDataFrameEquality[T](
+      actualDS: Dataset[T],
+      expectedDS: Dataset[T]
+  ): Unit = {
+    val colOrder: Array[Column] = expectedDS.columns.map(col)
+
+    assertSmallDataFrameEquality(
+      setNullableStateForAllColumns(actualDS.select(colOrder: _*)),
+      setNullableStateForAllColumns(expectedDS)
+    )
+  }
+
+  def assertDataFrameEqualityGeneric[T](
+      actualDS: Dataset[T],
+      expectedDS: Dataset[T],
+      ignoreCols: Seq[String] = List()
+  ): Unit = {
+    assertDataFrameEqualityGenericDF(
+      actualDS.toDF(),
+      expectedDS.toDF(),
+      ignoreCols
+    )
+  }
+
+  def assertDataFrameEqualityGenericDF(
+      actualDS: DataFrame,
+      expectedDS: DataFrame,
+      ignoreCols: Seq[String] = List()
+  ): Unit = {
+    val colOrder: Array[Column] =
+      expectedDS.columns.filterNot(ignoreCols.contains).map(col)
+
+    assertSmallDataFrameEquality(
+      setNullableStateForAllColumns(
+        actualDS.drop(ignoreCols: _*).select(colOrder: _*)
+      ),
+      setNullableStateForAllColumns(expectedDS.drop(ignoreCols: _*))
+    )
   }
 
 }

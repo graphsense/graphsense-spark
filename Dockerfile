@@ -1,10 +1,10 @@
 FROM openjdk:11
 
-LABEL org.opencontainers.image.title="graphsense-ethereum-transform"
+LABEL org.opencontainers.image.title="graphsense-spark"
 LABEL org.opencontainers.image.maintainer="contact@ikna.io"
 LABEL org.opencontainers.image.url="https://www.ikna.io/"
 LABEL org.opencontainers.image.description="The GraphSense Transformation Pipeline reads raw block and transaction data and computes the transformed keyspace holding aggregate data and statistics."
-LABEL org.opencontainers.image.source="https://github.com/graphsense/graphsense-ethereum-transform"
+LABEL org.opencontainers.image.source="https://github.com/graphsense/graphsense-spark"
 
 ARG UID=10000
 ADD requirements.txt /tmp/requirements.txt
@@ -32,6 +32,8 @@ RUN mkdir -p /opt/graphsense && \
 
 
 ENV SPARK_HOME /opt/spark
+ENV HADOOP_HOME /opt/hadoop
+ENV HADOOP_OPTS "$HADOOP_OPTS -Djava.library.path=$HADOOP_HOME/lib/native"
 
 WORKDIR /opt/graphsense
 
@@ -41,10 +43,15 @@ ENV PATH="$PATH:/opt/graphsense/bin/dsbulk-1.10.0/bin"
 
 ADD src/ ./src
 ADD Makefile .
+ADD project/build.properties ./project/build.properties
+ADD project/plugins.sbt ./project/plugins.sbt
+ADD .scalafix.conf .
+ADD .scalafmt.conf .
 ADD build.sbt .
 RUN sbt package && \
     chown -R dockeruser /opt/graphsense && \
-    rm -rf /root/.ivy2 /root/.cache /root/.sbt
+    rm -rf /root/.ivy2 /root/.cache /root/.sbt && \
+    cp target/scala-2.12/graphsense-spark*.jar graphsense-spark.jar
 
 ADD docker/ .
 ADD scripts/ ./scripts

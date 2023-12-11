@@ -1,7 +1,7 @@
 [![sbt test](https://github.com/graphsense/graphsense-ethereum-transformation/actions/workflows/sbt_test.yml/badge.svg)](https://github.com/graphsense/graphsense-ethereum-transformation/actions/workflows/sbt_test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-# GraphSense Ethereum Transformation Pipeline
+# GraphSense Spark-Transformation Pipeline
 
 The GraphSense Transformation Pipeline reads raw block and transaction data,
 which is ingested into [Apache Cassandra][apache-cassandra]
@@ -20,7 +20,7 @@ This component is implemented in [Scala][scala-lang] using
 
 ### Prerequisites
 
-Make sure [Java 8][java] and [sbt >= 1.0][scala-sbt] is installed:
+Make sure [Java 11][java] and [sbt >= 1.0][scala-sbt] is installed:
 
     java -version
     sbt about

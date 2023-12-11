@@ -5,3 +5,5 @@ target/
 .ammonite/
 .bsp/
 metals.sbt
+.idea/*
+graphsense-spark.jar
