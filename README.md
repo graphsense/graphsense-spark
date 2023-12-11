@@ -35,6 +35,10 @@ Download, install, and run [Apache Cassandra][apache-cassandra]
 
     $CASSANDRA_HOME/bin/cassandra -f
 
+For testing purposes it is easiest to run a dockerized instance of cassandra
+
+    docker run --rm --name cassandra_dev -p 9042:9042 -d cassandra:4.0
+
 ### Ingest Raw Block Data
 
 Use graphsense-lib to ingest data into the raw keyspace (tables). Before you can run the the data import please create a valid ```.graphsense.yaml``` config file in your home directory. For more details see [graphsense-lib][graphsense-lib].
