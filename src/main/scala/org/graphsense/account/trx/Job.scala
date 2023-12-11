@@ -8,21 +8,21 @@ import org.graphsense.Job
 import org.graphsense.account.AccountSink
 import org.graphsense.account.config.AccountConfig
 import org.graphsense.account.models.{
-  AddressIdByAddressPrefix,
   AddressIncomingRelationSecondaryIds,
   AddressOutgoingRelationSecondaryIds,
-  AddressTransactionSecondaryIds,
   Block,
   TokenTransfer,
-  Transaction,
-  TransactionIdByTransactionIdGroup,
-  TransactionIdByTransactionPrefix
+  Transaction
 }
 import org.graphsense.TransformHelpers
 import org.graphsense.models.ExchangeRates
 import org.graphsense.account.trx.models.{Trace, TxFee}
 import org.graphsense.account.models.TokenConfiguration
 import org.graphsense.Util._
+import org.graphsense.account.models.AddressTransactionSecondaryIds
+import org.graphsense.account.models.AddressIdByAddressPrefix
+import org.graphsense.account.models.TransactionIdByTransactionIdGroup
+import org.graphsense.account.models.TransactionIdByTransactionPrefix
 
 class TronJob(
     spark: SparkSession,

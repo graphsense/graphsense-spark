@@ -657,11 +657,95 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       encodedTransactions: Dataset[EncodedTransaction],
       encodedTokenTransfers: Dataset[EncodedTokenTransfer]
   ): Dataset[AddressTransaction] = {
-    ethTransform.computeAddressTransactions(
-      encodedTransactions,
-      encodedTokenTransfers,
-      baseCurrencySymbol = "TRX"
-    )
+    // ethTransform.computeAddressTransactions(
+    //   encodedTransactions,
+    //   encodedTokenTransfers,
+    //   baseCurrencySymbol = "TRX"
+    // )
+    val baseCurrencySymbol = "TRX"
+    val inputs = encodedTransactions
+      .select(
+        col("srcAddressId").as("addressId"),
+        col("transactionId"),
+        col("traceIndex")
+      )
+      .withColumn("isOutgoing", lit(true))
+      .withColumn("currency", lit(baseCurrencySymbol))
+      .withColumn("logIndex", lit(null))
+
+    val outputs = encodedTransactions
+      .filter(col("dstAddressId").isNotNull)
+      .select(
+        col("dstAddressId").as("addressId"),
+        col("transactionId"),
+        col("traceIndex")
+      )
+      .withColumn("isOutgoing", lit(false))
+      .withColumn("currency", lit(baseCurrencySymbol))
+      .withColumn("logIndex", lit(null))
+
+    val inputsTokens = encodedTokenTransfers
+      .withColumn("isOutgoing", lit(true))
+      .withColumn("traceIndex", lit(null))
+      .select(
+        col("srcAddressId").as("addressId"),
+        col("transactionId"),
+        col("traceIndex"),
+        col("isOutgoing"),
+        col("currency"),
+        col("logIndex")
+      )
+
+    val outputsTokens = encodedTokenTransfers
+      .withColumn("isOutgoing", lit(false))
+      .withColumn("traceIndex", lit(null))
+      .select(
+        col("dstAddressId").as("addressId"),
+        col("transactionId"),
+        col("traceIndex"),
+        col("isOutgoing"),
+        col("currency"),
+        col("logIndex")
+      )
+
+    val atxs = inputs
+      .union(inputsTokens)
+      .union(outputs)
+      .union(outputsTokens)
+      .transform(
+        TransformHelpers.withIdGroup("addressId", "addressIdGroup", bucketSize)
+      )
+      .filter(
+        col("addressId").isNotNull
+      )
+      .filter(col("transactionId").isNotNull)
+      .transform(
+        TransformHelpers.withSecondaryIdGroupSimple(
+          "addressIdGroup",
+          "addressIdSecondaryGroup",
+          "transactionId"
+        )
+      )
+      .transform(TransformHelpers.withTxReference)
+      .drop("traceIndex", "logIndex")
+      .sort(
+        "addressId",
+        "addressIdSecondaryGroup",
+        "transactionId",
+        "txReference"
+      )
+    /*They cant be selected for anyways should only contain sender of coinbase*/
+
+    /*    val txWithoutTxIds = atxs.filter(col("transactionId").isNull)
+    val nr_of_txs_without_ids = txWithoutTxIds.count()
+    if (nr_of_txs_without_ids > 0) {
+      println(
+        "Found address_transactions without txid: " + nr_of_txs_without_ids
+      )
+      println(txWithoutTxIds.show(100, false))
+    }*/
+
+    atxs.as[AddressTransaction]
   }
 
   def computeAddresses(

@@ -58,7 +58,7 @@ time "$SPARK_HOME"/bin/spark-submit \
   --network "$NETWORK" \
   --raw-keyspace "$RAW_KEYSPACE" \
   --target-keyspace "$TGT_KEYSPACE" \
-  --gs-cache-dir file:///tmp/spark/ \
+  # --gs-cache-dir file:///tmp/spark/ \
   # --bucket-size $TRANSFORM_BUCKET_SIZE \
 
 exit $?

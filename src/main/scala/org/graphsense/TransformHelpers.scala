@@ -22,8 +22,18 @@ import org.graphsense.models.ExchangeRatesRaw
 import org.apache.spark.sql.AnalysisException
 import org.graphsense.Util._
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.storage.StorageLevel
 
 object TransformHelpers {
+
+  def namedCache[T](
+      name: String,
+      storageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK_SER
+  )(df: Dataset[T]): Dataset[T] = {
+    df.sparkSession.sharedState.cacheManager
+      .cacheQuery(df, Some(name), storageLevel)
+    df
+  }
 
   def computeCached[
       R: Encoder
@@ -44,9 +54,10 @@ object TransformHelpers {
             println(
               f"Warn - Could not load cached dataset ${path_complete}: " + e
             )
-            val df = time(f"Computing ${path_complete}") {
-              block
-            }.persist()
+            val df =
+              namedCache(dataset_name)(time(f"Computing ${path_complete}") {
+                block
+              })
 
             time(f"Writing cache dataset at ${path_complete} as parquet") {
               df.write.mode("overwrite").parquet(path_complete)
@@ -57,9 +68,11 @@ object TransformHelpers {
         }
       }
       case None => {
-        val df = time(f"Computing ${dataset_name} (gs-cache-dir not set)") {
-          block
-        }
+        val df = namedCache(dataset_name)(
+          time(f"Computing ${dataset_name} (gs-cache-dir not set)") {
+            block
+          }
+        )
         df
       }
     }
@@ -205,6 +218,42 @@ object TransformHelpers {
       secondaryIdColumn,
       floor(
         row_number().over(window) / (approxMedian * skewedPartitionFactor)
+      ).cast(IntegerType)
+    )
+  }
+
+  def withSecondaryIdGroupApprox[T](
+      idColumn: String,
+      secondaryIdColumn: String,
+      windowOrderColumn: String,
+      skewedPartitionFactor: Float = 2.5f
+  )(ds: Dataset[T]): DataFrame = {
+    val approxMedian =
+      ds.select(col(idColumn))
+        .groupBy(idColumn)
+        .count()
+        .stat
+        .approxQuantile("count", Array(0.5), 0.1)(0)
+    val window = Window.partitionBy(idColumn).orderBy(windowOrderColumn)
+    ds.withColumn(
+      secondaryIdColumn,
+      floor(
+        row_number().over(window) / (approxMedian * skewedPartitionFactor)
+      ).cast(IntegerType)
+    )
+  }
+
+  def withSecondaryIdGroupSimple[T](
+      idColumn: String,
+      secondaryIdColumn: String,
+      windowOrderColumn: String,
+      skewedPartitionFactor: Float = 2.5f
+  )(ds: Dataset[T]): DataFrame = {
+    // val window = Window.partitionBy(idColumn).orderBy(windowOrderColumn)
+    ds.withColumn(
+      secondaryIdColumn,
+      floor(
+        col(windowOrderColumn) % 50
       ).cast(IntegerType)
     )
   }
