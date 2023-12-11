@@ -11,7 +11,11 @@ object Util {
   import java.util.concurrent.TimeUnit
 
   def printDatasetStats[T](df: Dataset[T], name: String) = {
+    println(f"Query Plan -- ${name}")
     df.explain()
+    println(f"Schema  -- ${name}")
+    df.printSchema()
+    println(f"${name} -- meta")
     printStat(name ++ " partitions", df.rdd.getNumPartitions)
     printStat(
       name ++ " is persisted",

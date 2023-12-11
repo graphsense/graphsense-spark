@@ -395,6 +395,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       .drop("decimals", "standard", "pegCurrency", "decimalDivisor")
       .withColumnRenamed("currencyTicker", "currency")
       .as[EncodedTokenTransfer]
+      .map(identity)
   }
 
   def computeEncodedTransactions(

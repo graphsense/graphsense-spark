@@ -5,10 +5,12 @@ import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{
   broadcast,
   col,
+  count,
   lit,
   row_number,
   sum,
-  transform
+  transform,
+  xxhash64
 }
 import org.apache.spark.sql.types.{DecimalType, FloatType}
 import org.graphsense.TransformHelpers
@@ -334,6 +336,106 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
   }
 
+  def computeAddressIdsByHash(
+      traces: Dataset[Trace],
+      transactions: Dataset[Transaction],
+      tokenTransfers: Dataset[TokenTransfer]
+  ): Dataset[AddressId] = {
+    val fromAddress = traces
+      // .filter(
+      //   col(
+      //     "callValue"
+      //   ) > 0 // Do we ever need zero-call-value-traces? - could pull this upstream
+      // ) // not sure; nothing transferred, so do we need it?
+      // .filter(col("rejected") === false)
+      .select(
+        col("callerAddress").as("address"),
+        col("blockId"),
+        col("traceIndex"),
+        lit(false).as("isLog")
+      )
+      .withColumn("isFromAddress", lit(true))
+      .filter(col("address").isNotNull)
+
+    val toAddress = traces
+      // .filter(
+      //   col(
+      //     "callValue"
+      //   ) > 0 // Do we ever need zero-call-value-traces? - could pull this upstream
+      // ) // not sure; nothing transferred, so do we need it?
+      // .filter(col("rejected") === false)
+      .select(
+        col("transfertoAddress").as("address"),
+        col("blockId"),
+        col("traceIndex"),
+        lit(false).as("isLog")
+      )
+      .withColumn("isFromAddress", lit(false))
+      .filter(col("address").isNotNull)
+
+    val fromAddressTxs = transactions
+      .select(
+        col("fromAddress").as("address"),
+        col("blockId"),
+        (col("transactionIndex") - lit(max_tx_per_block)).as("traceIndex"),
+        lit(false).as("isLog")
+      )
+      .withColumn("isFromAddress", lit(true))
+      .filter(col("address").isNotNull)
+
+    val toAddressTxs = transactions
+      .select(
+        col("toAddress").as("address"),
+        col("blockId"),
+        (col("transactionIndex") - lit(max_tx_per_block)).as("traceIndex"),
+        lit(false).as("isLog")
+      )
+      .withColumn("isFromAddress", lit(false))
+      .filter(col("address").isNotNull)
+
+    val toAddressTT = tokenTransfers
+      .select(
+        col("to").as("address"),
+        col("blockId"),
+        col("logIndex").as("traceIndex"),
+        lit(true).as("isLog")
+      )
+      .withColumn("isFromAddress", lit(false))
+      .filter(col("address").isNotNull)
+
+    val fromAddressTT = tokenTransfers
+      .select(
+        col("from").as("address"),
+        col("blockId"),
+        col("logIndex").as("traceIndex"),
+        lit(true).as("isLog")
+      )
+      .withColumn("isFromAddress", lit(true))
+      .filter(col("address").isNotNull)
+
+    val all = fromAddress
+      .union(toAddress)
+      .union(fromAddressTxs)
+      .union(toAddressTxs)
+      .union(fromAddressTT)
+      .union(toAddressTT)
+
+    val hashIds = all
+      .select("address")
+      .dropDuplicates()
+      .withColumn("h", xxhash64($"address"))
+
+    time("evaluate hashes for address ids: duplicate hashes") {
+      val windowSpec = Window.partitionBy("address").orderBy("address")
+      hashIds
+        .withColumn("CountColumns", count($"h").over(windowSpec))
+        .filter($"CountColumns" > 1)
+        .drop("CountColumns")
+        .show(100)
+    }
+    TransformHelpers.toDSEager[AddressId](hashIds)
+  }
+
   def computeAddressIds(
       traces: Dataset[Trace],
       transactions: Dataset[Transaction],
@@ -480,14 +582,15 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       traces: Dataset[Trace],
       addressIds: Dataset[AddressId]
   ): Dataset[Contract] = {
-    traces
-      .filter(col("rejected") === false)
-      .filter(col("note") === "create")
-      .select(col("transfertoAddress").as("address"))
-      .join(addressIds, Seq("address"))
-      .select("addressId")
-      .distinct
-      .as[Contract]
+    TransformHelpers.toDSEager[Contract](
+      traces
+        .filter(col("rejected") === false)
+        .filter(col("note") === "create")
+        .select(col("transfertoAddress").as("address"))
+        .join(addressIds, Seq("address"))
+        .select("addressId")
+        .distinct
+    )
   }
 
   def computeEncodedTokenTransfers(
@@ -623,11 +726,12 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
         col("value")
       )
 
-    txsEncoded
-      .union(tracesEncoded)
-      .join(broadcast(exchangeRates), Seq("blockId"), "left")
-      .transform(toFiatCurrency("value", "fiatValues"))
-      .as[EncodedTransaction]
+    TransformHelpers.toDSEager(
+      txsEncoded
+        .union(tracesEncoded)
+        .join(broadcast(exchangeRates), Seq("blockId"), "left")
+        .transform(toFiatCurrency("value", "fiatValues"))
+    )
   }
 
   def computeBlockTransactions(
@@ -635,22 +739,23 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       encodedTransactions: Dataset[EncodedTransaction]
   ): Dataset[BlockTransactionRelational] = {
     // TODO: use reduce by?
-    encodedTransactions
-      .select("blockId", "transactionId")
-      .filter($"transactionId".isNotNull)
-      .dropDuplicates("blockId", "transactionId")
-      // .agg(collect_set("transactionId").as("txs"))
-      // .withColumn("txs", sort_array(col("txs")))
-      // .join(
-      //   blocks.select(col("blockId")),
-      //   Seq("blockId"),
-      //   "right"
-      // )
-      .withColumnRenamed("transactionId", "txId")
-      .transform(
-        TransformHelpers.withIdGroup("blockId", "blockIdGroup", bucketSize)
-      )
-      .as[BlockTransactionRelational]
+    TransformHelpers.toDSEager(
+      encodedTransactions
+        .select("blockId", "transactionId")
+        .filter($"transactionId".isNotNull)
+        .dropDuplicates("blockId", "transactionId")
+        // .agg(collect_set("transactionId").as("txs"))
+        // .withColumn("txs", sort_array(col("txs")))
+        // .join(
+        //   blocks.select(col("blockId")),
+        //   Seq("blockId"),
+        //   "right"
+        // )
+        .withColumnRenamed("transactionId", "txId")
+        .transform(
+          TransformHelpers.withIdGroup("blockId", "blockIdGroup", bucketSize)
+        )
+    )
   }
 
   def computeAddressTransactions(
@@ -745,7 +850,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       println(txWithoutTxIds.show(100, false))
     }*/
 
-    atxs.as[AddressTransaction]
+    TransformHelpers.toDSEager(atxs)
   }
 
   def computeAddresses(

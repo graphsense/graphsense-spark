@@ -26,6 +26,13 @@ import org.apache.spark.storage.StorageLevel
 
 object TransformHelpers {
 
+  def toDSEager[
+      R: Encoder
+  ](ds: => DataFrame): Dataset[R] = {
+    // https://stackoverflow.com/questions/70049444/spark-dataframe-as-function-does-not-drop-columns-not-present-in-matched-case
+    ds.as[R].map(identity)
+  }
+
   def namedCache[T](
       name: String,
       storageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK_SER

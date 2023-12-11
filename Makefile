@@ -8,6 +8,7 @@ RUNTRANSFORM=sh -c '\
 	-e RAW_KEYSPACE=$$1_raw_dev \
 	-e TGT_KEYSPACE=$$1_transformed_dev \
 	-e NETWORK=$$1 \
+	-p 4040:4040 \
 	--network="host" \
 	graphsense-spark ./submit.sh' RUNTRANSFORM
 

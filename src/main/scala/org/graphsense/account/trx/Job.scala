@@ -207,6 +207,8 @@ class TronJob(
 
   def run(from: Option[Integer], to: Option[Integer]): Unit = {
 
+    spark.conf.set("spark.sql.ansi.enabled", true)
+
     println("Running tron specific transformations.")
 
     val (
@@ -221,9 +223,6 @@ class TronJob(
       noTransactions,
       maxBlockTimestamp
     ) = prepareAndLoad()
-
-    println(txFees.storageLevel.useDisk)
-    println(txFees.storageLevel.useMemory)
 
     val (addressIds, noAddresses) =
       time("Computing Address Ids") {

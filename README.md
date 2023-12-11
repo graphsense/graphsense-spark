@@ -5,13 +5,13 @@
 
 The GraphSense Transformation Pipeline reads raw block and transaction data,
 which is ingested into [Apache Cassandra][apache-cassandra]
-by the [graphsense-lib][graphsense-ethereum-etl] component.
+by the [graphsense-lib][graphsense-lib] component.
 The transformation pipeline computes an address graph and de-normalized views
-using [Apache Spark][apache-spark], which are again stored in Cassandra.
+using [Apache Spark][apache-spark], which are again stored in Cassandra to provide efficient queries.
 
-Access to computed de-normalized views is subsequently provided by the
-[GraphSense REST][graphsense-rest] interface, which is used by the
-[graphsense-dashboard][graphsense-dashboard] component.
+The views computed by this component are subsequently served by the
+[GraphSense REST][graphsense-rest] interface, which is used main data-source
+[graphsense-dashboard][graphsense-dashboard], the main graphical user-interface of the GraphSense stack.
 
 This component is implemented in [Scala][scala-lang] using
 [Apache Spark][apache-spark].
@@ -37,13 +37,15 @@ Download, install, and run [Apache Cassandra][apache-cassandra]
 
 ### Ingest Raw Block Data
 
-Download und extract the [DataStax Bulk Loader][dsbulk], add the `bin`
-directory your `$PATH` variable, and ingest raw test data using
+Use graphsense-lib to ingest data into the raw keyspace (tables). Before you can run the the data import please create a valid ```.graphsense.yaml``` config file in your home directory. For more details see [graphsense-lib][graphsense-lib].
 
-    scripts/dsbulk_load.sh
+    graphsense-cli -v ingest from-node -e dev -c {NETWORK} --batch-size 10  --end-block 1000 --version 2 --create-schema
+    graphsense-cli -v exchange-rates coinmarketcap ingest -e dev -c {NETWORK}
 
-This should create a keyspace `eth_raw` (tables `exchange_rates`,
-`transaction`, `block`).
+*Note:* replace {NETWORK} by the three letter code of the currency you want to import (e.g eth, btc, zec, etc.)
+
+This should create a keyspace `{NETWORK}_raw` (tables `exchange_rates`,
+`transaction`, `block`, etc.).
 Check as follows
 
     cqlsh localhost
@@ -54,36 +56,19 @@ Check as follows
 
 Create the target keyspace for transformed data
 
-    cqlsh -f scripts/schema_transformed.cql
+    graphsense-cli -v schema create-new-transformed -e dev -c {NETWORK} --no-date --suffix dev
 
-Compile and test the implementation
+Compile, test the implementation
 
-    sbt test
+    make test && make build
 
-Package the transformation pipeline
+Run the dockerized pipeline on localhost
 
-    sbt package
+    make run-docker-{NETWORK}-transform-local
 
-Run the transformation pipeline on localhost
+Check the running job using the local Spark UI at http://localhost:4040/jobs. 
 
-    ./submit.sh
-
-Check the running job using the local Spark UI at http://localhost:4040/jobs
-
-## Submit on a standalone Spark Cluster
-
-macOS only: make sure `gnu-getopt` is installed (`brew install gnu-getopt`).
-
-Use the `submit.sh` script and specify the Spark master node
-(e.g., `-s spark://SPARK_MASTER_IP:7077`) and other options:
-
-```
-./submit.sh -h
-Usage: submit.sh [-h] [-m MEMORY_GB] [-c CASSANDRA_HOST] [-s SPARK_MASTER]
-                 [--raw_keyspace RAW_KEYSPACE] [--tgt_keyspace TGT_KEYSPACE]
-                 [--bucket_size BUCKET_SIZE]
-```
-
+Detailed information about how to submit a job and how to install the necessary infrastructure we point you to the Dockerfile and the submit script in ```docker/submit.sh```.
 
 ## Contributions
 
@@ -93,11 +78,11 @@ Please make sure that the submitted code is always tested and properly formatted
 
 Do not forget to format and test your code using 
 ```
-sbt scalafmt && sbt test
+make format && make test
 ```
 before committing.
 
-[graphsense-ethereum-etl]: https://github.com/graphsense/graphsense-lib
+[graphsense-lib]: https://github.com/graphsense/graphsense-lib
 [graphsense-dashboard]: https://github.com/graphsense/graphsense-dashboard
 [graphsense-rest]: https://github.com/graphsense/graphsense-rest
 [java]: https://adoptopenjdk.net

@@ -1,6 +1,7 @@
 package org.graphsense.account.eth
 import org.graphsense.TestBase
 import org.graphsense.Util._
+import org.apache.spark.SparkException
 
 class TxIdTest extends TestBase {
 
@@ -20,6 +21,25 @@ class TxIdTest extends TestBase {
       }
     }
 
+  }
+
+  test("Decimal(38,0) overflow behavior") {
+    import spark.implicits._
+    val data = Seq(("Java", BigInt(10).pow(37), BigInt(10).pow(37)))
+    val rdd = spark.sparkContext.parallelize(data)
+    val df = rdd.toDF("name", "a", "b")
+
+    assertThrows[SparkException] {
+
+      spark.conf.set("spark.sql.ansi.enabled", true)
+
+      df.withColumn("c", $"a" * $"b").show()
+
+    }
+
+    spark.conf.set("spark.sql.ansi.enabled", false)
+
+    df
   }
 
 }
