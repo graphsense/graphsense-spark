@@ -2,7 +2,8 @@ RELEASE := 'v23.09'
 RELEASESEM := 'v1.6.2'
 
 all: format lint build
-
+	
+# -v graphsense-spark-temp-volume:/tmp/spark:z 
 RUNTRANSFORM=sh -c '\
   docker run \
 	-e RAW_KEYSPACE=$$1_raw_dev \

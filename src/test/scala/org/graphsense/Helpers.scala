@@ -8,7 +8,7 @@ import org.apache.spark.sql.{
   SparkSession
 }
 import org.apache.spark.sql.catalyst.ScalaReflection.universe.TypeTag
-import org.apache.spark.sql.functions.{col, length, lit, udf, when}
+import org.apache.spark.sql.functions.{col, length, lit, udf, unbase64, when}
 import org.apache.spark.sql.types.{
   ArrayType,
   MapType,
@@ -36,9 +36,18 @@ trait SparkSessionTestWrapper {
 
 object Helpers {
 
+  val hexStringToByteArray = udf((x: String) =>
+    x.grouped(2).toArray map { Integer.parseInt(_, 16).toByte }
+  )
+
+  def hexStingToByteArrayParser(colName: String) = hexStringToByteArray(
+    col(colName).substr(lit(3), length(col(colName)) - 2)
+  )
+
   def readTestData[T <: Product: Encoder: TypeTag](
       spark: SparkSession,
-      file: String
+      file: String,
+      byteArrayParser: (String) => Column = hexStingToByteArrayParser
   ): Dataset[T] = {
     val schema = Encoders.product[T].schema
     // spark.read.csv cannot read BinaryType, read BinaryType as StringType and cast to ByteArray
@@ -61,10 +70,6 @@ object Helpers {
       case x if x.dataType.toString == "ArrayType(BinaryType,true)" => x.name
     }
 
-    val hexStringToByteArray = udf((x: String) =>
-      x.grouped(2).toArray map { Integer.parseInt(_, 16).toByte }
-    )
-
     val hatba = udf((x: Seq[String]) => x.map(hexStrToBytes).toArray)
 
     val fileSuffix = file.toUpperCase.split("\\.").last
@@ -78,9 +83,7 @@ object Helpers {
           colName,
           when(
             col(colName).isNotNull,
-            hexStringToByteArray(
-              col(colName).substr(lit(3), length(col(colName)) - 2)
-            )
+            byteArrayParser(colName)
           )
         )
       }
@@ -96,6 +99,17 @@ object Helpers {
       }
 
     df3.as[T]
+  }
+
+  def readTestDataBase64[T <: Product: Encoder: TypeTag](
+      spark: SparkSession,
+      file: String
+  ): Dataset[T] = {
+    readTestData[T](
+      spark,
+      file,
+      byteArrayParser = (colName) => unbase64(col(colName))
+    )
   }
 
 }

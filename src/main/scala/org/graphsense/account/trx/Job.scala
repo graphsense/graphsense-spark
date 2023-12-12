@@ -207,7 +207,7 @@ class TronJob(
 
   def run(from: Option[Integer], to: Option[Integer]): Unit = {
 
-    spark.conf.set("spark.sql.ansi.enabled", true)
+    // spark.conf.set("spark.sql.ansi.enabled", true)
 
     println("Running tron specific transformations.")
 
@@ -431,7 +431,7 @@ class TronJob(
 
       printDatasetStats(blockTransactions, "blockTransactions")
       sink.saveBlockTransactionsRelational(blockTransactions)
-      blockTransactions.unpersist()
+      blockTransactions.unpersist(true)
     }
 
     val addressTransactions = time("Computing address transactions") {

@@ -671,7 +671,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
     val txsEncoded = txsEncodedtemp.select(
       col("transactionId"),
       col("blockId"),
-      lit(null).as("traceIndex"), // sort txs before traces
+      lit(-1).as("traceIndex"), // sort txs before traces
       col("fromAddressId").as("srcAddressId"),
       col("toAddressId").as("dstAddressId"),
       col("value")
