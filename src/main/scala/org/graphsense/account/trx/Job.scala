@@ -48,7 +48,7 @@ class TronJob(
   }
 
   def timeJob[R](title: String)(block: => R): R = {
-    spark.sparkContext.setJobDescription("Computing address IDs")
+    spark.sparkContext.setJobDescription(title)
     time(title)(block)
   }
 
