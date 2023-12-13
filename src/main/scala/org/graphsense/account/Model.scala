@@ -31,6 +31,11 @@ case class AddressId(
     addressId: types.AddressIdType
 )
 
+case class AddressIdLong(
+    address: Array[Byte],
+    addressId: Long
+)
+
 case class AddressIdByAddressPrefix(
     addressPrefix: String,
     address: Array[Byte],
@@ -155,7 +160,8 @@ case class Transaction(
     input: Array[Byte],
     blockTimestamp: Int,
     receiptGasUsed: BigInt,
-    receiptStatus: BigInt // TODO: check if this is fine for ethereum
+    receiptStatus: BigInt, // TODO: check if this is fine for ethereum
+    receiptContractAddress: Option[Array[Byte]]
 )
 
 case class Log(
@@ -205,7 +211,7 @@ case class EncodedTransaction(
     transactionId: types.TransactionIdType,
     // nonce: Int,
     blockId: Int,
-    traceIndex: Int,
+    traceIndex: Option[Int],
     // transactionIndex: Short,
     srcAddressId: types.AddressIdType,
     dstAddressId: Option[types.AddressIdType],

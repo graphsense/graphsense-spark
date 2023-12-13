@@ -23,6 +23,12 @@ class TxIdTest extends TestBase {
 
   }
 
+  test("safe int conversion") {
+    assertThrows[ArithmeticException] {
+      toIntSafe(Int.MaxValue.toLong + 1)
+    }
+  }
+
   test("Decimal(38,0) overflow behavior") {
     import spark.implicits._
     val data = Seq(("Java", BigInt(10).pow(37), BigInt(10).pow(37)))

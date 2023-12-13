@@ -10,6 +10,7 @@ import org.apache.spark.sql.functions.{
   row_number,
   sum,
   transform,
+  when,
   xxhash64
 }
 import org.apache.spark.sql.types.{DecimalType, FloatType}
@@ -26,10 +27,61 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
   val ethTransform = new EthTransformation(spark, bucketSize)
 
-  /*
-   this constant is used to sort txs before traces
-   */
-  val max_tx_per_block = 1000000
+  val isSuccessfulTransaction = $"receiptStatus" === 1
+  val isSuccessfulTrace: Column = $"rejected" === false
+  val isCreationTrace: Column = $"note" === "create" && isSuccessfulTrace
+  val isCreationTx: Column =
+    $"toAddress".isNull && $"receiptContractAddress".isNotNull
+  val isTrxTrace: Column = $"callTokenId".isNull
+  val isCallTrace: Column = $"note" === "call"
+
+  def txContractCreationAsToAddress[T](ds: Dataset[T]): DataFrame = {
+    ds.withColumn(
+      "toAddress",
+      when(
+        isCreationTx,
+        col("receiptContractAddress")
+      ).otherwise(col("toAddress"))
+    )
+  }
+
+  def removeUnknownRecipientTxs[T](ds: Dataset[T]): Dataset[T] = {
+    ds.filter($"toAddress".isNotNull && $"receiptContractAddress".isNull)
+  }
+
+  def onlySuccessfulTxs[T](ds: Dataset[T]): Dataset[T] = {
+    ds.filter(isSuccessfulTransaction)
+  }
+
+  def onlySuccessfulTrace[T](ds: Dataset[T]): Dataset[T] = {
+    ds.filter(isSuccessfulTrace)
+  }
+
+  def onlySuccessfulTrxCallTraces[T](ds: Dataset[T]): Dataset[T] = {
+    ds.filter(isTrxTrace && isSuccessfulTrace && isCallTrace)
+  }
+
+  def joinAddressIds[T](
+      addressIds: Dataset[AddressId],
+      addressCol: String = "address"
+  )(ds: Dataset[T]): DataFrame = {
+    ds.join(
+      addressIds.withColumnRenamed("address", addressCol),
+      Seq(addressCol),
+      "left"
+    ).drop(addressCol)
+  }
+
+  def joinTransactionIds[T](
+      txIds: Dataset[TransactionId],
+      txHashCol: String = "txHash"
+  )(ds: Dataset[T]): DataFrame = {
+    ds.join(
+      txIds.withColumnRenamed("transaction", txHashCol),
+      Seq(txHashCol),
+      "left"
+    ).drop(txHashCol)
+  }
 
   def configuration(
       keyspaceName: String,
@@ -64,60 +116,55 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       tokenTransfers: Dataset[TokenTransfer],
       tokenConfigurations: Dataset[TokenConfiguration]
   ): Dataset[Balance] = {
-    val callFilter = col("callTokenId").isNull && col("rejected") == false
+    val txs = transactions
+      .transform(onlySuccessfulTxs)
+      .transform(txContractCreationAsToAddress)
+      .transform(removeUnknownRecipientTxs)
 
-    val traceDebits = traces
-      .filter(callFilter)
+    val trcs = traces.transform(onlySuccessfulTrxCallTraces)
+
+    val traceDebits = trcs
       .groupBy("transfertoAddress")
       .agg(sum("callValue").as("traceDebits"))
       .withColumnRenamed("transfertoAddress", "address")
-      .join(addressIds, Seq("address"), "left")
-      .drop("address")
+      .transform(joinAddressIds(addressIds))
 
-    val traceCredits = traces
-      .filter(callFilter)
+    val traceCredits = trcs
       .groupBy("callerAddress")
-      .agg((-sum(col("callValue"))).as("traceCredits"))
+      .agg((-sum($"callValue")).as("traceCredits"))
       .withColumnRenamed("callerAddress", "address")
-      .join(addressIds, Seq("address"), "left")
-      .drop("address")
+      .transform(joinAddressIds(addressIds))
 
-    val txDebits = transactions
-      .filter(col("receiptStatus") === 1)
+    val txDebits = txs
       .groupBy("toAddress")
       .agg(sum("value").as("txDebits"))
       .withColumnRenamed("toAddress", "address")
-      .join(addressIds, Seq("address"), "left")
-      .drop("address")
+      .transform(joinAddressIds(addressIds))
 
-    val txCredits = transactions
-      .filter(col("receiptStatus") === 1)
+    val txCredits = txs
       .groupBy("fromAddress")
       .agg((-sum("value")).as("txCredits"))
       .withColumnRenamed("fromAddress", "address")
-      .join(addressIds, Seq("address"), "left")
-      .drop("address")
+      .transform(joinAddressIds(addressIds))
 
     // TODO: check what miners really get of the fees
-    val txFeeDebits = transactions
+    val txFeeDebits = txs
       .join(txFees, Seq("txHash"), "inner")
       .join(blocks, Seq("blockId"), "inner")
-      .withColumn("calculatedValue", col("fee"))
+      .withColumn("calculatedValue", $"fee")
       .groupBy("miner")
       .agg(sum("calculatedValue").as("txFeeDebits"))
       .withColumnRenamed("miner", "address")
-      .join(addressIds, Seq("address"), "left")
-      .drop("address")
+      .transform(joinAddressIds(addressIds))
 
     // TODO: check if this is really all that is deduced from the sender.
-    val txFeeCredits = transactions
+    val txFeeCredits = txs
       .join(txFees, Seq("txHash"), "inner")
       .withColumn("calculatedValue", -col("fee"))
       .groupBy("fromAddress")
       .agg(sum("calculatedValue").as("txFeeCredits"))
       .withColumnRenamed("fromAddress", "address")
-      .join(addressIds, Seq("address"), "left")
-      .drop("address")
+      .transform(joinAddressIds(addressIds))
 
     // TODO: Check if there are burned fees.
     // val burntFees = blocks.na
@@ -142,9 +189,9 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .fill(0)
       .withColumn(
         "balance",
-        col("traceDebits") + col("traceCredits") +
-          col("txDebits") + col("txCredits") +
-          col("txFeeDebits") + col("txFeeCredits")
+        $"traceDebits" + $"traceCredits" +
+          $"txDebits" + $"txCredits" +
+          $"txFeeDebits" + $"txFeeCredits"
       )
       .withColumn("currency", lit("TRX"))
       .transform(
@@ -156,17 +203,15 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
     val tokenCredits = tokenTransfers
       .groupBy("from", "tokenAddress")
-      .agg((-sum(col("value"))).as("credits"))
+      .agg((-sum($"value")).as("credits"))
       .withColumnRenamed("from", "address")
-      .join(addressIds, Seq("address"), "left")
-      .drop("address")
+      .transform(joinAddressIds(addressIds))
 
     val tokenDebits = tokenTransfers
       .groupBy("to", "tokenAddress")
-      .agg((sum(col("value"))).as("debits"))
+      .agg((sum($"value")).as("debits"))
       .withColumnRenamed("to", "address")
-      .join(addressIds, Seq("address"), "left")
-      .drop("address")
+      .transform(joinAddressIds(addressIds))
 
     val balanceTokensTmp = tokenCredits
       .join(tokenDebits, Seq("addressId", "tokenAddress"), "full")
@@ -174,10 +219,10 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .fill(0, Seq("credits", "debits"))
       .withColumn(
         "balance",
-        col("debits") + col("credits")
+        $"debits" + $"credits"
       )
       .join(tokenConfigurations, Seq("tokenAddress"), "left")
-      .withColumn("currency", col("currencyTicker"))
+      .withColumn("currency", $"currencyTicker")
 
     val balanceTokens = balanceTokensTmp
       .transform(
@@ -198,54 +243,47 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       tokenTransfers: Dataset[TokenTransfer],
       tokenConfigurations: Dataset[TokenConfiguration]
   ): Dataset[Balance] = {
-    val callFilter =
-      col("callTokenId").isNull && col("rejected") == false && col(
-        "note"
-      ) === "call"
 
-    val traceDebits = traces
-      .filter(callFilter)
+    val txs = transactions
+      .transform(onlySuccessfulTxs)
+      .transform(txContractCreationAsToAddress)
+      .transform(removeUnknownRecipientTxs)
+    val trcs = traces.transform(onlySuccessfulTrxCallTraces)
+
+    val traceDebits = trcs
       .groupBy("transfertoAddress")
       .agg(sum("callValue").as("traceDebits"))
       .withColumnRenamed("transfertoAddress", "address")
-      .join(addressIds, Seq("address"), "left")
-      .drop("address")
+      .transform(joinAddressIds(addressIds))
 
-    val traceCredits = traces
-      .filter(callFilter)
+    val traceCredits = trcs
       .groupBy("callerAddress")
-      .agg((-sum(col("callValue"))).as("traceCredits"))
+      .agg((-sum($"callValue")).as("traceCredits"))
       .withColumnRenamed("callerAddress", "address")
-      .join(addressIds, Seq("address"), "left")
-      .drop("address")
+      .transform(joinAddressIds(addressIds))
 
-    val txDebits = transactions
-      .filter(col("receiptStatus") === 1)
+    val txDebits = txs
       .groupBy("toAddress")
       .agg(sum("value").as("txDebits"))
       .withColumnRenamed("toAddress", "address")
-      .join(addressIds, Seq("address"), "left")
-      .drop("address")
+      .transform(joinAddressIds(addressIds))
 
-    val txCredits = transactions
-      .filter(col("receiptStatus") === 1)
+    val txCredits = txs
       .groupBy("fromAddress")
       .agg((-sum("value")).as("txCredits"))
       .withColumnRenamed("fromAddress", "address")
-      .join(addressIds, Seq("address"), "left")
-      .drop("address")
+      .transform(joinAddressIds(addressIds))
 
-    val txFeeDebits = transactions
+    val txFeeDebits = txs
       .join(blocks, Seq("blockId"), "inner")
-      .withColumn("calculatedValue", col("receiptGasUsed") * col("gasPrice"))
+      .withColumn("calculatedValue", $"receiptGasUsed" * $"gasPrice")
       .groupBy("miner")
       .agg(sum("calculatedValue").as("txFeeDebits"))
       .withColumnRenamed("miner", "address")
-      .join(addressIds, Seq("address"), "left")
-      .drop("address")
+      .transform(joinAddressIds(addressIds))
 
-    val txFeeCredits = transactions
-      .withColumn("calculatedValue", -col("receiptGasUsed") * col("gasPrice"))
+    val txFeeCredits = txs
+      .withColumn("calculatedValue", -col("receiptGasUsed") * $"gasPrice")
       .groupBy("fromAddress")
       .agg(sum("calculatedValue").as("txFeeCredits"))
       .withColumnRenamed("fromAddress", "address")
@@ -256,7 +294,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .fill(0, Seq("baseFeePerGas"))
       .withColumn(
         "value",
-        -col("baseFeePerGas").cast(DecimalType(38, 0)) * col("gasUsed")
+        -col("baseFeePerGas").cast(DecimalType(38, 0)) * $"gasUsed"
       )
       .groupBy("miner")
       .agg(sum("value").as("burntFees"))
@@ -275,10 +313,10 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .fill(0)
       .withColumn(
         "balance",
-        col("burntFees") +
-          col("traceDebits") + col("traceCredits") +
-          col("txDebits") + col("txCredits") +
-          col("txFeeDebits") + col("txFeeCredits")
+        $"burntFees" +
+          $"traceDebits" + $"traceCredits" +
+          $"txDebits" + $"txCredits" +
+          $"txFeeDebits" + $"txFeeCredits"
       )
       .withColumn("currency", lit("TRX"))
       .transform(
@@ -290,14 +328,14 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
     val tokenCredits = tokenTransfers
       .groupBy("from", "tokenAddress")
-      .agg((-sum(col("value"))).as("credits"))
+      .agg((-sum("value")).as("credits"))
       .withColumnRenamed("from", "address")
       .join(addressIds, Seq("address"), "left")
       .drop("address")
 
     val tokenDebits = tokenTransfers
       .groupBy("to", "tokenAddress")
-      .agg((sum(col("value"))).as("debits"))
+      .agg((sum("value")).as("debits"))
       .withColumnRenamed("to", "address")
       .join(addressIds, Seq("address"), "left")
       .drop("address")
@@ -308,10 +346,10 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .fill(0, Seq("credits", "debits"))
       .withColumn(
         "balance",
-        col("debits") + col("credits")
+        $"debits" + $"credits"
       )
       .join(tokenConfigurations, Seq("tokenAddress"), "left")
-      .withColumn("currency", col("currencyTicker"))
+      .withColumn("currency", $"currencyTicker")
 
     val balanceTokens = balanceTokensTmp
       .transform(
@@ -327,12 +365,17 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
   def computeTransactionIds(
       transactions: Dataset[Transaction]
   ): Dataset[TransactionId] = {
-    transactions.map((row) =>
-      TransactionId(
-        row.txHash,
-        computeMonotonicTxId(row.blockId, row.transactionIndex.toInt)
+    transactions
+      .transform(onlySuccessfulTxs)
+      .transform(removeUnknownRecipientTxs)
+      .transform(txContractCreationAsToAddress)
+      .as[Transaction]
+      .map((row) =>
+        TransactionId(
+          row.txHash,
+          computeMonotonicTxId(row.blockId, row.transactionIndex.toInt)
+        )
       )
-    )
 
   }
 
@@ -340,78 +383,43 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       traces: Dataset[Trace],
       transactions: Dataset[Transaction],
       tokenTransfers: Dataset[TokenTransfer]
-  ): Dataset[AddressId] = {
-    val fromAddress = traces
-      // .filter(
-      //   col(
-      //     "callValue"
-      //   ) > 0 // Do we ever need zero-call-value-traces? - could pull this upstream
-      // ) // not sure; nothing transferred, so do we need it?
-      // .filter(col("rejected") === false)
-      .select(
-        col("callerAddress").as("address"),
-        col("blockId"),
-        col("traceIndex"),
-        lit(false).as("isLog")
-      )
-      .withColumn("isFromAddress", lit(true))
-      .filter(col("address").isNotNull)
+  ): Dataset[AddressIdLong] = {
 
-    val toAddress = traces
-      // .filter(
-      //   col(
-      //     "callValue"
-      //   ) > 0 // Do we ever need zero-call-value-traces? - could pull this upstream
-      // ) // not sure; nothing transferred, so do we need it?
-      // .filter(col("rejected") === false)
-      .select(
-        col("transfertoAddress").as("address"),
-        col("blockId"),
-        col("traceIndex"),
-        lit(false).as("isLog")
-      )
-      .withColumn("isFromAddress", lit(false))
-      .filter(col("address").isNotNull)
+    val txs = transactions
+      .transform(onlySuccessfulTxs)
+      .transform(txContractCreationAsToAddress)
+      .transform(removeUnknownRecipientTxs)
+    val trc = traces.transform(onlySuccessfulTrace)
 
-    val fromAddressTxs = transactions
+    val fromAddress = trc
       .select(
-        col("fromAddress").as("address"),
-        col("blockId"),
-        (col("transactionIndex") - lit(max_tx_per_block)).as("traceIndex"),
-        lit(false).as("isLog")
+        $"callerAddress".as("address")
       )
-      .withColumn("isFromAddress", lit(true))
-      .filter(col("address").isNotNull)
 
-    val toAddressTxs = transactions
-      .select(
-        col("toAddress").as("address"),
-        col("blockId"),
-        (col("transactionIndex") - lit(max_tx_per_block)).as("traceIndex"),
-        lit(false).as("isLog")
+    val toAddress =
+      trc.select(
+        $"transfertoAddress".as("address")
       )
-      .withColumn("isFromAddress", lit(false))
-      .filter(col("address").isNotNull)
+
+    val fromAddressTxs = txs
+      .select(
+        $"fromAddress".as("address")
+      )
+
+    val toAddressTxs = txs
+      .select(
+        $"toAddress".as("address")
+      )
 
     val toAddressTT = tokenTransfers
       .select(
-        col("to").as("address"),
-        col("blockId"),
-        col("logIndex").as("traceIndex"),
-        lit(true).as("isLog")
+        $"to".as("address")
       )
-      .withColumn("isFromAddress", lit(false))
-      .filter(col("address").isNotNull)
 
     val fromAddressTT = tokenTransfers
       .select(
-        col("from").as("address"),
-        col("blockId"),
-        col("logIndex").as("traceIndex"),
-        lit(true).as("isLog")
+        $"from".as("address")
       )
-      .withColumn("isFromAddress", lit(true))
-      .filter(col("address").isNotNull)
 
     val all = fromAddress
       .union(toAddress)
@@ -419,6 +427,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .union(toAddressTxs)
       .union(fromAddressTT)
       .union(toAddressTT)
+      .filter($"address".isNotNull)
 
     val hashIds = all
       .select("address")
@@ -433,45 +442,36 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
         .drop("CountColumns")
         .show(100)
     }
-    TransformHelpers.toDSEager[AddressId](hashIds)
+    TransformHelpers.toDSEager[AddressIdLong](
+      hashIds.withColumnRenamed("h", "addressId")
+    )
   }
 
   def computeAddressIds(
       traces: Dataset[Trace],
       transactions: Dataset[Transaction],
-      tokenTransfers: Dataset[TokenTransfer]
+      tokenTransfers: Dataset[TokenTransfer],
+      maxTxsPerBlock: Long
   ): Dataset[AddressId] = {
     printStat("#traces", traces.count())
     printStat("#txs", transactions.count())
     printStat("#erc20 txs", tokenTransfers.count())
 
-    val fromAddress = traces
-      // .filter(
-      //   col(
-      //     "callValue"
-      //   ) > 0 // Do we ever need zero-call-value-traces? - could pull this upstream
-      // ) // not sure; nothing transferred, so do we need it?
-      // .filter(col("rejected") === false)
+    val txs = transactions
+      .transform(onlySuccessfulTxs)
+      .transform(removeUnknownRecipientTxs)
+    val trc = traces.transform(onlySuccessfulTrace)
+
+    val fromAddress = trc
       .select(
-        col("callerAddress").as("address"),
-        col("blockId"),
-        col("traceIndex"),
+        $"callerAddress".as("address"),
+        $"blockId",
+        $"traceIndex",
         lit(false).as("isLog")
       )
       .withColumn("isFromAddress", lit(true))
-      .filter(col("address").isNotNull)
 
-    // println("trace from address to short")
-    // fromAddressWithShort.filter(length($"address") < 20).show(100)
-    // val fromAddress = fromAddressWithShort.filter(length($"address") >= 20)
-
-    val toAddress = traces
-      // .filter(
-      //   col(
-      //     "callValue"
-      //   ) > 0 // Do we ever need zero-call-value-traces? - could pull this upstream
-      // ) // not sure; nothing transferred, so do we need it?
-      // .filter(col("rejected") === false)
+    val toAddress = trc
       .select(
         col("transfertoAddress").as("address"),
         col("blockId"),
@@ -479,40 +479,24 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
         lit(false).as("isLog")
       )
       .withColumn("isFromAddress", lit(false))
-      .filter(col("address").isNotNull)
 
-    // println("trace to address to short")
-    // toAddressWithShort.filter(length($"address") < 20).show(100)
-    // val toAddress = toAddressWithShort.filter(length($"address") >= 20)
-
-    val fromAddressTxs = transactions
+    val fromAddressTxs = txs
       .select(
         col("fromAddress").as("address"),
         col("blockId"),
-        (col("transactionIndex") - lit(max_tx_per_block)).as("traceIndex"),
+        (col("transactionIndex") - lit(maxTxsPerBlock)).as("traceIndex"),
         lit(false).as("isLog")
       )
       .withColumn("isFromAddress", lit(true))
-      .filter(col("address").isNotNull)
 
-    // println("tx from address to short")
-    // fromAddressTxsWithShort.filter(length($"address") < 20).show(100)
-    // val fromAddressTxs =
-    //   fromAddressTxsWithShort.filter(length($"address") >= 20)
-
-    val toAddressTxs = transactions
+    val toAddressTxs = txs
       .select(
         col("toAddress").as("address"),
         col("blockId"),
-        (col("transactionIndex") - lit(max_tx_per_block)).as("traceIndex"),
+        (col("transactionIndex") - lit(maxTxsPerBlock)).as("traceIndex"),
         lit(false).as("isLog")
       )
       .withColumn("isFromAddress", lit(false))
-      .filter(col("address").isNotNull)
-
-    // println("tx from address to short")
-    // toAddressTxsWithShort.filter(length($"address") < 20).show(100)
-    // val toAddressTxs = toAddressTxsWithShort.filter(length($"address") >= 20)
 
     val toAddressTT = tokenTransfers
       .select(
@@ -522,11 +506,6 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
         lit(true).as("isLog")
       )
       .withColumn("isFromAddress", lit(false))
-      .filter(col("address").isNotNull)
-
-    // println("token to address to short")
-    // toAddressTTWithShort.filter(length($"address") < 20).show(100)
-    // val toAddressTT = toAddressTTWithShort.filter(length($"address") >= 20)
 
     val fromAddressTT = tokenTransfers
       .select(
@@ -536,11 +515,6 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
         lit(true).as("isLog")
       )
       .withColumn("isFromAddress", lit(true))
-      .filter(col("address").isNotNull)
-
-    // println("token from address to short")
-    // fromAddressTTWithShort.filter(length($"address") < 20).show(100)
-    // val fromAddressTT = fromAddressTTWithShort.filter(length($"address") >= 20)
 
     val orderWindow = Window
       .partitionBy("address")
@@ -552,23 +526,11 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .union(toAddressTxs)
       .union(fromAddressTT)
       .union(toAddressTT)
-
-    // time("evaluate hashes for address ids: duplicate hashes") {
-    //   val windowSpec = Window.partitionBy("address").orderBy("address")
-    //   val hashIds = all
-    //     .select("address")
-    //     .dropDuplicates()
-    //     .withColumn("h", xxhash64($"address"))
-    //   hashIds
-    //     .withColumn("CountColumns", count($"h").over(windowSpec))
-    //     .filter($"CountColumns" > 1)
-    //     .drop("CountColumns")
-    //     .show(100)
-    // }
+      .filter($"address".isNotNull)
 
     all
       .withColumn("rowNumber", row_number().over(orderWindow))
-      .filter(col("rowNumber") === 1)
+      .filter($"rowNumber" === 1)
       .sort("blockId", "isLog", "traceIndex", "isFromAddress")
       .select("address")
       .map(_.getAs[Array[Byte]]("address"))
@@ -580,15 +542,23 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
   def computeContracts(
       traces: Dataset[Trace],
+      transactions: Dataset[Transaction],
       addressIds: Dataset[AddressId]
   ): Dataset[Contract] = {
+    val traceDeployments = traces
+      .filter(isCreationTrace)
+      .select($"transfertoAddress".as("address"))
+
+    // val transactionDeployments = transactions
+    //   .filter(isCreationTx)
+    //   .select($"receiptContractAddress".as("address"))
+
     TransformHelpers.toDSEager[Contract](
-      traces
-        .filter(col("rejected") === false)
-        .filter(col("note") === "create")
-        .select(col("transfertoAddress").as("address"))
+      traceDeployments
+        // .union(transactionDeployments)
         .join(addressIds, Seq("address"))
         .select("addressId")
+        .filter($"addressId".isNotNull)
         .distinct
     )
   }
@@ -633,7 +603,23 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       )
     }
 
-    val txsEncodedtemp = transactions
+    /*
+    filtering null to addresses after we handled the
+    contract creation txs, some txs eg. claim voting reward
+    25ed08545d6384a7a455574086d7606157bcdd155d423a9ff345d0d7652110ea
+    need special handling and additional infos to identify them
+     */
+
+    val txs = transactions
+      .transform(onlySuccessfulTxs)
+      .transform(txContractCreationAsToAddress)
+      .transform(removeUnknownRecipientTxs)
+
+    val trcs = traces
+      .transform(onlySuccessfulTrxCallTraces)
+      .filter($"txHash".isNotNull)
+
+    val txsEncodedtemp = txs
       .drop(
         "txHashPrefix",
         "nonce",
@@ -643,87 +629,47 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
         "gasPrice",
         "input",
         "blockTimestamp",
-        "receiptGasUsed"
+        "receiptGasUsed",
+        "receiptStatus",
+        "receiptContractAddress"
       )
-      .filter(col("receiptStatus") === 1)
-      .filter(col("toAddress").isNotNull)
-      .withColumnRenamed("txHash", "transaction")
-      .join(
-        transactionsIds,
-        Seq("transaction"),
-        "left"
-      )
-      .join(
-        addressIds
-          .withColumnRenamed("address", "toAddress")
-          .withColumnRenamed("addressId", "toAddressId"),
-        Seq("toAddress"),
-        "left"
-      )
-      .join(
-        addressIds
-          .withColumnRenamed("address", "fromAddress")
-          .withColumnRenamed("addressId", "fromAddressId"),
-        Seq("fromAddress"),
-        "left"
-      )
+      // .filter($"toAddress".isNotNull)
+      .transform(joinTransactionIds(transactionsIds))
+      .transform(joinAddressIds(addressIds, addressCol = "toAddress"))
+      .withColumnRenamed("addressId", "dstAddressId")
+      .transform(joinAddressIds(addressIds, addressCol = "fromAddress"))
+      .withColumnRenamed("addressId", "srcAddressId")
 
     val txsEncoded = txsEncodedtemp.select(
-      col("transactionId"),
-      col("blockId"),
-      lit(-1).as("traceIndex"), // sort txs before traces
-      col("fromAddressId").as("srcAddressId"),
-      col("toAddressId").as("dstAddressId"),
-      col("value")
+      $"transactionId",
+      $"blockId",
+      lit(null).as("traceIndex"), // sort txs before traces
+      $"srcAddressId",
+      $"dstAddressId",
+      $"value"
     )
 
-    val tracesEncoded = traces
+    val tracesEncoded = trcs
       .drop(
         "blockIdGroup",
         "internalIndex",
-        "callInfoIndex"
-      )
-      .filter($"note" === "call")
-      .filter(col("rejected") === false)
-      .filter(col("callTokenId").isNull) // could be trc10 values otherwise
-      .filter(col("txHash").isNotNull)
-      .drop(
+        "callInfoIndex",
         "note",
         "rejected"
       )
-      // .filter(
-      //  col("callValue") > 0 // Do we ever need zero-call-value-traces? - could pull this upstream
-      // ) // not sure; nothing transferred, so do we need it?
-      .withColumnRenamed("txHash", "transaction")
-      .join(
-        transactionsIds,
-        Seq("transaction"),
-        "left"
-      )
-      .join(
-        addressIds
-          .withColumnRenamed("address", "callerAddress")
-          .withColumnRenamed("addressId", "fromAddressId"),
-        Seq("callerAddress"),
-        "left"
-      )
-      .join(
-        addressIds
-          .withColumnRenamed("address", "transfertoAddress")
-          .withColumnRenamed("addressId", "toAddressId"),
-        Seq("transfertoAddress"),
-        "left"
-      )
-      .withColumnRenamed("fromAddressId", "srcAddressId")
-      .withColumnRenamed("toAddressId", "dstAddressId")
+      .transform(joinTransactionIds(transactionsIds))
+      .transform(joinAddressIds(addressIds, addressCol = "callerAddress"))
+      .withColumnRenamed("addressId", "srcAddressId")
+      .transform(joinAddressIds(addressIds, addressCol = "transfertoAddress"))
+      .withColumnRenamed("addressId", "dstAddressId")
       .withColumnRenamed("callValue", "value")
       .select(
-        col("transactionId"),
-        col("blockId"),
-        col("traceIndex"),
-        col("srcAddressId"),
-        col("dstAddressId"),
-        col("value")
+        $"transactionId",
+        $"blockId",
+        $"traceIndex",
+        $"srcAddressId",
+        $"dstAddressId",
+        $"value"
       )
 
     TransformHelpers.toDSEager(
@@ -738,20 +684,12 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       blocks: Dataset[Block],
       encodedTransactions: Dataset[EncodedTransaction]
   ): Dataset[BlockTransactionRelational] = {
-    // TODO: use reduce by?
     TransformHelpers.toDSEager(
       encodedTransactions
         .select("blockId", "transactionId")
-        .filter($"transactionId".isNotNull)
-        .dropDuplicates("blockId", "transactionId")
-        // .agg(collect_set("transactionId").as("txs"))
-        // .withColumn("txs", sort_array(col("txs")))
-        // .join(
-        //   blocks.select(col("blockId")),
-        //   Seq("blockId"),
-        //   "right"
-        // )
         .withColumnRenamed("transactionId", "txId")
+        .filter($"txId".isNotNull)
+        .dropDuplicates("blockId", "txId")
         .transform(
           TransformHelpers.withIdGroup("blockId", "blockIdGroup", bucketSize)
         )
@@ -770,9 +708,9 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
     val baseCurrencySymbol = "TRX"
     val inputs = encodedTransactions
       .select(
-        col("srcAddressId").as("addressId"),
-        col("transactionId"),
-        col("traceIndex")
+        $"srcAddressId".as("addressId"),
+        $"transactionId",
+        $"traceIndex"
       )
       .withColumn("isOutgoing", lit(true))
       .withColumn("currency", lit(baseCurrencySymbol))
@@ -781,9 +719,9 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
     val outputs = encodedTransactions
       .filter(col("dstAddressId").isNotNull)
       .select(
-        col("dstAddressId").as("addressId"),
-        col("transactionId"),
-        col("traceIndex")
+        $"dstAddressId".as("addressId"),
+        $"transactionId",
+        $"traceIndex"
       )
       .withColumn("isOutgoing", lit(false))
       .withColumn("currency", lit(baseCurrencySymbol))
@@ -793,40 +731,44 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .withColumn("isOutgoing", lit(true))
       .withColumn("traceIndex", lit(null))
       .select(
-        col("srcAddressId").as("addressId"),
-        col("transactionId"),
-        col("traceIndex"),
-        col("isOutgoing"),
-        col("currency"),
-        col("logIndex")
+        $"srcAddressId".as("addressId"),
+        $"transactionId",
+        $"traceIndex",
+        $"isOutgoing",
+        $"currency",
+        $"logIndex"
       )
 
     val outputsTokens = encodedTokenTransfers
       .withColumn("isOutgoing", lit(false))
       .withColumn("traceIndex", lit(null))
       .select(
-        col("dstAddressId").as("addressId"),
-        col("transactionId"),
-        col("traceIndex"),
-        col("isOutgoing"),
-        col("currency"),
-        col("logIndex")
+        $"dstAddressId".as("addressId"),
+        $"transactionId",
+        $"traceIndex",
+        $"isOutgoing",
+        $"currency",
+        $"logIndex"
       )
 
-    val atxs = inputs
+    val uniontxs = inputs
       .union(inputsTokens)
       .union(outputs)
       .union(outputsTokens)
+
+    // uniontxs.filter($"addressId".isNull || $"transactionId".isNull).show(100)
+
+    val atxs = uniontxs
+      .filter(
+        $"addressId".isNotNull
+      )
+      .filter($"transactionId".isNotNull)
       .transform(
         TransformHelpers.withIdGroup("addressId", "addressIdGroup", bucketSize)
       )
-      .filter(
-        col("addressId").isNotNull
-      )
-      .filter(col("transactionId").isNotNull)
       .transform(
-        TransformHelpers.withSecondaryIdGroupSimple(
-          "addressIdGroup",
+        TransformHelpers.withSecondaryIdGroupApprox(
+          "addressId",
           "addressIdSecondaryGroup",
           "transactionId"
         )
@@ -839,16 +781,6 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
         "transactionId",
         "txReference"
       )
-    /*They cant be selected for anyways should only contain sender of coinbase*/
-
-    /*    val txWithoutTxIds = atxs.filter(col("transactionId").isNull)
-    val nr_of_txs_without_ids = txWithoutTxIds.count()
-    if (nr_of_txs_without_ids > 0) {
-      println(
-        "Found address_transactions without txid: " + nr_of_txs_without_ids
-      )
-      println(txWithoutTxIds.show(100, false))
-    }*/
 
     TransformHelpers.toDSEager(atxs)
   }

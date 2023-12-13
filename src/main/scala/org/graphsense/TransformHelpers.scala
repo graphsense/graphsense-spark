@@ -85,6 +85,24 @@ object TransformHelpers {
     }
   }
 
+  def filterBlockRange[T](
+      start: Option[Int],
+      end: Option[Int],
+      blockIdCol: String = "blockId"
+  )(ds: Dataset[T]): Dataset[T] = {
+    (start.getOrElse(0), end) match {
+      case (minBlock, Some(maxBlock)) =>
+        ds.filter(
+          col(blockIdCol) >= minBlock && col(blockIdCol) <= maxBlock
+        )
+      case (minBlock, None) =>
+        ds.filter(
+          col(blockIdCol) >= minBlock
+        )
+    }
+
+  }
+
   def getFiatCurrencies(
       exchangeRatesRaw: Dataset[ExchangeRatesRaw]
   ): Seq[String] = {

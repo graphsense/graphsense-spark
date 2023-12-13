@@ -17,10 +17,10 @@ test:
 	sbt test
 
 test-account:
-	sbt test:compile "testOnly org.graphsense.account.*"
+	sbt Test/compile "testOnly org.graphsense.account.*"
 
 test-utxo:
-	sbt test:compile "testOnly org.graphsense.utxo.*"
+	sbt Test/compile "testOnly org.graphsense.utxo.*"
 
 format:
 	sbt scalafmt
