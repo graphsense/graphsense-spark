@@ -214,7 +214,7 @@ class TronJob(
     )
   }
 
-  def run(from: Option[Integer], to: Option[Integer]): Unit = {
+  override def run(from: Option[Int], to: Option[Int]): Unit = {
 
     // spark.conf.set("spark.sql.ansi.enabled", true)
 

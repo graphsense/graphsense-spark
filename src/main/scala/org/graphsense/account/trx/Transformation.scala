@@ -676,6 +676,9 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
     TransformHelpers.toDSEager(
       txsEncoded
         .union(tracesEncoded)
+        .filter(
+          $"transactionId".isNotNull
+        ) // there are apparently cases in the full dataset
         .join(broadcast(exchangeRates), Seq("blockId"), "left")
         .transform(toFiatCurrency("value", "fiatValues"))
     )

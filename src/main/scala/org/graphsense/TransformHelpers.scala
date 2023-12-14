@@ -30,7 +30,8 @@ object TransformHelpers {
       R: Encoder
   ](ds: => DataFrame): Dataset[R] = {
     // https://stackoverflow.com/questions/70049444/spark-dataframe-as-function-does-not-drop-columns-not-present-in-matched-case
-    ds.as[R].map(identity)
+    // ds.as[R].map(identity)
+    ds.as[R]
   }
 
   def namedCache[T](

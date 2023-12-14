@@ -2,6 +2,6 @@ package org.graphsense
 
 trait Job {
 
-  def run(from: Option[Integer], to: Option[Integer]): Unit
+  def run(from: Option[Int], to: Option[Int]): Unit
 
 }

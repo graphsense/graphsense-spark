@@ -65,7 +65,7 @@ object TransformationJob {
         )
     }
 
-    transform.run(None, None)
+    transform.run(conf.minBlock.toOption, conf.maxBlock.toOption)
 
     spark.stop()
   }

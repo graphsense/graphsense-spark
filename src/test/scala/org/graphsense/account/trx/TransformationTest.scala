@@ -116,6 +116,12 @@ class TransformationTest extends TestBase {
     )
 
     assert(
+      data.output.encodedTransactions
+        .filter($"transactionId".isNull)
+        .count() == 0
+    )
+
+    assert(
       data.output.encodedTokenTransfers.na
         .drop()
         .count() === data.output.encodedTokenTransfers.count(),
