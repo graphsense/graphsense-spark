@@ -35,7 +35,7 @@ object TransformationJob {
         .getOrElse("not set")
     )
     println(
-      "Debug level:             " + conf.debug.toOption
+      "Debug level:                   " + conf.debug.toOption
         .getOrElse(0)
     )
 

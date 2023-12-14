@@ -68,13 +68,10 @@ class CassandraTrxSource(store: CassandraStorage, keyspace: String)
         keyspace,
         "trace",
         Array(
-          "block_id_group",
           "block_id",
-          "internal_index",
           "trace_index",
           "caller_address",
           "transferto_address",
-          "call_info_index",
           "call_token_id",
           "call_value",
           "note",

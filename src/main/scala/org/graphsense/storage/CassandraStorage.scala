@@ -6,6 +6,7 @@ import com.datastax.spark.connector.writer.RowWriterFactory
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
 import org.graphsense.Util._
 import scala.reflect.ClassTag
+import com.datastax.spark.connector.cql.CassandraConnector
 
 class CassandraStorage(spark: SparkSession) {
 
@@ -14,6 +15,14 @@ class CassandraStorage(spark: SparkSession) {
 
   def session(): SparkSession = {
     spark
+  }
+
+  def isTableEmpty(keyspace: String, tableName: String): Boolean = {
+    CassandraConnector(spark.sparkContext).withSessionDo { session =>
+      val test =
+        session.execute(f"select * from ${keyspace}.${tableName} limit 1;")
+      test.one() == null
+    }
   }
 
   def load[T <: Product: ClassTag: RowReaderFactory: ValidRDDType: Encoder](
@@ -34,8 +43,11 @@ class CassandraStorage(spark: SparkSession) {
       tableName: String,
       df: Dataset[T]
   ) = {
-    spark.sparkContext.setJobDescription(s"Writing table ${tableName}")
-    time(s"Writing table ${tableName}") {
+    val isEmpty = isTableEmpty(keyspace, tableName)
+    spark.sparkContext.setJobDescription(
+      s"Writing table ${tableName} - empty: ${isEmpty}"
+    )
+    time(s"Writing table ${tableName} - empty: ${isEmpty}") {
       df.rdd.saveToCassandra(keyspace, tableName)
     }
   }

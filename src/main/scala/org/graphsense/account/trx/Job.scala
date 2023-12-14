@@ -7,22 +7,13 @@ import org.apache.spark.sql.functions.{col, from_unixtime, max, min}
 import org.graphsense.Job
 import org.graphsense.account.AccountSink
 import org.graphsense.account.config.AccountConfig
-import org.graphsense.account.models.{
-  AddressIncomingRelationSecondaryIds,
-  AddressOutgoingRelationSecondaryIds,
-  Block,
-  TokenTransfer,
-  Transaction
-}
+import org.graphsense.account.models._
 import org.graphsense.TransformHelpers
 import org.graphsense.models.ExchangeRates
 import org.graphsense.account.trx.models.{Trace, TxFee}
 import org.graphsense.account.models.TokenConfiguration
 import org.graphsense.Util._
 import org.graphsense.account.models.AddressTransactionSecondaryIds
-import org.graphsense.account.models.AddressIdByAddressPrefix
-import org.graphsense.account.models.TransactionIdByTransactionIdGroup
-import org.graphsense.account.models.TransactionIdByTransactionPrefix
 
 class TronJob(
     spark: SparkSession,
@@ -144,6 +135,7 @@ class TronJob(
             Some(maxBlockToProcess)
           )
         )
+        .transform(transformation.onlySuccessfulTxs)
         .persist()
 
       val minBlock = blocksFiltered
@@ -183,13 +175,13 @@ class TronJob(
         txsFiltered,
         source
           .traces()
-          .filter(col("rejected") === false)
           .transform(
             TransformHelpers.filterBlockRange(
               Some(minBlockToProcess),
               Some(maxBlockToProcess)
             )
           )
+          .transform(transformation.onlySuccessfulTrace)
           .persist(),
         source
           .tokenTransfers()
@@ -262,7 +254,6 @@ class TronJob(
 
         (ids, noAddresses)
       }
-    printDatasetStats(addressIds, "addressIds")
     printStat("#addresses", noAddresses)
 
     /* computing and storing balances */

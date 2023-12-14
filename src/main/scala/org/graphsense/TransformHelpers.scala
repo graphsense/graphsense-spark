@@ -35,7 +35,7 @@ object TransformHelpers {
 
   def namedCache[T](
       name: String,
-      storageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK_SER
+      storageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK
   )(df: Dataset[T]): Dataset[T] = {
     df.sparkSession.sharedState.cacheManager
       .cacheQuery(df, Some(name), storageLevel)

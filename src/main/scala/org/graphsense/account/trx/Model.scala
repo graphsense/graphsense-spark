@@ -1,13 +1,13 @@
 package org.graphsense.account.trx.models
 
 case class Trace(
-    blockIdGroup: Int,
+    // blockIdGroup: Int,
     blockId: Int,
-    internalIndex: Int,
+    // internalIndex: Int,
     traceIndex: Int,
     callerAddress: Option[Array[Byte]],
     transfertoAddress: Option[Array[Byte]],
-    callInfoIndex: Int,
+    // callInfoIndex: Int,
     callTokenId: Option[Int],
     callValue: Int,
     note: String,

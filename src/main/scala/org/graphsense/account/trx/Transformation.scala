@@ -655,9 +655,6 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
     val tracesEncoded = trcs
       .drop(
-        "blockIdGroup",
-        "internalIndex",
-        "callInfoIndex",
         "note",
         "rejected"
       )
