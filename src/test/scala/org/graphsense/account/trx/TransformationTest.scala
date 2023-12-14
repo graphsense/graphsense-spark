@@ -363,7 +363,7 @@ class TransformationTest extends TestBase {
     )
 
     assert(
-      data.output.contracts.count() >= 85,
+      data.output.contracts.count() == 85,
       "more contracts than 85 expected"
     )
 

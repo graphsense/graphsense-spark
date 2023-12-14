@@ -382,7 +382,8 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
   def computeAddressIdsByHash(
       traces: Dataset[Trace],
       transactions: Dataset[Transaction],
-      tokenTransfers: Dataset[TokenTransfer]
+      tokenTransfers: Dataset[TokenTransfer],
+      seed: Array[Byte] = Array(0, 0, 0, 0)
   ): Dataset[AddressIdLong] = {
 
     val txs = transactions
@@ -432,7 +433,8 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
     val hashIds = all
       .select("address")
       .dropDuplicates()
-      .withColumn("h", xxhash64($"address"))
+      .withColumn("seed", lit(seed))
+      .withColumn("h", xxhash64($"address", $"seed"))
 
     time("evaluate hashes for address ids: duplicate hashes") {
       val windowSpec = Window.partitionBy("address").orderBy("address")
@@ -546,16 +548,18 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       addressIds: Dataset[AddressId]
   ): Dataset[Contract] = {
     val traceDeployments = traces
+      .transform(onlySuccessfulTrace)
       .filter(isCreationTrace)
       .select($"transfertoAddress".as("address"))
 
-    // val transactionDeployments = transactions
-    //   .filter(isCreationTx)
-    //   .select($"receiptContractAddress".as("address"))
+    val transactionDeployments = transactions
+      .transform(onlySuccessfulTxs)
+      .filter(isCreationTx)
+      .select($"receiptContractAddress".as("address"))
 
     TransformHelpers.toDSEager[Contract](
       traceDeployments
-        // .union(transactionDeployments)
+        .union(transactionDeployments)
         .join(addressIds, Seq("address"))
         .select("addressId")
         .filter($"addressId".isNotNull)
