@@ -45,7 +45,7 @@ object TransformHelpers {
 
   def computeCached[
       R: Encoder
-  ](base_path: Option[String], spark: SparkSession)(
+  ](base_path: Option[String], spark: SparkSession, overwrite: Boolean = false)(
       dataset_name: String
   )(block: => Dataset[R]): Dataset[R] = {
     base_path match {
@@ -67,8 +67,13 @@ object TransformHelpers {
                 block
               })
 
+            val writeMode = overwrite match {
+              case true  => "overwrite"
+              case false => "error"
+            }
+
             time(f"Writing cache dataset at ${path_complete} as parquet") {
-              df.write.mode("overwrite").parquet(path_complete)
+              df.write.mode(writeMode).parquet(path_complete)
             }
 
             return df

@@ -574,13 +574,15 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       addressIds: Dataset[AddressId],
       exchangeRates: Dataset[ExchangeRates]
   ): Dataset[EncodedTokenTransfer] = {
-    ethTransform.computeEncodedTokenTransfers(
-      tokenTransfers,
-      tokenConfigurations,
-      transactionsIds,
-      addressIds,
-      exchangeRates
-    )
+    ethTransform
+      .computeEncodedTokenTransfers(
+        tokenTransfers,
+        tokenConfigurations,
+        transactionsIds,
+        addressIds,
+        exchangeRates
+      )
+      .filter($"transactionId".isNotNull)
   }
 
   def computeEncodedTransactions(

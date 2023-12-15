@@ -72,5 +72,12 @@ class AccountConfig(arguments: Seq[String]) extends ScallopConf(arguments) {
     noshort = true,
     descr = "Debug level 0, no debug level. 1 and above produce debug output."
   )
+  val forceOverwrite: ScallopOption[Boolean] = opt[Boolean](
+    "force-overwrite",
+    required = false,
+    default = Some(false),
+    noshort = true,
+    descr = "Ignore if table is not empty and overwrite the data."
+  )
   verify()
 }

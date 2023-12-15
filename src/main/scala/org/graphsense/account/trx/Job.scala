@@ -35,7 +35,11 @@ class TronJob(
   ](
       dataset_name: String
   )(block: => Dataset[R]): Dataset[R] = {
-    TransformHelpers.computeCached(base_path, spark)(dataset_name)(block)
+    TransformHelpers.computeCached(
+      base_path,
+      spark,
+      config.forceOverwrite.toOption.getOrElse(false)
+    )(dataset_name)(block)
   }
 
   def timeJob[R](title: String)(block: => R): R = {
@@ -270,52 +274,72 @@ class TronJob(
          )
          .persist()*/
 
-      val balances = transformation
-        .computeBalances(
-          blocks,
-          txs,
-          traces,
-          addressIds,
-          tokenTxs,
-          tokenConfigurations
-        )
-        .persist()
+      if (
+        sink
+          .areBalancesEmpty() || config.forceOverwrite.toOption.getOrElse(false)
+      ) {
 
-      printDatasetStats(balances, "balances")
+        val balances = transformation
+          .computeBalances(
+            blocks,
+            txs,
+            traces,
+            addressIds,
+            tokenTxs,
+            tokenConfigurations
+          )
+          .persist()
 
-      if (debug > 0) {
-        println("null balances")
-        balances.filter(col("addressId").isNull).show(100)
-        printStat("#balances", balances.count())
+        printDatasetStats(balances, "balances")
+
+        if (debug > 0) {
+          println("null balances")
+          balances.filter(col("addressId").isNull).show(100)
+          printStat("#balances", balances.count())
+        }
+
+        sink.saveBalances(balances.filter(col("addressId").isNotNull))
+
+        balances.unpersist(true)
+        txFees.unpersist(true)
+      } else {
+        println("Warning - balances not empty skipping stage.")
       }
-
-      sink.saveBalances(balances.filter(col("addressId").isNotNull))
-
-      balances.unpersist(true)
-      txFees.unpersist(true)
     }
 
     /* computing and storing address id prefixes */
     timeJob("Computing and storing addr id lookups") {
-      val addressIdsByAddressPrefix =
-        addressIds.toDF.transform(
-          TransformHelpers.withSortedPrefix[AddressIdByAddressPrefix](
-            "address",
-            "addressPrefix",
-            config.addressPrefixLength()
+
+      if (
+        sink.areAddressIdsEmpty() || config.forceOverwrite.toOption.getOrElse(
+          false
+        )
+      ) {
+        val addressIdsByAddressPrefix =
+          addressIds.toDF.transform(
+            TransformHelpers.withSortedPrefix[AddressIdByAddressPrefix](
+              "address",
+              "addressPrefix",
+              config.addressPrefixLength()
+            )
           )
+
+        printDatasetStats(
+          addressIdsByAddressPrefix,
+          "addressIdsByAddressPrefix"
         )
 
-      printDatasetStats(addressIdsByAddressPrefix, "addressIdsByAddressPrefix")
+        if (debug > 0) {
+          println("null addressIdsByAddressPrefix addresses")
+          addressIdsByAddressPrefix.filter(col("addressPrefix").isNull).show(10)
+        }
 
-      if (debug > 0) {
-        println("null addressIdsByAddressPrefix addresses")
-        addressIdsByAddressPrefix.filter(col("addressPrefix").isNull).show(10)
+        sink.saveAddressIdsByPrefix(
+          addressIdsByAddressPrefix
+        )
+      } else {
+        println("Warning - AddressId not empty skipping stage.")
       }
-
-      sink.saveAddressIdsByPrefix(
-        addressIdsByAddressPrefix
-      )
     }
 
     val transactionIds = timeJob("Computing transaction IDs") {
@@ -334,26 +358,45 @@ class TronJob(
 
     /* computing and storing address id prefixes */
     timeJob("Computing and storing txid lookups") {
-      val transactionIdsByTransactionIdGroup =
-        transactionIds.toDF.transform(
-          TransformHelpers.withSortedIdGroup[TransactionIdByTransactionIdGroup](
-            "transactionId",
-            "transactionIdGroup",
-            config.bucketSize()
-          )
-        )
 
-      sink.saveTransactionIdsByGroup(transactionIdsByTransactionIdGroup)
-
-      val transactionIdsByTransactionPrefix =
-        transactionIds.toDF.transform(
-          TransformHelpers.withSortedPrefix[TransactionIdByTransactionPrefix](
-            "transaction",
-            "transactionPrefix",
-            config.txPrefixLength()
+      if (
+        sink.areTransactionIdsGroupEmpty() || config.forceOverwrite.toOption
+          .getOrElse(false)
+      ) {
+        val transactionIdsByTransactionIdGroup =
+          transactionIds.toDF.transform(
+            TransformHelpers
+              .withSortedIdGroup[TransactionIdByTransactionIdGroup](
+                "transactionId",
+                "transactionIdGroup",
+                config.bucketSize()
+              )
           )
+
+        sink.saveTransactionIdsByGroup(transactionIdsByTransactionIdGroup)
+      } else {
+        println(
+          "Warning - transactionIdsByTransactionIdGroup not empty skipping stage."
         )
-      sink.saveTransactionIdsByTxPrefix(transactionIdsByTransactionPrefix)
+      }
+      if (
+        sink.areTransactionIdsPrefixEmpty() || config.forceOverwrite.toOption
+          .getOrElse(false)
+      ) {
+        val transactionIdsByTransactionPrefix =
+          transactionIds.toDF.transform(
+            TransformHelpers.withSortedPrefix[TransactionIdByTransactionPrefix](
+              "transaction",
+              "transactionPrefix",
+              config.txPrefixLength()
+            )
+          )
+        sink.saveTransactionIdsByTxPrefix(transactionIdsByTransactionPrefix)
+      } else {
+        println(
+          "Warning - transactionIdsByTransactionPrefix not empty skipping stage."
+        )
+      }
     }
 
     val contracts = timeJob("Computing contracts") {
@@ -419,15 +462,24 @@ class TronJob(
     tokenTxs.unpersist(true)
 
     timeJob("Computing and storing block transactions") {
-      val blockTransactions =
-        computeCached("blockTransactions") {
-          transformation
-            .computeBlockTransactions(blocks, encodedTransactions)
-        }
+      if (
+        sink.areBlockTransactionsEmpty() || config.forceOverwrite.toOption
+          .getOrElse(false)
+      ) {
+        val blockTransactions =
+          computeCached("blockTransactions") {
+            transformation
+              .computeBlockTransactions(blocks, encodedTransactions)
+          }
 
-      printDatasetStats(blockTransactions, "blockTransactions")
-      sink.saveBlockTransactionsRelational(blockTransactions)
-      blockTransactions.unpersist(true)
+        printDatasetStats(blockTransactions, "blockTransactions")
+
+        sink.saveBlockTransactionsRelational(blockTransactions)
+        blockTransactions.unpersist(true)
+      } else {
+        println("Warning - blockTransactions not empty skipping stage.")
+      }
+
     }
 
     val addressTransactions = timeJob("Computing address transactions") {
@@ -439,46 +491,68 @@ class TronJob(
           )
       }
     }
-    printDatasetStats(addressTransactions, "addressTransactions")
 
-    if (debug > 0) {
-      printStat("#address Txs", addressTransactions.count())
+    if (sink.areAddressTransactionsEmtpy()) {
+      printDatasetStats(addressTransactions, "addressTransactions")
+
+      if (debug > 0) {
+        printStat("#address Txs", addressTransactions.count())
+      }
     }
 
     timeJob("Saving address transactions and lookups") {
-      sink.saveAddressTransactions(addressTransactions)
+      if (sink.areAddressTransactionsEmtpy()) {
+        sink.saveAddressTransactions(addressTransactions)
 
-      if (debug > 0) {
-        addressTransactions.show(100)
+        if (debug > 0) {
+          addressTransactions.show(100)
+        }
+      } else {
+        println("Warning - addressTransactions not empty skipping stage.")
       }
 
-      val addressTransactionsSecondaryIds =
-        TransformHelpers
-          .computeSecondaryPartitionIdLookup[AddressTransactionSecondaryIds](
-            addressTransactions.toDF,
-            "addressIdGroup",
-            "addressIdSecondaryGroup"
-          )
+      if (sink.areAddressTransactionsSecondaryGroupEmtpy()) {
+        val addressTransactionsSecondaryIds =
+          TransformHelpers
+            .computeSecondaryPartitionIdLookup[AddressTransactionSecondaryIds](
+              addressTransactions.toDF,
+              "addressIdGroup",
+              "addressIdSecondaryGroup"
+            )
 
-      sink.saveAddressTransactionBySecondaryId(addressTransactionsSecondaryIds)
+        sink.saveAddressTransactionBySecondaryId(
+          addressTransactionsSecondaryIds
+        )
+      } else {
+        println(
+          "Warning - addressTransactionsSecondaryIds not empty skipping stage."
+        )
+      }
     }
 
     timeJob("Computing address and storing statistics") {
-      val addresses =
-        computeCached("addresses") {
-          transformation.computeAddresses(
-            encodedTransactions,
-            encodedTokenTransfers,
-            addressTransactions,
-            addressIds,
-            contracts
-          )
-        }
+      if (
+        sink
+          .areAddressEmpty() || config.forceOverwrite.toOption.getOrElse(false)
+      ) {
+        val addresses =
+          computeCached("addresses") {
+            transformation.computeAddresses(
+              encodedTransactions,
+              encodedTokenTransfers,
+              addressTransactions,
+              addressIds,
+              contracts
+            )
+          }
 
-      printDatasetStats(addresses, "addresses")
+        printDatasetStats(addresses, "addresses")
 
-      sink.saveAddresses(addresses)
-      addresses.unpersist(true)
+        sink.saveAddresses(addresses)
+        addresses.unpersist(true)
+      } else {
+        println("Warning - addresses not empty skipping stage.")
+      }
     }
 
     addressTransactions.unpersist(true)
@@ -498,44 +572,81 @@ class TronJob(
 
         printDatasetStats(addressRelations, "addressRelations")
 
-        sink.saveAddressIncomingRelations(
-          addressRelations.sort(
-            "dstAddressIdGroup",
-            "dstAddressIdSecondaryGroup"
-          )
-        )
-        sink.saveAddressOutgoingRelations(
-          addressRelations.sort(
-            "srcAddressIdGroup",
-            "srcAddressIdSecondaryGroup"
-          )
-        )
-
-        val addressIncomingRelationsSecondaryIds =
-          TransformHelpers
-            .computeSecondaryPartitionIdLookup[
-              AddressIncomingRelationSecondaryIds
-            ](
-              addressRelations.toDF,
+        if (
+          sink.areAddressIncomingRelationsEmpty() || config.forceOverwrite.toOption
+            .getOrElse(false)
+        ) {
+          sink.saveAddressIncomingRelations(
+            addressRelations.sort(
               "dstAddressIdGroup",
               "dstAddressIdSecondaryGroup"
             )
-        val addressOutgoingRelationsSecondaryIds =
-          TransformHelpers
-            .computeSecondaryPartitionIdLookup[
-              AddressOutgoingRelationSecondaryIds
-            ](
-              addressRelations.toDF,
+          )
+        } else {
+          println(
+            "Warning - saveAddressIncomingRelations not empty skipping stage."
+          )
+        }
+        if (
+          sink.areAddressOutgoingRelationsEmpty() || config.forceOverwrite.toOption
+            .getOrElse(false)
+        ) {
+          sink.saveAddressOutgoingRelations(
+            addressRelations.sort(
               "srcAddressIdGroup",
               "srcAddressIdSecondaryGroup"
             )
+          )
+        } else {
+          println(
+            "Warning - saveAddressOutgoingRelations not empty skipping stage."
+          )
+        }
 
-        sink.saveAddressIncomingRelationsBySecondaryId(
-          addressIncomingRelationsSecondaryIds
-        )
-        sink.saveAddressOutgoingRelationsBySecondaryId(
-          addressOutgoingRelationsSecondaryIds
-        )
+        if (
+          sink.areAddressIncomingRelationsSecondaryIdsEmpty() || config.forceOverwrite.toOption
+            .getOrElse(false)
+        ) {
+          val addressIncomingRelationsSecondaryIds =
+            TransformHelpers
+              .computeSecondaryPartitionIdLookup[
+                AddressIncomingRelationSecondaryIds
+              ](
+                addressRelations.toDF,
+                "dstAddressIdGroup",
+                "dstAddressIdSecondaryGroup"
+              )
+
+          sink.saveAddressIncomingRelationsBySecondaryId(
+            addressIncomingRelationsSecondaryIds
+          )
+        } else {
+          println(
+            "Warning - addressIncomingRelationsSecondaryIds not empty skipping stage."
+          )
+        }
+        if (
+          sink.areAddressOutgoingRelationsSecondaryIdsEmpty() || config.forceOverwrite.toOption
+            .getOrElse(false)
+        ) {
+          val addressOutgoingRelationsSecondaryIds =
+            TransformHelpers
+              .computeSecondaryPartitionIdLookup[
+                AddressOutgoingRelationSecondaryIds
+              ](
+                addressRelations.toDF,
+                "srcAddressIdGroup",
+                "srcAddressIdSecondaryGroup"
+              )
+
+          sink.saveAddressOutgoingRelationsBySecondaryId(
+            addressOutgoingRelationsSecondaryIds
+          )
+        } else {
+          println(
+            "Warning - addressOutgoingRelationsSecondaryIds not empty skipping stage."
+          )
+        }
 
         addressRelations.count()
       }
