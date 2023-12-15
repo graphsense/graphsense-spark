@@ -278,13 +278,13 @@ object TransformHelpers {
       idColumn: String,
       secondaryIdColumn: String,
       windowOrderColumn: String,
-      skewedPartitionFactor: Float = 2.5f
+      buckets: Int = 100
   )(ds: Dataset[T]): DataFrame = {
     // val window = Window.partitionBy(idColumn).orderBy(windowOrderColumn)
     ds.withColumn(
       secondaryIdColumn,
       floor(
-        col(windowOrderColumn) % 50
+        col(windowOrderColumn) % buckets
       ).cast(IntegerType)
     )
   }

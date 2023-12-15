@@ -773,10 +773,11 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
         TransformHelpers.withIdGroup("addressId", "addressIdGroup", bucketSize)
       )
       .transform(
-        TransformHelpers.withSecondaryIdGroupApprox(
-          "addressId",
+        TransformHelpers.withSecondaryIdGroupSimple(
+          "addressIdGroup",
           "addressIdSecondaryGroup",
-          "transactionId"
+          "transactionId",
+          buckets = 128
         )
       )
       .transform(TransformHelpers.withTxReference)
