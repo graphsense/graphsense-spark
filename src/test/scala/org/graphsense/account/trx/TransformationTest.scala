@@ -210,7 +210,6 @@ class TransformationTest extends TestBase {
     assert(addressIds.count() == addressIdPrefixes.count())
 
     val balances = t.computeBalancesWithFeesTable(
-      blocks,
       transactions,
       txFees,
       traces,

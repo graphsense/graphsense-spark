@@ -191,7 +191,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
         "balance",
         $"traceDebits" + $"traceCredits" +
           $"txDebits" + $"txCredits" +
-          $"txFeeDebits" + $"txFeeCredits"
+          $"txFeeCredits" // $"txFeeDebits" +
       )
       .withColumn("currency", lit("TRX"))
       .transform(
