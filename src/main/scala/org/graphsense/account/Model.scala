@@ -152,7 +152,7 @@ case class Transaction(
     blockHash: Array[Byte],
     blockId: Int,
     transactionIndex: Short,
-    fromAddress: Array[Byte],
+    fromAddress: Option[Array[Byte]],
     toAddress: Option[Array[Byte]],
     value: BigInt, // in wei, 1e18 wei = 1 ether
     gas: Int,

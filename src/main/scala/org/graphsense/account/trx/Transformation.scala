@@ -108,7 +108,6 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
   // TODO: remove old compute with balances if this is right.
   def computeBalancesWithFeesTable(
-      blocks: Dataset[Block],
       transactions: Dataset[Transaction],
       txFees: Dataset[TxFee],
       traces: Dataset[Trace],
@@ -147,17 +146,18 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .withColumnRenamed("fromAddress", "address")
       .transform(joinAddressIds(addressIds))
 
-    // TODO: check what miners really get of the fees
-    val txFeeDebits = txs
-      .join(txFees, Seq("txHash"), "inner")
-      .join(blocks, Seq("blockId"), "inner")
-      .withColumn("calculatedValue", $"fee")
-      .groupBy("miner")
-      .agg(sum("calculatedValue").as("txFeeDebits"))
-      .withColumnRenamed("miner", "address")
-      .transform(joinAddressIds(addressIds))
+    // TODO: check what miners really get of the fees -- No fees to miners. They are burnt.
+    // rewards are modelled in transactions from: None; to:recipient; value:reward
+    // val txFeeDebits = txs
+    //  .join(txFees, Seq("txHash"), "inner")
+    //  .join(blocks, Seq("blockId"), "inner")
+    //  .withColumn("calculatedValue", $"fee")
+    //  .groupBy("miner")
+    //  .agg(sum("calculatedValue").as("txFeeDebits"))
+    //  .withColumnRenamed("miner", "address")
+    //  .transform(joinAddressIds(addressIds))
 
-    // TODO: check if this is really all that is deduced from the sender.
+    // TODO: check if this is really all that is deduced from the sender. -- Several samples confirmed this
     val txFeeCredits = txs
       .join(txFees, Seq("txHash"), "inner")
       .withColumn("calculatedValue", -col("fee"))
@@ -166,7 +166,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .withColumnRenamed("fromAddress", "address")
       .transform(joinAddressIds(addressIds))
 
-    // TODO: Check if there are burned fees.
+    // TODO: Check if there are burned fees. -- There are only burned fees
     // val burntFees = blocks.na
     //   .fill(0, Seq("baseFeePerGas"))
     //   .withColumn(
@@ -181,7 +181,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
     val balance = traceDebits
       .join(traceCredits, Seq("addressId"), "full")
-      .join(txFeeDebits, Seq("addressId"), "full")
+      // .join(txFeeDebits, Seq("addressId"), "full")
       .join(txFeeCredits, Seq("addressId"), "full")
       .join(txDebits, Seq("addressId"), "full")
       .join(txCredits, Seq("addressId"), "full")

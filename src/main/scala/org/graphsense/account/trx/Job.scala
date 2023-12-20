@@ -280,9 +280,9 @@ class TronJob(
       ) {
 
         val balances = transformation
-          .computeBalances(
-            blocks,
+          .computeBalancesWithFeesTable(
             txs,
+            txFees,
             traces,
             addressIds,
             tokenTxs,
