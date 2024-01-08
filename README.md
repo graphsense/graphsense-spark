@@ -1,4 +1,4 @@
-[![sbt test](https://github.com/graphsense/graphsense-ethereum-transformation/actions/workflows/sbt_test.yml/badge.svg)](https://github.com/graphsense/graphsense-ethereum-transformation/actions/workflows/sbt_test.yml)
+[![sbt test](https://github.com/graphsense/graphsense-spark/actions/workflows/sbt_test.yml/badge.svg)](https://github.com/graphsense/graphsense-spark/actions/workflows/sbt_test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # GraphSense Spark-Transformation Pipeline
