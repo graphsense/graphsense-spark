@@ -4,11 +4,11 @@ val packagename = "graphsense-spark"
 // used for local builds
 val defaultVersion = fromFile("Makefile")
                       .getLines
-                      .filter(_.startsWith("RELEASESEM"))
+                      .filter(_.startsWith("RELEASE"))
                       .toList
                       .headOption
                       .getOrElse("=Unknown")
-                      .replaceAll("RELEASESEM := ", "")
+                      .replaceAll("RELEASE := ", "")
                       .replaceAll("'", "")
 
 // taken from https://alterationx10.com/2022/05/26/publish-to-github/

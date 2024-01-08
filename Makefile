@@ -1,5 +1,5 @@
-RELEASE := 'v23.09'
-RELEASESEM := 'v1.6.2'
+RELEASE := 'v24.01.0'
+# RELEASESEM := 'v1.6.2'
 
 all: format lint build
 	
@@ -57,8 +57,8 @@ run-docker-trx-transform-local: build-docker
 	${RUNTRANSFORM} trx
 
 tag-version:
-	-git diff --exit-code && git diff --staged --exit-code && git tag -a $(RELEASE) -m 'Release $(RELEASE)' || (echo "Repo is dirty please commit first" && exit 1)
-	git diff --exit-code && git diff --staged --exit-code && git tag -a $(RELEASESEM) -m 'Release $(RELEASE)' || (echo "Repo is dirty please commit first" && exit 1)
+	#-git diff --exit-code && git diff --staged --exit-code && git tag -a $(RELEASE) -m 'Release $(RELEASE)' || (echo "Repo is dirty please commit first" && exit 1)
+	git diff --exit-code && git diff --staged --exit-code && git tag -a $(RELEASE) -m 'Release $(RELEASE)' || (echo "Repo is dirty please commit first" && exit 1)
 
 
 .PHONY: all test lint format build tag-version start-local-cassandra stop-local-cassandra run-local-transform build-docker test-account test-utxo

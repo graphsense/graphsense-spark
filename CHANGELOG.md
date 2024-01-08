@@ -3,12 +3,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## Unreleased
+## [24.01.0] 2024-01-08
+### Added
+- implemented transform for tron currency
+- checkpoints and loading on hdfs
 ### Changed
 - Upgrade to Spark 3.2.4
-- Change package name
-- revised namespace structure (breaking call is different path)
-- integrated utxo (btc, zec, ltc transform)
+- Change package name graphsense-ethereum-transformation -> graphsense-spark
+- integrated utxo (btc, zec, ltc, bch transform)
+- revised namespace structure (BREAKING: call is different path, new --network parameter needed!)
+
 
 ## [23.09/1.5.1] 2023-10-25
 ### Fixed
