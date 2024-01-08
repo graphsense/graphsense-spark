@@ -1,5 +1,4 @@
-name: sbt test
-
+name: Run Unit-Test
 on:
   push:
     branches:
