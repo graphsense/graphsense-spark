@@ -14,7 +14,7 @@ FOO="${SPARK_DRIVER_MEMORY:=4g}"
 FOO="${TRANSFORM_BUCKET_SIZE:=10000}"
 FOO="${NETWORK:=ETH}"
 
-FOO="${SPARK_PACKAGES:=com.datastax.spark:spark-cassandra-connector_2.12:3.2.0,org.rogach:scallop_2.12:4.1.0,joda-time:joda-time:2.10.10,org.web3j:core:4.8.7,org.web3j:abi:4.8.7,graphframes:graphframes:0.8.2-spark3.2-s_2.12}"
+FOO="${SPARK_PACKAGES:=com.datastax.spark:spark-cassandra-connector_2.12:3.4.1,org.rogach:scallop_2.12:4.1.0,joda-time:joda-time:2.10.10,org.web3j:core:4.8.7,org.web3j:abi:4.8.7,graphframes:graphframes:0.8.3-spark3.4-s_2.12}"
 
 FOO="${CASSANDRA_HOST:=localhost}"
 
