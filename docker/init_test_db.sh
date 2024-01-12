@@ -5,7 +5,7 @@ python3 /opt/graphsense/scripts/create_keyspace.py \
     -d "${CASSANDRA_HOST}" \
     -k "${RAW_KEYSPACE}" \
     -s /opt/graphsense/scripts/schema_raw.cql
-    
+
 echo "Creating Cassandra keyspace ${TGT_KEYSPACE} on ${CASSANDRA_HOST} " && \
 python3 /opt/graphsense/scripts/create_keyspace.py \
     -d "${CASSANDRA_HOST}" \
