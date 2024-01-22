@@ -45,7 +45,7 @@ object TransformHelpers {
 
   def computeCached[
       R: Encoder
-  ](base_path: Option[String], spark: SparkSession, overwrite: Boolean = false)(
+  ](base_path: Option[String], spark: SparkSession, overwrite: Boolean = true)(
       dataset_name: String
   )(block: => Dataset[R]): Dataset[R] = {
     base_path match {
