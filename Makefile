@@ -1,4 +1,4 @@
-RELEASE := 'v24.01.0'
+RELEASE := 'v24.01.1'
 # RELEASESEM := 'v1.6.2'
 
 all: format lint build

@@ -160,7 +160,7 @@ case class Transaction(
     input: Array[Byte],
     blockTimestamp: Int,
     receiptGasUsed: BigInt,
-    receiptStatus: BigInt, // TODO: check if this is fine for ethereum
+    receiptStatus: Option[BigInt],
     receiptContractAddress: Option[Array[Byte]]
 )
 
