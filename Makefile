@@ -18,9 +18,14 @@ test:
 
 test-account:
 	sbt Test/compile "testOnly org.graphsense.account.*"
+	sbt Test/compile "testOnly org.graphsense.common.*"
 
 test-utxo:
 	sbt Test/compile "testOnly org.graphsense.utxo.*"
+	sbt Test/compile "testOnly org.graphsense.common.*"
+
+test-common:
+	sbt Test/compile "testOnly org.graphsense.common.*"
 
 format:
 	sbt scalafmt
@@ -61,4 +66,4 @@ tag-version:
 	git diff --exit-code && git diff --staged --exit-code && git tag -a $(RELEASE) -m 'Release $(RELEASE)' || (echo "Repo is dirty please commit first" && exit 1)
 
 
-.PHONY: all test lint format build tag-version start-local-cassandra stop-local-cassandra run-local-transform build-docker test-account test-utxo
+.PHONY: all test lint format build tag-version start-local-cassandra stop-local-cassandra run-local-transform build-docker test-account test-utxo test-common
