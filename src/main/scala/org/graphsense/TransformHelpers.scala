@@ -15,7 +15,8 @@ import org.apache.spark.sql.functions.{
   struct,
   substring,
   sum,
-  typedLit
+  typedLit,
+  when
 }
 import org.apache.spark.sql.types.{DataType, FloatType, IntegerType}
 import org.graphsense.models.ExchangeRatesRaw
@@ -123,7 +124,18 @@ object TransformHelpers {
     currencies.rdd.map(r => r(0).asInstanceOf[Seq[String]]).collect()(0)
   }
 
-  def zeroValueIfNull(
+  def getZeroCurrencyValue(
+      length: Int,
+      castValueTo: DataType = IntegerType
+  ) = {
+    struct(
+      lit(0).cast(castValueTo).as("value"),
+      typedLit(Array.fill[Float](length)(0))
+        .as("fiatValues")
+    )
+  }
+
+  def zeroCurrencyValueIfNull(
       columnName: String,
       length: Int,
       castValueTo: DataType = IntegerType
@@ -140,6 +152,31 @@ object TransformHelpers {
             .as("fiatValues")
         )
       )
+    )
+  }
+
+  def zeroCurrencyValueIfNullSafe(
+      columnName: String,
+      length: Int,
+      castValueTo: DataType = IntegerType
+  )(
+      df: DataFrame
+  ): DataFrame = {
+    val zero = getZeroCurrencyValue(length, castValueTo)
+    df.withColumn(
+      columnName,
+      when(
+        col(f"${columnName}.value").isNull || col(
+          f"${columnName}.fiatValues"
+        ).isNull,
+        zero
+      )
+        .otherwise(
+          coalesce(
+            col(columnName),
+            zero
+          )
+        )
     )
   }
 

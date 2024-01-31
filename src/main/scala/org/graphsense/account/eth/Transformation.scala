@@ -414,7 +414,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
         )
       )
     }
-    traces
+    val etxs = traces
       .filter(col("status") === 1)
       .withColumnRenamed("txHash", "transaction")
       .join(
@@ -451,6 +451,13 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       .join(broadcast(exchangeRates), Seq("blockId"), "left")
       .transform(toFiatCurrency("value", "fiatValues"))
       .as[EncodedTransaction]
+
+    println(
+      "Transactions with null values; This should be empty; Maybe missing exchange rates"
+    )
+    etxs.filter($"value".isNull || $"fiatValues".isNull).show(100)
+
+    etxs
   }
 
   def computeBlockTransactions(
@@ -706,14 +713,14 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       .na
       .fill(false, Seq("isContract"))
       .transform(
-        TransformHelpers.zeroValueIfNull(
+        TransformHelpers.zeroCurrencyValueIfNullSafe(
           "totalReceived",
           noFiatCurrencies.get,
           castValueTo = DecimalType(38, 0)
         )
       )
       .transform(
-        TransformHelpers.zeroValueIfNull(
+        TransformHelpers.zeroCurrencyValueIfNullSafe(
           "totalSpent",
           noFiatCurrencies.get,
           castValueTo = DecimalType(38, 0)
@@ -816,7 +823,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
         )
       )
       .transform(
-        TransformHelpers.zeroValueIfNull(
+        TransformHelpers.zeroCurrencyValueIfNullSafe(
           "value",
           noFiatCurrencies.get,
           castValueTo = DecimalType(38, 0)

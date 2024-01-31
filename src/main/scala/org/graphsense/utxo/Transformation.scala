@@ -276,10 +276,12 @@ class Transformation(
       .na
       .fill(0)
       .transform(
-        TransformHelpers.zeroValueIfNull(F.totalReceived, noFiatCurrencies.get)
+        TransformHelpers
+          .zeroCurrencyValueIfNull(F.totalReceived, noFiatCurrencies.get)
       )
       .transform(
-        TransformHelpers.zeroValueIfNull(F.totalSpent, noFiatCurrencies.get)
+        TransformHelpers
+          .zeroCurrencyValueIfNull(F.totalSpent, noFiatCurrencies.get)
       )
   }
 
@@ -531,10 +533,11 @@ class Transformation(
       .join(totalSpentAdj, Seq("clusterId"), "left")
       .transform(
         TransformHelpers
-          .zeroValueIfNull(F.totalReceivedAdj, noFiatCurrencies.get)
+          .zeroCurrencyValueIfNull(F.totalReceivedAdj, noFiatCurrencies.get)
       )
       .transform(
-        TransformHelpers.zeroValueIfNull(F.totalSpentAdj, noFiatCurrencies.get)
+        TransformHelpers
+          .zeroCurrencyValueIfNull(F.totalSpentAdj, noFiatCurrencies.get)
       )
       .transform(
         TransformHelpers.withIdGroup(F.clusterId, F.clusterIdGroup, bucketSize)
