@@ -1,4 +1,4 @@
-package org.graphsense.account.eth
+package org.graphsense.account
 
 import org.graphsense.account.contract.tokens.Erc20Decoder
 import org.graphsense.account.Implicits._

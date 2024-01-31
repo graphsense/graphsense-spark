@@ -1,4 +1,4 @@
-package org.graphsense.account.eth
+package org.graphsense.common
 import org.graphsense.TestBase
 import org.graphsense.Util._
 import org.apache.spark.SparkException
