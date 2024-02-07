@@ -474,7 +474,7 @@ class TronJob(
 
         printDatasetStats(blockTransactions, "blockTransactions")
 
-        sink.saveBlockTransactionsRelational(blockTransactions)
+        sink.saveBlockTransactions(blockTransactions)
         blockTransactions.unpersist(true)
       } else {
         println("Warning - blockTransactions not empty skipping stage.")

@@ -186,12 +186,12 @@ case class Balance(
     currency: String
 )
 
+// case class BlockTransaction(
+//     blockIdGroup: Int,
+//     blockId: Int,
+//     txs: Seq[types.TransactionIdType]
+// )
 case class BlockTransaction(
-    blockIdGroup: Int,
-    blockId: Int,
-    txs: Seq[types.TransactionIdType]
-)
-case class BlockTransactionRelational(
     blockIdGroup: Int,
     blockId: Int,
     txId: types.TransactionIdType

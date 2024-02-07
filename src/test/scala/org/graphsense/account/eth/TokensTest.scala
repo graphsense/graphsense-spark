@@ -1,7 +1,7 @@
 package org.graphsense.account.eth
 
 import org.apache.spark.sql.Column
-import org.apache.spark.sql.functions.{array_distinct, col, forall, lit, size}
+import org.apache.spark.sql.functions.{col, forall, lit}
 import org.graphsense.account.Implicits._
 import org.graphsense.account.models.{Address, AddressRelation, TokenTransfer}
 import org.graphsense.TestBase
@@ -114,8 +114,7 @@ class TokenTest extends TestBase {
 
     assert(
       blockTransactions
-        .filter(size(col("txs")) =!= size(array_distinct(col("txs"))))
-        .count() === 0,
+        .count() === blockTransactions.dropDuplicates("txId").count(),
       "duplicates in block transactions"
     )
 

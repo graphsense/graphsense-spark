@@ -40,7 +40,7 @@ class TransformationTest extends TestBase {
       encodedTransactions: Dataset[EncodedTransaction],
       encodedTokenTransfers: Dataset[EncodedTokenTransfer],
       addressTransactions: Dataset[AddressTransaction],
-      blockTransactions: Dataset[BlockTransactionRelational],
+      blockTransactions: Dataset[BlockTransaction],
       addressRelations: Dataset[AddressRelation]
   )
 

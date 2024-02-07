@@ -689,17 +689,8 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
   def computeBlockTransactions(
       blocks: Dataset[Block],
       encodedTransactions: Dataset[EncodedTransaction]
-  ): Dataset[BlockTransactionRelational] = {
-    TransformHelpers.toDSEager(
-      encodedTransactions
-        .select("blockId", "transactionId")
-        .withColumnRenamed("transactionId", "txId")
-        .filter($"txId".isNotNull)
-        .dropDuplicates("blockId", "txId")
-        .transform(
-          TransformHelpers.withIdGroup("blockId", "blockIdGroup", bucketSize)
-        )
-    )
+  ): Dataset[BlockTransaction] = {
+    ethTransform.computeBlockTransactions(blocks, encodedTransactions)
   }
 
   def computeAddressTransactions(

@@ -1,6 +1,6 @@
 package org.graphsense.account.eth
 
-import org.apache.spark.sql.functions.{array_distinct, col, max, size}
+import org.apache.spark.sql.functions.{col, max}
 import org.graphsense.account.models.{
   Address,
   AddressId,
@@ -180,13 +180,11 @@ class TransformationTest extends TestBase {
     )
   }
 
-  test("no duplicates in block txs") {
-    assert(
-      blockTransactions
-        .filter(size(col("txs")) =!= size(array_distinct(col("txs"))))
-        .count() === 0
-    )
-  }
+  assert(
+    blockTransactions
+      .count() === blockTransactions.dropDuplicates("txId").count(),
+    "duplicates in block transactions"
+  )
 
   test("Address IDs") {
     assertDataFrameEquality(addressIds, addressIdsRef)
@@ -210,6 +208,8 @@ class TransformationTest extends TestBase {
 
   note("Test blocks")
 
+  blockTransactions.show(100)
+  blockTransactionsRef.show(100)
   test("Block transactions") {
     assertDataFrameEquality(blockTransactions, blockTransactionsRef)
   }

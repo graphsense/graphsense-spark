@@ -7,7 +7,6 @@ LABEL org.opencontainers.image.description="The GraphSense Transformation Pipeli
 LABEL org.opencontainers.image.source="https://github.com/graphsense/graphsense-spark"
 
 ARG UID=10000
-ADD requirements.txt /tmp/requirements.txt
 
 ARG SPARK_UI_PORT=8080
 
@@ -17,7 +16,6 @@ RUN apt-get update && \
     curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | apt-key add && \
     apt-get update && \
     apt-get install -y --no-install-recommends -y python3-pip python3-setuptools python3-wheel sbt && \
-    pip3 install -r /tmp/requirements.txt && \
     pip3 install cqlsh && \
     useradd -m -d /home/dockeruser -r -u $UID dockeruser
 
@@ -54,7 +52,6 @@ RUN sbt package && \
     cp target/scala-2.12/graphsense-spark*.jar graphsense-spark.jar
 
 ADD docker/ .
-ADD scripts/ ./scripts
 
 USER dockeruser
 

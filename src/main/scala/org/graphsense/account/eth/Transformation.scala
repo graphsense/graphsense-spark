@@ -20,7 +20,6 @@ import org.apache.spark.sql.functions.{
   min,
   row_number,
   size,
-  sort_array,
   sum,
   to_date,
   transform,
@@ -464,20 +463,16 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       blocks: Dataset[Block],
       encodedTransactions: Dataset[EncodedTransaction]
   ): Dataset[BlockTransaction] = {
-    encodedTransactions
-      .groupBy("blockId")
-      .agg(collect_set("transactionId").as("txs"))
-      .withColumn("txs", sort_array(col("txs")))
-      .join(
-        blocks.select(col("blockId")),
-        Seq("blockId"),
-        "right"
-      )
-      .transform(
-        TransformHelpers.withIdGroup("blockId", "blockIdGroup", bucketSize)
-      )
-      .sort("blockId")
-      .as[BlockTransaction]
+    TransformHelpers.toDSEager(
+      encodedTransactions
+        .select("blockId", "transactionId")
+        .withColumnRenamed("transactionId", "txId")
+        .filter($"txId".isNotNull)
+        .dropDuplicates("blockId", "txId")
+        .transform(
+          TransformHelpers.withIdGroup("blockId", "blockIdGroup", bucketSize)
+        )
+    )
   }
 
   def computeAddressTransactions(
