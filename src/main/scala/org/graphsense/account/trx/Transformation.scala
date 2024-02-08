@@ -520,7 +520,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
 
     val orderWindow = Window
       .partitionBy("address")
-      .orderBy("blockId", "traceIndex", "isFromAddress")
+      .orderBy("blockId", "isLog", "traceIndex", "isFromAddress")
 
     val all = fromAddress
       .union(toAddress)
