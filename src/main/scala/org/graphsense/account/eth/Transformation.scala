@@ -284,7 +284,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
 
     val orderWindow = Window
       .partitionBy("address")
-      .orderBy("blockId", "traceIndex", "isFromAddress")
+      .orderBy("blockId", "isLog", "traceIndex", "isFromAddress")
 
     fromAddress
       .union(toAddress)
@@ -533,10 +533,11 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
         TransformHelpers.withIdGroup("addressId", "addressIdGroup", bucketSize)
       )
       .transform(
-        TransformHelpers.withSecondaryIdGroup(
+        TransformHelpers.withSecondaryIdGroupSimple(
           "addressIdGroup",
           "addressIdSecondaryGroup",
-          "transactionId"
+          "transactionId",
+          buckets = 128
         )
       )
       .transform(TransformHelpers.withTxReference)
@@ -799,7 +800,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
           .withIdGroup("srcAddressId", "srcAddressIdGroup", bucketSize)
       )
       .transform(
-        TransformHelpers.withSecondaryIdGroup(
+        TransformHelpers.withSecondaryIdGroupSimple(
           "srcAddressIdGroup",
           "srcAddressIdSecondaryGroup",
           "srcAddressId"
@@ -811,7 +812,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
           .withIdGroup("dstAddressId", "dstAddressIdGroup", bucketSize)
       )
       .transform(
-        TransformHelpers.withSecondaryIdGroup(
+        TransformHelpers.withSecondaryIdGroupSimple(
           "dstAddressIdGroup",
           "dstAddressIdSecondaryGroup",
           "dstAddressId"
