@@ -363,8 +363,8 @@ class TransformationTest extends TestBase {
     )
     assert(data.output.addressIds.count() == 50527, "expected 50527 addresses")
     assert(
-      data.output.addressRelations.count() == 77541,
-      "expected 77541 address relations"
+      data.output.addressRelations.count() == 77633,
+      "expected 77633 address relations"
     )
 
     assert(

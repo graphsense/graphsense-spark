@@ -208,8 +208,6 @@ class TransformationTest extends TestBase {
 
   note("Test blocks")
 
-  blockTransactions.show(100)
-  blockTransactionsRef.show(100)
   test("Block transactions") {
     assertDataFrameEquality(blockTransactions, blockTransactionsRef)
   }

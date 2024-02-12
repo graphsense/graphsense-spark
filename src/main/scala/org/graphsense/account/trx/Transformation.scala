@@ -61,6 +61,10 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
     ds.filter(isTrxTrace && isSuccessfulTrace && isCallTrace)
   }
 
+  def onlySuccessfulTrxTraces[T](ds: Dataset[T]): Dataset[T] = {
+    ds.filter(isTrxTrace && isSuccessfulTrace)
+  }
+
   def joinAddressIds[T](
       addressIds: Dataset[AddressId],
       addressCol: String = "address"
@@ -106,7 +110,6 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
     ethTransform.computeExchangeRates(blocks, exchangeRates)
   }
 
-  // TODO: remove old compute with balances if this is right.
   def computeBalancesWithFeesTable(
       transactions: Dataset[Transaction],
       txFees: Dataset[TxFee],
@@ -622,7 +625,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .transform(removeUnknownRecipientTxs)
 
     val trcs = traces
-      .transform(onlySuccessfulTrxCallTraces)
+      .transform(onlySuccessfulTrxTraces)
       .filter($"txHash".isNotNull)
 
     val txsEncodedtemp = txs

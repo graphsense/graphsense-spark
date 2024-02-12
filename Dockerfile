@@ -52,6 +52,7 @@ RUN sbt package && \
     cp target/scala-2.12/graphsense-spark*.jar graphsense-spark.jar
 
 ADD docker/ .
+RUN mv log4j2.properties /opt/spark/conf && cp /opt/spark/conf/log4j2.properties /opt/spark/conf/log4j.properties && cp /opt/spark/conf/log4j2.properties /opt/spark/conf/log4j2.default
 
 USER dockeruser
 

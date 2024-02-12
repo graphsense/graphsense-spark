@@ -9,7 +9,7 @@ case class Trace(
     transfertoAddress: Option[Array[Byte]],
     // callInfoIndex: Int,
     callTokenId: Option[Int],
-    callValue: Int,
+    callValue: BigInt,
     note: String,
     rejected: Boolean,
     txHash: Option[Array[Byte]]
