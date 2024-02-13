@@ -162,7 +162,6 @@ class TransformationTest extends TestBase {
     .computeAddressRelations(encodedTransactions, encodedTokenTransfers)
     .sort("srcAddressId", "dstAddressId")
 
-
   note("Test lookup tables")
 
   test("Transaction IDs") {

@@ -123,6 +123,10 @@ abstract class TestBase
     Helpers.readTestData(spark, file)
   }
 
+  def readTestDataBase64[T <: Product: Encoder: TypeTag](file: String): Dataset[T] = {
+    Helpers.readTestDataBase64(spark, file)
+  }
+
   def setNullableStateForAllColumns[T](
       ds: Dataset[T],
       nullable: Boolean = true,

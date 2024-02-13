@@ -69,7 +69,6 @@ class ComplexGraphTransformationTest extends TestBase {
 
   // test equality
 
-
   note("Testing address graph:")
   test("Address transactions") {
     assertDataFrameEquality(addressTransactions, addressTransactionsRef)
