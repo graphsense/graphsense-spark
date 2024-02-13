@@ -32,14 +32,14 @@ class ComplexGraphTransformationTest extends TestBase {
 
   // read ref values
   val addressTransactionsRef =
-    readTestData[AddressTransaction](
+    readTestDataBase64[AddressTransaction](
       refDir + "address_transactions.json"
     )
 
   val addressesRef =
     readTestData[Address](refDir + "addresses.json")
   val addressRelationsRef =
-    readTestData[AddressRelation](refDir + "address_relations.json")
+    readTestDataBase64[AddressRelation](refDir + "address_relations.json")
 
   // Compute values
 
@@ -54,6 +54,7 @@ class ComplexGraphTransformationTest extends TestBase {
     encodedTxs,
     encodedTokenTransfers
   )
+
   val addresses =
     t.computeAddresses(
       encodedTxs,
@@ -67,6 +68,7 @@ class ComplexGraphTransformationTest extends TestBase {
     .sort("srcAddressId", "dstAddressId")
 
   // test equality
+
 
   note("Testing address graph:")
   test("Address transactions") {

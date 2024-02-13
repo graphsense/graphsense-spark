@@ -71,7 +71,7 @@ class TransformationTest extends TestBase {
     )
 
   val addressTransactionsRef =
-    readTestData[AddressTransaction](
+    readTestDataBase64[AddressTransaction](
       refDir + "address_transactions.json"
     )
 
@@ -82,7 +82,7 @@ class TransformationTest extends TestBase {
     readTestData[Address](refDir + "addresses.json")
 
   val addressRelationsRef =
-    readTestData[AddressRelation](refDir + "address_relations.json")
+    readTestDataBase64[AddressRelation](refDir + "address_relations.json")
 
   // Compute values
   val noBlocks = blocks.count.toInt
@@ -161,6 +161,7 @@ class TransformationTest extends TestBase {
   val addressRelations = t
     .computeAddressRelations(encodedTransactions, encodedTokenTransfers)
     .sort("srcAddressId", "dstAddressId")
+
 
   note("Test lookup tables")
 

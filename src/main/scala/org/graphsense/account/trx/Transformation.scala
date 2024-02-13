@@ -710,7 +710,8 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .select(
         $"srcAddressId".as("addressId"),
         $"transactionId",
-        $"traceIndex"
+        $"traceIndex",
+        $"blockId"
       )
       .withColumn("isOutgoing", lit(true))
       .withColumn("currency", lit(baseCurrencySymbol))
@@ -721,7 +722,8 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       .select(
         $"dstAddressId".as("addressId"),
         $"transactionId",
-        $"traceIndex"
+        $"traceIndex",
+        $"blockId"
       )
       .withColumn("isOutgoing", lit(false))
       .withColumn("currency", lit(baseCurrencySymbol))
@@ -734,6 +736,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
         $"srcAddressId".as("addressId"),
         $"transactionId",
         $"traceIndex",
+        $"blockId",
         $"isOutgoing",
         $"currency",
         $"logIndex"
@@ -746,6 +749,7 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
         $"dstAddressId".as("addressId"),
         $"transactionId",
         $"traceIndex",
+        $"blockId",
         $"isOutgoing",
         $"currency",
         $"logIndex"
@@ -768,14 +772,12 @@ class TrxTransformation(spark: SparkSession, bucketSize: Int) {
       )
       .transform(
         TransformHelpers.withSecondaryIdGroupSimple(
-          "addressIdGroup",
-          "addressIdSecondaryGroup",
-          "transactionId",
-          buckets = 128
+          "blockId",
+          "addressIdSecondaryGroup"
         )
       )
       .transform(TransformHelpers.withTxReference)
-      .drop("traceIndex", "logIndex")
+      .drop("traceIndex", "logIndex", "blockId")
       .sort(
         "addressId",
         "addressIdSecondaryGroup",

@@ -484,7 +484,8 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("srcAddressId").as("addressId"),
         col("transactionId"),
-        col("traceIndex")
+        col("traceIndex"),
+        col("blockId")
       )
       .withColumn("isOutgoing", lit(true))
       .withColumn("currency", lit(baseCurrencySymbol))
@@ -495,7 +496,8 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       .select(
         col("dstAddressId").as("addressId"),
         col("transactionId"),
-        col("traceIndex")
+        col("traceIndex"),
+        col("blockId")
       )
       .withColumn("isOutgoing", lit(false))
       .withColumn("currency", lit(baseCurrencySymbol))
@@ -508,6 +510,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
         col("srcAddressId").as("addressId"),
         col("transactionId"),
         col("traceIndex"),
+        col("blockId"),
         col("isOutgoing"),
         col("currency"),
         col("logIndex")
@@ -520,6 +523,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
         col("dstAddressId").as("addressId"),
         col("transactionId"),
         col("traceIndex"),
+        col("blockId"),
         col("isOutgoing"),
         col("currency"),
         col("logIndex")
@@ -534,14 +538,12 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       )
       .transform(
         TransformHelpers.withSecondaryIdGroupSimple(
-          "addressIdGroup",
-          "addressIdSecondaryGroup",
-          "transactionId",
-          buckets = 128
+          "blockId",
+          "addressIdSecondaryGroup"
         )
       )
       .transform(TransformHelpers.withTxReference)
-      .drop("traceIndex", "logIndex")
+      .drop("traceIndex", "logIndex", "blockId")
       .sort(
         "addressId",
         "addressIdSecondaryGroup",
@@ -800,10 +802,9 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
           .withIdGroup("srcAddressId", "srcAddressIdGroup", bucketSize)
       )
       .transform(
-        TransformHelpers.withSecondaryIdGroupSimple(
-          "srcAddressIdGroup",
-          "srcAddressIdSecondaryGroup",
-          "srcAddressId"
+        TransformHelpers.withSecondaryIdGroupSimpleAddress(
+          "srcAddressId",
+          "srcAddressIdSecondaryGroup"
         )
       )
       // add partitioning columns for incoming addresses
@@ -812,10 +813,9 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
           .withIdGroup("dstAddressId", "dstAddressIdGroup", bucketSize)
       )
       .transform(
-        TransformHelpers.withSecondaryIdGroupSimple(
-          "dstAddressIdGroup",
-          "dstAddressIdSecondaryGroup",
-          "dstAddressId"
+        TransformHelpers.withSecondaryIdGroupSimpleAddress(
+          "dstAddressId",
+          "dstAddressIdSecondaryGroup"
         )
       )
       .transform(

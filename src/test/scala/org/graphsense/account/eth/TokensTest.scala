@@ -49,12 +49,12 @@ class TokenTest extends TestBase {
     // load ref data
 
     val addressesRef =
-      readTestData[Address](
+      readTestDataBase64[Address](
         inputDir + "/reference/addresses.json"
       )
 
     val addressRelationsRef =
-      readTestData[AddressRelation](
+      readTestDataBase64[AddressRelation](
         inputDir + "/reference/address_relations.json"
       )
 
@@ -198,6 +198,15 @@ class TokenTest extends TestBase {
     assert(
       addresses.count() === addresses.select(col("address")).distinct().count()
     )
+
+    // addresses.write.format("json").mode("overwrite").save("addresses.json")
+
+    // addressRelations
+    //  .toDF()
+    //  .write
+    //  .format("json")
+    //  .mode("overwrite")
+    //  .save("addressRelations.json")
 
     assertDataFrameEqualityGeneric(
       addresses,

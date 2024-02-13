@@ -1,8 +1,8 @@
 {"addressId":5,"transactionId":0,"isOutgoing":false,"currency":"ETH","addressIdGroup":2,"addressIdSecondaryGroup":0,"txReference":{"traceIndex":0}}
 {"addressId":5,"transactionId":7,"isOutgoing":false,"currency":"ETH","addressIdGroup":2,"addressIdSecondaryGroup":0,"txReference":{"traceIndex":0}}
-{"addressId":7,"transactionId":0,"isOutgoing":true,"currency":"ETH","addressIdGroup":3,"addressIdSecondaryGroup":1,"txReference":{"traceIndex":0}}
-{"addressId":7,"transactionId":5,"isOutgoing":true,"currency":"ETH","addressIdGroup":3,"addressIdSecondaryGroup":1,"txReference":{"traceIndex":0}}
-{"addressId":7,"transactionId":7,"isOutgoing":true,"currency":"ETH","addressIdGroup":3,"addressIdSecondaryGroup":1,"txReference":{"traceIndex":0}}
+{"addressId":7,"transactionId":0,"isOutgoing":true,"currency":"ETH","addressIdGroup":3,"addressIdSecondaryGroup":0,"txReference":{"traceIndex":0}}
+{"addressId":7,"transactionId":5,"isOutgoing":true,"currency":"ETH","addressIdGroup":3,"addressIdSecondaryGroup":0,"txReference":{"traceIndex":0}}
+{"addressId":7,"transactionId":7,"isOutgoing":true,"currency":"ETH","addressIdGroup":3,"addressIdSecondaryGroup":0,"txReference":{"traceIndex":0}}
 {"addressId":23,"transactionId":1,"isOutgoing":false,"currency":"ETH","addressIdGroup":11,"addressIdSecondaryGroup":0,"txReference":{"traceIndex":0}}
 {"addressId":25,"transactionId":1,"isOutgoing":true,"currency":"ETH","addressIdGroup":12,"addressIdSecondaryGroup":0,"txReference":{"traceIndex":0}}
 {"addressId":26,"transactionId":2,"isOutgoing":false,"currency":"ETH","addressIdGroup":13,"addressIdSecondaryGroup":0,"txReference":{"traceIndex":0}}

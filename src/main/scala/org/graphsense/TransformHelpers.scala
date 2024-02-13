@@ -311,17 +311,28 @@ object TransformHelpers {
     )
   }
 
-  def withSecondaryIdGroupSimple[T](
-      idColumn: String,
-      secondaryIdColumn: String,
+  def withSecondaryIdGroupSimpleAddress[T](
       windowOrderColumn: String,
+      secondaryIdColumn: String,
       buckets: Int = 100
   )(ds: Dataset[T]): DataFrame = {
-    // val window = Window.partitionBy(idColumn).orderBy(windowOrderColumn)
     ds.withColumn(
       secondaryIdColumn,
       floor(
         col(windowOrderColumn) % buckets
+      ).cast(IntegerType)
+    )
+  }
+
+  def withSecondaryIdGroupSimple[T](
+      windowOrderColumn: String,
+      secondaryIdColumn: String,
+      buckets: Int = 100000
+  )(ds: Dataset[T]): DataFrame = {
+    ds.withColumn(
+      secondaryIdColumn,
+      floor(
+        col(windowOrderColumn) / buckets
       ).cast(IntegerType)
     )
   }

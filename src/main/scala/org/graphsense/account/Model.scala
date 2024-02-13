@@ -200,6 +200,7 @@ case class BlockTransaction(
 case class EncodedTokenTransfer(
     transactionId: types.TransactionIdType,
     logIndex: Int,
+    blockId: Int,
     currency: String,
     srcAddressId: types.AddressIdType,
     dstAddressId: Option[types.AddressIdType],
