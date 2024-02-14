@@ -23,7 +23,11 @@ class TronJob(
 ) extends Job {
   import spark.implicits._
 
-  private val transformation = new TrxTransformation(spark, config.bucketSize())
+  private val transformation = new TrxTransformation(
+    spark,
+    config.bucketSize(),
+    config.blockBucketSizeAddressTxs()
+  )
 
   private val debug = config.debug()
 
@@ -68,6 +72,7 @@ class TronJob(
       val conf = transformation.configuration(
         config.targetKeyspace(),
         config.bucketSize(),
+        config.blockBucketSizeAddressTxs(),
         config.txPrefixLength(),
         config.addressPrefixLength(),
         TransformHelpers.getFiatCurrencies(exchangeRatesRaw)
@@ -226,7 +231,7 @@ class TronJob(
 
     val (
       exchangeRates,
-      blocks,
+      blocks @ _,
       txs,
       txFees,
       traces,
@@ -262,25 +267,13 @@ class TronJob(
 
     /* computing and storing balances */
     timeJob("Computing balances") {
-      /* val balances = transformation
-         .computeBalancesWithFeesTable(
-           blocks,
-           txs,
-           txFees,
-           traces,
-           addressIds,
-           tokenTxs,
-           tokenConfigurations
-         )
-         .persist()*/
-
       if (
         sink
           .areBalancesEmpty() || config.forceOverwrite.toOption.getOrElse(false)
       ) {
 
         val balances = transformation
-          .computeBalancesWithFeesTable(
+          .computeBalances(
             txs,
             txFees,
             traces,
@@ -469,7 +462,7 @@ class TronJob(
         val blockTransactions =
           computeCached("blockTransactions") {
             transformation
-              .computeBlockTransactions(blocks, encodedTransactions)
+              .computeBlockTransactions(encodedTransactions)
           }
 
         printDatasetStats(blockTransactions, "blockTransactions")

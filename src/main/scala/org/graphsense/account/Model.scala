@@ -296,6 +296,7 @@ case class SummaryStatistics(
 case class Configuration(
     keyspaceName: String,
     bucketSize: Int,
+    blockBucketSizeAddressTxs: Int,
     txPrefixLength: Int,
     addressPrefixLength: Int,
     fiatCurrencies: Seq[String]

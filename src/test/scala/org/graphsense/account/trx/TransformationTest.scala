@@ -19,7 +19,7 @@ class TransformationTest extends TestBase {
 
   private val bucketSize = 2
   private val prefixLength = 4
-  private val t = new TrxTransformation(spark, bucketSize)
+  private val t = new TrxTransformation(spark, bucketSize, 100000)
 
   case class SourceData(
       exchangeRates: Dataset[ExchangeRates],
@@ -209,17 +209,9 @@ class TransformationTest extends TestBase {
 
     assert(addressIds.count() == addressIdPrefixes.count())
 
-    val balances = t.computeBalancesWithFeesTable(
+    val balances = t.computeBalances(
       transactions,
       txFees,
-      traces,
-      addressIds,
-      tokenTransfers,
-      tokenConfigurations
-    )
-    t.computeBalances(
-      blocks,
-      transactions,
       traces,
       addressIds,
       tokenTransfers,
@@ -247,7 +239,7 @@ class TransformationTest extends TestBase {
       ).persist()
 
     val blockTransactions = t
-      .computeBlockTransactions(blocks, encodedTransactions)
+      .computeBlockTransactions(encodedTransactions)
       .sort("blockId")
 
     val addressTransactions = t

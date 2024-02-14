@@ -23,7 +23,11 @@ class EthereumJob(
 ) extends Job {
   import spark.implicits._
 
-  private val transformation = new EthTransformation(spark, config.bucketSize())
+  private val transformation = new EthTransformation(
+    spark,
+    config.bucketSize(),
+    config.blockBucketSizeAddressTxs()
+  )
 
   override def run(from: Option[Int], to: Option[Int]): Unit = {
     println("Running ethereum specific transformations.")
@@ -40,6 +44,7 @@ class EthereumJob(
       transformation.configuration(
         config.targetKeyspace(),
         config.bucketSize(),
+        config.blockBucketSizeAddressTxs(),
         config.txPrefixLength(),
         config.addressPrefixLength(),
         TransformHelpers.getFiatCurrencies(exchangeRatesRaw)
@@ -175,7 +180,7 @@ class EthereumJob(
     println("Computing block transactions")
     spark.sparkContext.setJobDescription("Computing block transactions")
     val blockTransactions = transformation
-      .computeBlockTransactions(blocksFiltered, encodedTransactions)
+      .computeBlockTransactions(encodedTransactions)
 
     sink.saveBlockTransactions(blockTransactions)
 

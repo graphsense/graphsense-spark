@@ -33,7 +33,11 @@ import org.graphsense.account.models._
 import org.graphsense.models.{ExchangeRates, ExchangeRatesRaw}
 import org.graphsense.Util._
 
-class EthTransformation(spark: SparkSession, bucketSize: Int) {
+class EthTransformation(
+    spark: SparkSession,
+    bucketSize: Int,
+    bucket_size_address_txs: Int
+) {
 
   import spark.implicits._
 
@@ -42,6 +46,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
   def configuration(
       keyspaceName: String,
       bucketSize: Int,
+      blockBucketSizeAddressTx: Int,
       txPrefixLength: Int,
       addressPrefixLength: Int,
       fiatCurrencies: Seq[String]
@@ -50,6 +55,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       Configuration(
         keyspaceName,
         bucketSize,
+        blockBucketSizeAddressTx,
         txPrefixLength,
         addressPrefixLength,
         fiatCurrencies
@@ -460,7 +466,6 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
   }
 
   def computeBlockTransactions(
-      blocks: Dataset[Block],
       encodedTransactions: Dataset[EncodedTransaction]
   ): Dataset[BlockTransaction] = {
     TransformHelpers.toDSEager(
@@ -480,12 +485,29 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       encodedTokenTransfers: Dataset[EncodedTokenTransfer],
       baseCurrencySymbol: String = "ETH"
   ): Dataset[AddressTransaction] = {
+
+    // We use block id as basis for the secondary id of address txs
+    // the main purpose is to keep cassandra partitions of reasonable
+    // size, if we would only use address_id in the partition key,
+    // the partitions would grow indefinitely, unfortunately using a
+    // second id based on blocks also means we have to
+    // know this value when doing queries. To query all address txs
+    // for an address we need one query per secondary id.  or one
+    // big query containing all secondary ids (in query).
+    // to keep the amount of request manageable we want to keep the
+    // number of partitions in a reasonable range < 200 eg.
+    // for eth we assume nb=20_000_000 blocks by setting bs = 150000 as
+    // block size we get nb/bs ~= 134 partitions to query
+    // tron uses the block_bucket_size_factor of 3 to reach a similar
+    // number of buckets.
+    val block_buckets_size = bucket_size_address_txs
+
     val inputs = encodedTransactions
       .select(
-        col("srcAddressId").as("addressId"),
-        col("transactionId"),
-        col("traceIndex"),
-        col("blockId")
+        $"srcAddressId".as("addressId"),
+        $"transactionId",
+        $"traceIndex",
+        $"blockId"
       )
       .withColumn("isOutgoing", lit(true))
       .withColumn("currency", lit(baseCurrencySymbol))
@@ -494,10 +516,10 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
     val outputs = encodedTransactions
       .filter(col("dstAddressId").isNotNull)
       .select(
-        col("dstAddressId").as("addressId"),
-        col("transactionId"),
-        col("traceIndex"),
-        col("blockId")
+        $"dstAddressId".as("addressId"),
+        $"transactionId",
+        $"traceIndex",
+        $"blockId"
       )
       .withColumn("isOutgoing", lit(false))
       .withColumn("currency", lit(baseCurrencySymbol))
@@ -507,39 +529,43 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       .withColumn("isOutgoing", lit(true))
       .withColumn("traceIndex", lit(null))
       .select(
-        col("srcAddressId").as("addressId"),
-        col("transactionId"),
-        col("traceIndex"),
-        col("blockId"),
-        col("isOutgoing"),
-        col("currency"),
-        col("logIndex")
+        $"srcAddressId".as("addressId"),
+        $"transactionId",
+        $"traceIndex",
+        $"blockId",
+        $"isOutgoing",
+        $"currency",
+        $"logIndex"
       )
 
     val outputsTokens = encodedTokenTransfers
       .withColumn("isOutgoing", lit(false))
       .withColumn("traceIndex", lit(null))
       .select(
-        col("dstAddressId").as("addressId"),
-        col("transactionId"),
-        col("traceIndex"),
-        col("blockId"),
-        col("isOutgoing"),
-        col("currency"),
-        col("logIndex")
+        $"dstAddressId".as("addressId"),
+        $"transactionId",
+        $"traceIndex",
+        $"blockId",
+        $"isOutgoing",
+        $"currency",
+        $"logIndex"
       )
 
     val atxs = inputs
       .union(inputsTokens)
       .union(outputs)
       .union(outputsTokens)
+      .filter(
+        col("addressId").isNotNull
+      )
+      .filter($"transactionId".isNotNull)
       .transform(
         TransformHelpers.withIdGroup("addressId", "addressIdGroup", bucketSize)
       )
       .transform(
-        TransformHelpers.withSecondaryIdGroupSimple(
-          "blockId",
-          "addressIdSecondaryGroup"
+        TransformHelpers.withSecondaryIdGroupSimpleAddressTransaction(
+          "addressIdSecondaryGroup",
+          bucket_size = block_buckets_size
         )
       )
       .transform(TransformHelpers.withTxReference)
@@ -550,9 +576,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
         "transactionId",
         "txReference"
       )
-      .filter(
-        col("addressId").isNotNull
-      ) /*They cant be selected for anyways should only contain sender of coinbase*/
+    /*They cant be selected for anyways should only contain sender of coinbase*/
 
     /*    val txWithoutTxIds = atxs.filter(col("transactionId").isNull)
     val nr_of_txs_without_ids = txWithoutTxIds.count()
@@ -563,7 +587,7 @@ class EthTransformation(spark: SparkSession, bucketSize: Int) {
       println(txWithoutTxIds.show(100, false))
     }*/
 
-    atxs.filter(col("transactionId").isNotNull).as[AddressTransaction]
+    TransformHelpers.toDSEager(atxs)
   }
 
   def computeAddresses(

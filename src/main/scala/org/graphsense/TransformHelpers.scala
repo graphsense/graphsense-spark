@@ -324,15 +324,14 @@ object TransformHelpers {
     )
   }
 
-  def withSecondaryIdGroupSimple[T](
-      windowOrderColumn: String,
+  def withSecondaryIdGroupSimpleAddressTransaction[T](
       secondaryIdColumn: String,
-      buckets: Int = 100000
+      bucket_size: Int
   )(ds: Dataset[T]): DataFrame = {
     ds.withColumn(
       secondaryIdColumn,
       floor(
-        col(windowOrderColumn) / buckets
+        col("blockId") / bucket_size
       ).cast(IntegerType)
     )
   }

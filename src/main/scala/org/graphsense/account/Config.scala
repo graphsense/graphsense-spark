@@ -79,5 +79,13 @@ class AccountConfig(arguments: Seq[String]) extends ScallopConf(arguments) {
     noshort = true,
     descr = "Ignore if table is not empty and overwrite the data."
   )
+  val blockBucketSizeAddressTxs: ScallopOption[Int] = opt[Int](
+    "block-bucket-size-address-txs",
+    required = false,
+    default = Some(150000),
+    noshort = true,
+    descr =
+      "Bucket size for Cassandra partitions of address transactions base on blockid"
+  )
   verify()
 }

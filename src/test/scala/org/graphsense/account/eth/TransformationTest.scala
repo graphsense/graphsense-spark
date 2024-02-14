@@ -29,7 +29,7 @@ class TransformationTest extends TestBase {
   private val ds = new TestEthSource(spark, inputDir)
   private val bucketSize = 2
   private val prefixLength = 4
-  private val t = new EthTransformation(spark, bucketSize)
+  private val t = new EthTransformation(spark, bucketSize, 100000)
 
   // read raw data
   val blocks = ds.blocks()
@@ -138,7 +138,7 @@ class TransformationTest extends TestBase {
       .persist()
 
   val blockTransactions = t
-    .computeBlockTransactions(blocks, encodedTransactions)
+    .computeBlockTransactions(encodedTransactions)
     .sort("blockId")
 
   val addressTransactions = t
