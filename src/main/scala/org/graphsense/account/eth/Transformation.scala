@@ -827,7 +827,7 @@ class EthTransformation(
       )
       .transform(
         TransformHelpers.withSecondaryIdGroupSimpleAddress(
-          "srcAddressId",
+          "dstAddressId",
           "srcAddressIdSecondaryGroup"
         )
       )
@@ -838,7 +838,7 @@ class EthTransformation(
       )
       .transform(
         TransformHelpers.withSecondaryIdGroupSimpleAddress(
-          "dstAddressId",
+          "srcAddressId",
           "dstAddressIdSecondaryGroup"
         )
       )
