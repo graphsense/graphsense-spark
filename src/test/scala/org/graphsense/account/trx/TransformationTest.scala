@@ -19,7 +19,9 @@ class TransformationTest extends TestBase {
 
   private val bucketSize = 2
   private val prefixLength = 4
-  private val t = new TrxTransformation(spark, bucketSize, 100000)
+  private val bucket_size_address_txs = 150000
+  private val t =
+    new TrxTransformation(spark, bucketSize, bucket_size_address_txs)
 
   case class SourceData(
       exchangeRates: Dataset[ExchangeRates],
@@ -53,6 +55,8 @@ class TransformationTest extends TestBase {
       data.output.addressIds
         .count() == data.output.addressIds.dropDuplicates("addressId").count()
     )
+
+    // print entire data.output.addressIds and data.output.blockTransactions
 
     note("Block Transactions have one record per tx")
     assert(
@@ -158,12 +162,17 @@ class TransformationTest extends TestBase {
       t.computeExchangeRates(blocks, exchangeRatesRaw)
         .persist()
 
-    val transactionIds = t.computeTransactionIds(transactions)
+    val filtered_txs = transactions
+      .transform(t.onlySuccessfulTxs)
+      .transform(t.removeUnknownRecipientTxs)
+      .transform(t.txContractCreationAsToAddress)
+      .as[Transaction]
+    val transactionIds = t.computeTransactionIds(filtered_txs)
     transactionIds.toDF.transform(
       TransformHelpers.withSortedIdGroup[TransactionIdByTransactionIdGroup](
         "transactionId",
         "transactionIdGroup",
-        bucketSize
+        bucket_size_address_txs
       )
     )
     val transactionIdsPrefix = transactionIds.toDF.transform(

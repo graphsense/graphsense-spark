@@ -337,7 +337,12 @@ class TronJob(
 
     val transactionIds = timeJob("Computing transaction IDs") {
       computeCached("transactionIds") {
-        transformation.computeTransactionIds(txs)
+        val filtered_txs = txs
+          .transform(transformation.onlySuccessfulTxs)
+          .transform(transformation.removeUnknownRecipientTxs)
+          .transform(transformation.txContractCreationAsToAddress)
+          .as[Transaction]
+        transformation.computeTransactionIds(filtered_txs)
       }
     }
 

@@ -233,14 +233,12 @@ class EthTransformation(
       transactions: Dataset[Transaction]
   ): Dataset[TransactionId] = {
     transactions
-      .select("blockId", "transactionIndex", "txhash")
-      .sort("blockId", "transactionIndex")
-      .select("txHash")
-      .map(_.getAs[Array[Byte]]("txHash"))
-      .rdd
-      .zipWithIndex()
-      .map { case ((tx, id)) => TransactionId(tx, id) }
-      .toDS()
+      .map((row) =>
+        TransactionId(
+          row.txHash,
+          computeMonotonicTxId(row.blockId, row.transactionIndex.toInt)
+        )
+      )
   }
 
   def computeAddressIds(

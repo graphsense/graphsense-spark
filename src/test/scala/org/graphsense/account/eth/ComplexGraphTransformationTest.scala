@@ -37,7 +37,7 @@ class ComplexGraphTransformationTest extends TestBase {
     )
 
   val addressesRef =
-    readTestData[Address](refDir + "addresses.json")
+    readTestDataBase64[Address](refDir + "addresses.json")
   val addressRelationsRef =
     readTestDataBase64[AddressRelation](refDir + "address_relations.json")
 

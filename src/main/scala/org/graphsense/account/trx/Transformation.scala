@@ -248,17 +248,7 @@ class TrxTransformation(
   def computeTransactionIds(
       transactions: Dataset[Transaction]
   ): Dataset[TransactionId] = {
-    transactions
-      .transform(onlySuccessfulTxs)
-      .transform(removeUnknownRecipientTxs)
-      .transform(txContractCreationAsToAddress)
-      .as[Transaction]
-      .map((row) =>
-        TransactionId(
-          row.txHash,
-          computeMonotonicTxId(row.blockId, row.transactionIndex.toInt)
-        )
-      )
+    ethTransform.computeTransactionIds(transactions)
 
   }
 

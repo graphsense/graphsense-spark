@@ -29,7 +29,9 @@ class TransformationTest extends TestBase {
   private val ds = new TestEthSource(spark, inputDir)
   private val bucketSize = 2
   private val prefixLength = 4
-  private val t = new EthTransformation(spark, bucketSize, 100000)
+  private val bucket_size_address_txs = 150000
+  private val t =
+    new EthTransformation(spark, bucketSize, bucket_size_address_txs)
 
   // read raw data
   val blocks = ds.blocks()
@@ -43,16 +45,16 @@ class TransformationTest extends TestBase {
 
   // read ref values
   val transactionIdsRef =
-    readTestData[TransactionId](refDir + "transactions_ids.csv")
+    readTestDataBase64[TransactionId](refDir + "transactions_ids.json")
 
   val transactionIdsGroupRef =
-    readTestData[TransactionIdByTransactionIdGroup](
-      refDir + "transactions_ids_by_id_group.csv"
+    readTestDataBase64[TransactionIdByTransactionIdGroup](
+      refDir + "transactions_ids_by_id_group.json"
     )
 
   val transactionIdsPrefixRef =
-    readTestData[TransactionIdByTransactionPrefix](
-      refDir + "transactions_ids_by_prefix.csv"
+    readTestDataBase64[TransactionIdByTransactionPrefix](
+      refDir + "transactions_ids_by_prefix.json"
     )
 
   val addressIdsRef =
@@ -79,7 +81,7 @@ class TransformationTest extends TestBase {
     readTestData[BlockTransaction](refDir + "block_transactions.json")
 
   val addressesRef =
-    readTestData[Address](refDir + "addresses.json")
+    readTestDataBase64[Address](refDir + "addresses.json")
 
   val addressRelationsRef =
     readTestDataBase64[AddressRelation](refDir + "address_relations.json")
@@ -102,7 +104,7 @@ class TransformationTest extends TestBase {
       TransformHelpers.withSortedIdGroup[TransactionIdByTransactionIdGroup](
         "transactionId",
         "transactionIdGroup",
-        bucketSize
+        bucket_size_address_txs
       )
     )
   val transactionIdsByTransactionPrefix =
@@ -180,7 +182,9 @@ class TransformationTest extends TestBase {
   addressIdsByAddressPrefix.write
     .mode("overwrite")
     .json("test_ref/simple_addressIdsByAddressPrefix.json")
-  encodedTransactions.write
+  encodedTransactions
+    .filter($"transactionId".isNotNull)
+    .write
     .mode("overwrite")
     .json("test_ref/simple_encoded_transactions.json")
   addressTransactions.write
