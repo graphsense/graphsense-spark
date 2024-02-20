@@ -25,9 +25,14 @@ class TokenTest extends TestBase {
         )
       )
 
+    // save data
+    transfers.write
+      .mode("overwrite")
+      .json("test_ref/USDT_token_transfers.json")
+
     val transfersRef =
-      readTestData[TokenTransfer](
-        inputDir + "/reference/USDT_token_transfers.csv"
+      readTestDataBase64[TokenTransfer](
+        inputDir + "/reference/USDT_token_transfers.json"
       )
 
     assertDataFrameEquality(transfers, transfersRef)
@@ -109,6 +114,15 @@ class TokenTest extends TestBase {
         addressIds,
         contracts
       )
+
+    // save data
+    addresses.write
+      .mode("overwrite")
+      .json("test_ref/token_addresses.json")
+
+    addressRelations.write
+      .mode("overwrite")
+      .json("test_ref/token_address_relations.json")
 
     // check stuff
 

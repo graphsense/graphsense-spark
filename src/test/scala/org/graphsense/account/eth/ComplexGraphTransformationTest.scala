@@ -67,6 +67,16 @@ class ComplexGraphTransformationTest extends TestBase {
     .computeAddressRelations(encodedTxs, encodedTokenTransfers)
     .sort("srcAddressId", "dstAddressId")
 
+  // redo regression checks
+  addressTransactions.write
+    .mode("overwrite")
+    .json("test_ref/address_transactions.json")
+  addresses.write.mode("overwrite").json("test_ref/addresses.json")
+  addressRelations.write
+    .mode("overwrite")
+    .json("test_ref/address_relations.json")
+  encodedTokenTransfers
+
   // test equality
 
   note("Testing address graph:")

@@ -162,6 +162,37 @@ class TransformationTest extends TestBase {
     .computeAddressRelations(encodedTransactions, encodedTokenTransfers)
     .sort("srcAddressId", "dstAddressId")
 
+  // redo regression checks, csv and json
+  transactionIds.write
+    .mode("overwrite")
+    .json("test_ref/simple_transactions_ids.json")
+  addressIds.write.mode("overwrite").json("test_ref/simple_address_ids.json")
+  exchangeRates.write
+    .mode("overwrite")
+    .json("test_ref/simple_exchange_rates.json")
+  addresses.write.mode("overwrite").json("test_ref/simple_addresses.json")
+  transactionIdsByTransactionIdGroup.write
+    .mode("overwrite")
+    .json("test_ref/simple_transactions_ids_by_id_group.json")
+  transactionIdsByTransactionPrefix.write
+    .mode("overwrite")
+    .json("test_ref/simple_transactions_ids_by_prefix.json")
+  addressIdsByAddressPrefix.write
+    .mode("overwrite")
+    .json("test_ref/simple_addressIdsByAddressPrefix.json")
+  encodedTransactions.write
+    .mode("overwrite")
+    .json("test_ref/simple_encoded_transactions.json")
+  addressTransactions.write
+    .mode("overwrite")
+    .json("test_ref/simple_address_transactionsS.json")
+  blockTransactions.write
+    .mode("overwrite")
+    .json("test_ref/simple_block_transactions.json")
+  addressRelations.write
+    .mode("overwrite")
+    .json("test_ref/simple_address_relations.json")
+
   note("Test lookup tables")
 
   test("Transaction IDs") {

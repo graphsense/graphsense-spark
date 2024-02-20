@@ -38,6 +38,9 @@ class BalancesTest extends TestBase {
     val balancesRef =
       readTestData[Balance](refDir + "balances.csv")
 
+    // redo regression checks
+    balancesRef.write.mode("overwrite").json("test_ref/balances.json")
+
     assertDataFrameEquality(balances, balancesRef)
   }
 }
