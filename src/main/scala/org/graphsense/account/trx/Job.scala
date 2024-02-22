@@ -26,7 +26,8 @@ class TronJob(
   private val transformation = new TrxTransformation(
     spark,
     config.bucketSize(),
-    config.blockBucketSizeAddressTxs()
+    config.blockBucketSizeAddressTxs(),
+    config.addressrelationsIdsNbuckets()
   )
 
   private val debug = config.debug()
@@ -73,6 +74,7 @@ class TronJob(
         config.targetKeyspace(),
         config.bucketSize(),
         config.blockBucketSizeAddressTxs(),
+        config.addressrelationsIdsNbuckets(),
         config.txPrefixLength(),
         config.addressPrefixLength(),
         TransformHelpers.getFiatCurrencies(exchangeRatesRaw)

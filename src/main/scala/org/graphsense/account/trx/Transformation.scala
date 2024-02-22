@@ -24,13 +24,19 @@ import org.graphsense.Util._
 class TrxTransformation(
     spark: SparkSession,
     bucketSize: Int,
-    bucket_size_address_txs: Int
+    bucket_size_address_txs: Int,
+    addressrelations_ids_nbuckets: Int
 ) {
 
   import spark.implicits._
 
   val ethTransform =
-    new EthTransformation(spark, bucketSize, bucket_size_address_txs)
+    new EthTransformation(
+      spark,
+      bucketSize,
+      bucket_size_address_txs,
+      addressrelations_ids_nbuckets
+    )
 
   val isSuccessfulTransaction = $"receiptStatus" === 1
   val isSuccessfulTrace: Column = $"rejected" === false
@@ -96,6 +102,7 @@ class TrxTransformation(
       keyspaceName: String,
       bucketSize: Int,
       blockBucketSizeAddressTx: Int,
+      addressrelationsIdsNbuckets: Int,
       txPrefixLength: Int,
       addressPrefixLength: Int,
       fiatCurrencies: Seq[String]
@@ -104,6 +111,7 @@ class TrxTransformation(
       keyspaceName,
       bucketSize,
       blockBucketSizeAddressTx,
+      addressrelationsIdsNbuckets,
       txPrefixLength,
       addressPrefixLength,
       fiatCurrencies

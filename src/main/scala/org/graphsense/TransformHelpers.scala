@@ -314,7 +314,7 @@ object TransformHelpers {
   def withSecondaryIdGroupSimpleAddress[T](
       windowOrderColumn: String,
       secondaryIdColumn: String,
-      buckets: Int = 100
+      buckets: Int
   )(ds: Dataset[T]): DataFrame = {
     ds.withColumn(
       secondaryIdColumn,

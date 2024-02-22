@@ -297,6 +297,7 @@ case class Configuration(
     keyspaceName: String,
     bucketSize: Int,
     blockBucketSizeAddressTxs: Int,
+    addressrelationsIdsNbuckets: Int,
     txPrefixLength: Int,
     addressPrefixLength: Int,
     fiatCurrencies: Seq[String]

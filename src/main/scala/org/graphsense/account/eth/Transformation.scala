@@ -36,7 +36,8 @@ import org.graphsense.Util._
 class EthTransformation(
     spark: SparkSession,
     bucketSize: Int,
-    bucket_size_address_txs: Int
+    bucket_size_address_txs: Int,
+    addressrelations_ids_nbuckets: Int
 ) {
 
   import spark.implicits._
@@ -47,6 +48,7 @@ class EthTransformation(
       keyspaceName: String,
       bucketSize: Int,
       blockBucketSizeAddressTx: Int,
+      addressrelationsIdsNbuckets: Int,
       txPrefixLength: Int,
       addressPrefixLength: Int,
       fiatCurrencies: Seq[String]
@@ -56,6 +58,7 @@ class EthTransformation(
         keyspaceName,
         bucketSize,
         blockBucketSizeAddressTx,
+        addressrelationsIdsNbuckets,
         txPrefixLength,
         addressPrefixLength,
         fiatCurrencies
@@ -826,7 +829,8 @@ class EthTransformation(
       .transform(
         TransformHelpers.withSecondaryIdGroupSimpleAddress(
           "dstAddressId",
-          "srcAddressIdSecondaryGroup"
+          "srcAddressIdSecondaryGroup",
+          addressrelations_ids_nbuckets
         )
       )
       // add partitioning columns for incoming addresses
@@ -837,7 +841,8 @@ class EthTransformation(
       .transform(
         TransformHelpers.withSecondaryIdGroupSimpleAddress(
           "srcAddressId",
-          "dstAddressIdSecondaryGroup"
+          "dstAddressIdSecondaryGroup",
+          addressrelations_ids_nbuckets
         )
       )
       .transform(

@@ -26,7 +26,8 @@ class EthereumJob(
   private val transformation = new EthTransformation(
     spark,
     config.bucketSize(),
-    config.blockBucketSizeAddressTxs()
+    config.blockBucketSizeAddressTxs(),
+    config.addressrelationsIdsNbuckets()
   )
 
   override def run(from: Option[Int], to: Option[Int]): Unit = {
@@ -45,6 +46,7 @@ class EthereumJob(
         config.targetKeyspace(),
         config.bucketSize(),
         config.blockBucketSizeAddressTxs(),
+        config.addressrelationsIdsNbuckets(),
         config.txPrefixLength(),
         config.addressPrefixLength(),
         TransformHelpers.getFiatCurrencies(exchangeRatesRaw)

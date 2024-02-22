@@ -87,5 +87,13 @@ class AccountConfig(arguments: Seq[String]) extends ScallopConf(arguments) {
     descr =
       "Bucket size for Cassandra partitions of address transactions base on blockid"
   )
+  val addressrelationsIdsNbuckets: ScallopOption[Int] = opt[Int](
+    "addressrelations-ids-nbuckets",
+    required = false,
+    default = Some(100),
+    noshort = true,
+    descr =
+      "Number of buckets for Cassandra partitions of address relations based on address id"
+  )
   verify()
 }

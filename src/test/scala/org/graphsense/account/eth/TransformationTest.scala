@@ -30,8 +30,14 @@ class TransformationTest extends TestBase {
   private val bucketSize = 2
   private val prefixLength = 4
   private val bucket_size_address_txs = 150000
+  private val addressrelations_ids_nbuckets = 100
   private val t =
-    new EthTransformation(spark, bucketSize, bucket_size_address_txs)
+    new EthTransformation(
+      spark,
+      bucketSize,
+      bucket_size_address_txs,
+      addressrelations_ids_nbuckets
+    )
 
   // read raw data
   val blocks = ds.blocks()
