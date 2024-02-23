@@ -75,8 +75,7 @@ class ComplexGraphTransformationTest extends TestBase {
   addressRelations.write
     .mode("overwrite")
     .json("test_ref/address_relations.json")
-  encodedTokenTransfers
-
+  
   // test equality
 
   note("Testing address graph:")
