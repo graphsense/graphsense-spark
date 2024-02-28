@@ -13,7 +13,7 @@ class TokenTest extends TestBase {
   private val inputDir = "src/test/resources/account/eth/tokens/"
 
   private val ds = new TestEthSource(spark, inputDir)
-  private val t = new EthTransformation(spark, 2, 100000)
+  private val t = new EthTransformation(spark, 2, 100000, 100)
 
   test("full transform with logs") {
     // Parse all but only keep USDT token transfers for compare but parse all of them

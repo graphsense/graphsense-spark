@@ -10,7 +10,7 @@ class BalancesTest extends TestBase {
   private val refDir = inputDir + "reference/"
 
   private val ds = new TestEthSource(spark, inputDir)
-  private val t = new EthTransformation(spark, 2, 100000)
+  private val t = new EthTransformation(spark, 2, 100000, 100)
 
   import spark.implicits._
 

@@ -19,7 +19,7 @@ class ComplexGraphTransformationTest extends TestBase {
   private val inputDir = "src/test/resources/account/eth/complex_graph/"
   private val refDir = inputDir + "reference/"
   private val ds = new TestEthSource(spark, inputDir)
-  private val t = new EthTransformation(spark, 2, 100000)
+  private val t = new EthTransformation(spark, 2, 100000, 100)
 
   // read raw data
   val blocks = ds.blocks()
@@ -75,7 +75,7 @@ class ComplexGraphTransformationTest extends TestBase {
   addressRelations.write
     .mode("overwrite")
     .json("test_ref/address_relations.json")
-  
+
   // test equality
 
   note("Testing address graph:")
