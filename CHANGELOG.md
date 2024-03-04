@@ -3,13 +3,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [24.01rc1]
+## [24.02.0] 2024-03-04
 ### Fixed
 - excessive logging in container
 - tron.trace callvalue overflow int -> bigint
 ### Changed
 - Upgrade to Spark 3.4.2
 - Upgrade DataStax Spark Cassandra connector to 3.4.1
+- Simplified (record local) calculation of secondary ids
+- Simplified (record local) calculation of tx ids (account model currencies)
 
 ## [24.01.0] 2024-01-08
 ### Added
