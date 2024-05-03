@@ -2,6 +2,7 @@ package org.graphsense
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.security.MessageDigest
 import org.apache.spark.sql.Dataset
 
 /*import org.apache.spark.sql.functions.{col, when}*/
@@ -71,5 +72,43 @@ object Util {
       throw new ArithmeticException(f"${value} is out of an integers range.")
     }
   }
+
+  def sha256(data: Array[Byte]): Array[Byte] = {
+    MessageDigest
+      .getInstance("SHA-256")
+      .digest(data)
+  }
+
+  // https://idiomaticsoft.com/post/2023-05-23-base58/
+  val base58_alphabet =
+    "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+  val base58idxToChar = Map(base58_alphabet.zipWithIndex.map(_.swap): _*)
+  // val base58charToIdx = Map(base58_alphabet.zipWithIndex: _*)
+
+  def byteArrayToBigInt(a: Array[Byte]) =
+    a.reverse.zipWithIndex.foldLeft(BigInt(0)) { (acc, b) =>
+      val (digit, idx) = b
+      acc + BigInt(256).pow(idx) * BigInt(java.lang.Byte.toUnsignedInt(digit))
+    }
+
+  def base58Convert(a: Array[Byte]) =
+    baseConvert(byteArrayToBigInt(a), 58).map(base58idxToChar).mkString
+
+  def baseConvert(n: BigInt, b: Int): Array[Int] = {
+    if (n == 0) Array.emptyIntArray
+    else {
+      val m = n % b
+      val q = n / b
+      baseConvert(q, b) :+ m.toInt
+    }
+  }
+
+  def encodeBase58(a: Array[Byte]) =
+    a.takeWhile(_ == 0)
+      .map(x => base58idxToChar(x.toInt))
+      .mkString ++ base58Convert(
+      a
+    )
 
 }
