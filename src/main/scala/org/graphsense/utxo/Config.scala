@@ -56,5 +56,11 @@ class UtxoConf(arguments: Seq[String]) extends ScallopConf(arguments) {
     noshort = true,
     descr = "Spark checkpoint directory (HFDS in non-local mode)"
   )
+  val maxBlock: ScallopOption[Int] = opt[Int](
+    "max-block",
+    default = None,
+    noshort = true,
+    descr = "Max block that is used for the transformation job"
+  )
   verify()
 }

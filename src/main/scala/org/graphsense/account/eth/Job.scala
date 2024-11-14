@@ -67,14 +67,21 @@ class EthereumJob(
 
     val maxBlockExchangeRates =
       exchangeRates.select(max(col("blockId"))).first.getInt(0)
+
+    val maxBlockToProcess =
+      Math.min(
+        maxBlockExchangeRates,
+        to.getOrElse(maxBlockExchangeRates)
+      )
+
     val blocksFiltered =
-      blocks.filter(col("blockId") <= maxBlockExchangeRates).persist()
+      blocks.filter(col("blockId") <= maxBlockToProcess).persist()
     val transactionsFiltered =
-      transactions.filter(col("blockId") <= maxBlockExchangeRates).persist()
+      transactions.filter(col("blockId") <= maxBlockToProcess).persist()
     val tracesFiltered =
-      traces.filter(col("blockId") <= maxBlockExchangeRates).persist()
+      traces.filter(col("blockId") <= maxBlockToProcess).persist()
     val tokenTransfersFiltered = tokenTransfers
-      .filter(col("blockId") <= maxBlockExchangeRates)
+      .filter(col("blockId") <= maxBlockToProcess)
       .persist()
 
     val maxBlock = blocksFiltered
@@ -88,11 +95,11 @@ class EthereumJob(
     val maxBlockDatetime =
       maxBlock.select(col("maxBlockDatetime")).first.getString(0)
 
-    val noBlocks = maxBlockExchangeRates.toLong + 1
+    val noBlocks = maxBlockToProcess.toLong + 1
     val noTransactions = transactionsFiltered.count()
 
     println(s"Max block timestamp: ${maxBlockDatetime}")
-    println(s"Max block ID: ${maxBlockExchangeRates}")
+    println(s"Max block ID: ${maxBlockToProcess}")
     println(s"Max transaction ID: ${noTransactions - 1}")
 
     println("Computing transaction IDs")

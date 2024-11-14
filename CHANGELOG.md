@@ -3,10 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## Unreleased
+## [24.11.0] 2024-11-14
 ### Changed
 - Upgrade to Spark 3.5.3
 - Upgrade DataStax Spark Cassandra connector to 3.5.1
+### Added
+- max-block cli parameter for utxo currencies and eth to test with smaller datasets.
 
 ## [24.02.0] 2024-03-04
 ### Fixed

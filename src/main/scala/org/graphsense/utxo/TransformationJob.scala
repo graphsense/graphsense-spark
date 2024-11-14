@@ -71,11 +71,18 @@ object TransformationJob {
 
     val maxBlockExchangeRates =
       exchangeRates.select(max(col(F.blockId))).first.getInt(0)
+
+    val maxBlockToProcess =
+      Math.min(
+        maxBlockExchangeRates,
+        conf.maxBlock.toOption.getOrElse(maxBlockExchangeRates)
+      )
+
     val transactionsFiltered =
-      transactions.filter(col(F.blockId) <= maxBlockExchangeRates).persist()
+      transactions.filter(col(F.blockId) <= maxBlockToProcess).persist()
 
     val maxBlock = blocks
-      .filter(col(F.blockId) <= maxBlockExchangeRates)
+      .filter(col(F.blockId) <= maxBlockToProcess)
       .select(
         max(col(F.blockId)).as("maxBlockId"),
         max(col(F.timestamp)).as("maxBlockTimestamp")
@@ -87,11 +94,11 @@ object TransformationJob {
       maxBlock.select(col("maxBlockDatetime")).first.getString(0)
     val maxTransactionId =
       transactionsFiltered.select(max(F.txId)).first.getLong(0)
-    val noBlocks = maxBlockExchangeRates + 1
+    val noBlocks = maxBlockToProcess + 1
     val noTransactions = maxTransactionId + 1
 
     println(s"Max block timestamp: ${maxBlockDatetime}")
-    println(s"Max block ID: ${maxBlockExchangeRates}")
+    println(s"Max block ID: ${maxBlockToProcess}")
     println(s"Max transaction ID: ${maxTransactionId}")
 
     println("Extracting transaction inputs")
