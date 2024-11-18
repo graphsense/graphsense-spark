@@ -87,4 +87,5 @@ lazy val root = (project in file(".")).
       "org.apache.spark" %% "spark-sql" % "3.5.3" % Provided,
       "org.apache.spark" %% "spark-graphx" % "3.5.3" % Provided,
       "graphframes" % "graphframes" % "0.8.3-spark3.5-s_2.12" % Provided),
+    javaOptions ++= Seq("-Xms10g", "-Xmx10g", "-XX:+CMSClassUnloadingEnabled")
   )

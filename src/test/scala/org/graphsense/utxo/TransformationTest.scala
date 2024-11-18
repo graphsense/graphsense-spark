@@ -98,7 +98,6 @@ class TransformationTest extends TestBase {
     t.computeAddressCluster(regInputs, addressIds, false)
       .sort(F.addressId)
       .persist()
-
   val clusterAddresses =
     t.computeClusterAddresses(addressClusterCoinjoin)
       .sort(F.clusterId, F.addressId)
@@ -135,6 +134,10 @@ class TransformationTest extends TestBase {
     t.computeClusterRelations(plainClusterRelations, exchangeRates).persist()
   val noClusterRelations = clusterRelations.count()
 
+  plainClusterRelations.unpersist()
+  clusterInputs.unpersist()
+  clusterOutputs.unpersist()
+  addresses.unpersist()
   val cluster =
     t.computeCluster(basicCluster, clusterRelations)
       .sort(F.clusterId)
