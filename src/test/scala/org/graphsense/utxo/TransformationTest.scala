@@ -49,6 +49,16 @@ class TransformationTest extends TestBase {
   val addressIds = t.computeAddressIds(regOutputs)
   val addressByAddressPrefix = t.computeAddressByAddressPrefix(addressIds)
 
+  test("addressByAddressPrefix") {
+    val addressByAddressPrefixRef =
+      readTestData[AddressByAddressPrefix](
+        refDir + "address_by_address_prefix.json"
+      )
+    assertDataFrameEquality(addressByAddressPrefix, addressByAddressPrefixRef)
+  }
+
+  addressByAddressPrefix.unpersist()
+
   val addressTransactions =
     t.computeAddressTransactions(
       regInputs,
@@ -56,6 +66,15 @@ class TransformationTest extends TestBase {
       addressIds
     ).sort(F.addressId, F.blockId, F.value)
       .persist()
+
+  test("regularOutputs") {
+    val regOutputsRef =
+      readTestData[RegularOutput](refDir + "regular_outputs.json")
+        .sort(F.txId, F.address)
+    val sortedOutput = regOutputs.sort(F.txId, F.address)
+    assertDataFrameEquality(sortedOutput, regOutputsRef)
+  }
+  regOutputs.unpersist()
 
   val (inputs, outputs) = t.splitTransactions(addressTransactions)
   inputs.persist()
@@ -94,10 +113,34 @@ class TransformationTest extends TestBase {
       .persist()
   val noAddresses = addresses.count()
 
+  test("basicAddresses") {
+    val basicAddressesRef =
+      readTestData[BasicAddress](refDir + "basic_addresses.json")
+    assertDataFrameEquality(basicAddresses, basicAddressesRef)
+  }
+  basicAddresses.unpersist()
+
   val addressClusterCoinjoin =
     t.computeAddressCluster(regInputs, addressIds, false)
       .sort(F.addressId)
       .persist()
+
+  test("regularInputs") {
+    val regInputsRef =
+      readTestData[RegularInput](refDir + "regular_inputs.json")
+        .sort(F.txId, F.address)
+    val sortedInputs = regInputs.sort(F.txId, F.address)
+    assertDataFrameEquality(sortedInputs, regInputsRef)
+  }
+  regInputs.unpersist()
+
+  test("addressIds") {
+    val addressIdsRef =
+      readTestData[AddressId](refDir + "address_ids.json")
+    assertDataFrameEquality(addressIds, addressIdsRef)
+  }
+  addressIds.unpersist()
+
   val clusterAddresses =
     t.computeClusterAddresses(addressClusterCoinjoin)
       .sort(F.clusterId, F.addressId)
@@ -135,9 +178,27 @@ class TransformationTest extends TestBase {
   val noClusterRelations = clusterRelations.count()
 
   plainClusterRelations.unpersist()
+
+  test("clusterInputs") {
+    val clusterInputsRef =
+      readTestData[ClusterTransaction](refDir + "cluster_inputs.json")
+    assertDataFrameEquality(clusterInputs, clusterInputsRef)
+  }
   clusterInputs.unpersist()
+
+  test("clusterOutputs") {
+    val clusterOutputsRef =
+      readTestData[ClusterTransaction](refDir + "cluster_outputs.json")
+    assertDataFrameEquality(clusterOutputs, clusterOutputsRef)
+  }
   clusterOutputs.unpersist()
+
+  test("addresses") {
+    val addressesRef = readTestData[Address](refDir + "addresses.json")
+    assertDataFrameEquality(addresses, addressesRef)
+  }
   addresses.unpersist()
+
   val cluster =
     t.computeCluster(basicCluster, clusterRelations)
       .sort(F.clusterId)
@@ -155,35 +216,8 @@ class TransformationTest extends TestBase {
       noClusterRelations
     )
 
-  note("test address graph")
+  // note("test address graph")
 
-  test("addressIds") {
-    val addressIdsRef =
-      readTestData[AddressId](refDir + "address_ids.json")
-    assertDataFrameEquality(addressIds, addressIdsRef)
-  }
-  test("addressByAddressPrefix") {
-    val addressByAddressPrefixRef =
-      readTestData[AddressByAddressPrefix](
-        refDir + "address_by_address_prefix.json"
-      )
-    assertDataFrameEquality(addressByAddressPrefix, addressByAddressPrefixRef)
-  }
-
-  test("regularInputs") {
-    val regInputsRef =
-      readTestData[RegularInput](refDir + "regular_inputs.json")
-        .sort(F.txId, F.address)
-    val sortedInputs = regInputs.sort(F.txId, F.address)
-    assertDataFrameEquality(sortedInputs, regInputsRef)
-  }
-  test("regularOutputs") {
-    val regOutputsRef =
-      readTestData[RegularOutput](refDir + "regular_outputs.json")
-        .sort(F.txId, F.address)
-    val sortedOutput = regOutputs.sort(F.txId, F.address)
-    assertDataFrameEquality(sortedOutput, regOutputsRef)
-  }
   test("addressTransactions") {
     val addressTransactionsRef =
       readTestData[AddressTransaction](refDir + "address_txs.json")
@@ -199,19 +233,11 @@ class TransformationTest extends TestBase {
       readTestData[AddressTransaction](refDir + "outputs.json")
     assertDataFrameEquality(outputs, outputsRef)
   }
-  test("basicAddresses") {
-    val basicAddressesRef =
-      readTestData[BasicAddress](refDir + "basic_addresses.json")
-    assertDataFrameEquality(basicAddresses, basicAddressesRef)
-  }
+
   test("addressRelations") {
     val addressRelationsRef =
       readTestData[AddressRelation](refDir + "address_relations.json")
     assertDataFrameEquality(addressRelations, addressRelationsRef)
-  }
-  test("addresses") {
-    val addressesRef = readTestData[Address](refDir + "addresses.json")
-    assertDataFrameEquality(addresses, addressesRef)
   }
 
   note("test cluster graph")
@@ -233,16 +259,7 @@ class TransformationTest extends TestBase {
       readTestData[ClusterTransaction](refDir + "cluster_txs.json")
     assertDataFrameEquality(clusterTransactions, clusterTransactionsRef)
   }
-  test("clusterInputs") {
-    val clusterInputsRef =
-      readTestData[ClusterTransaction](refDir + "cluster_inputs.json")
-    assertDataFrameEquality(clusterInputs, clusterInputsRef)
-  }
-  test("clusterOutputs") {
-    val clusterOutputsRef =
-      readTestData[ClusterTransaction](refDir + "cluster_outputs.json")
-    assertDataFrameEquality(clusterOutputs, clusterOutputsRef)
-  }
+
   test("basicCluster") {
     val basicClusterRef =
       readTestData[BasicCluster](refDir + "basic_cluster.json")
