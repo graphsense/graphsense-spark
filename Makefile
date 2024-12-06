@@ -5,7 +5,7 @@ all: format lint build
 	
 # -v graphsense-spark-temp-volume:/tmp/spark:z 
 RUNTRANSFORM=sh -c '\
-  docker run \
+  docker run --rm \
 	-e RAW_KEYSPACE=$$1_raw_dev \
 	-e TGT_KEYSPACE=$$1_transformed_dev \
 	-e NETWORK=$$1 \
