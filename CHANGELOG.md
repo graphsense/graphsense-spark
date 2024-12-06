@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [24.11.1] 2024-12-06
+### Fixed
+- block difficulty and total difficulty can now be null
+
 ## [24.11.0] 2024-11-14
 ### Changed
 - Upgrade to Spark 3.5.3

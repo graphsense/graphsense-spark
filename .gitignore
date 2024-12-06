@@ -8,3 +8,4 @@ metals.sbt
 .idea/*
 graphsense-spark.jar
 test_ref
+.vscode/

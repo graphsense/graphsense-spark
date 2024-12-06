@@ -1,8 +1,8 @@
-RELEASE := 'v24.11.0'
+RELEASE := 'v24.11.1'
 # RELEASESEM := 'v1.6.2'
 
 all: format lint build
-	
+
 # -v graphsense-spark-temp-volume:/tmp/spark:z 
 RUNTRANSFORM=sh -c '\
   docker run --rm \
