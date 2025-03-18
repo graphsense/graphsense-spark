@@ -97,6 +97,8 @@ class TokenTest extends TestBase {
         exchangeRates
       ).persist()
 
+    encodedTokenTransfers.show(10)
+
     val addressRelations =
       t.computeAddressRelations(encodedTransactions, encodedTokenTransfers)
 
