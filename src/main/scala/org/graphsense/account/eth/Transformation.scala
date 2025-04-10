@@ -343,6 +343,15 @@ class EthTransformation(
             ),
             lit(1)
           )
+        ).when(
+          col("pegCurrency") === "EUR",
+          array(
+            lit(1),
+            element_at(col(fiatValueColumn), 2) / element_at(
+              col(fiatValueColumn),
+              1
+            )
+          )
         ).otherwise(col(fiatValueColumn))
       )
       dfWithStablecoinFactors.withColumn(

@@ -64,6 +64,14 @@ object EthTokenSet extends TokenSet {
       18,
       pow(10, 18).longValue(),
       Some("USD")
+    ),
+    TokenConfiguration(
+      "DEUR",
+      hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ea"),
+      "erc20",
+      18,
+      pow(10, 18).longValue(),
+      Some("USD")
     )
     // TokenConfiguration(
     //   "WBTC",

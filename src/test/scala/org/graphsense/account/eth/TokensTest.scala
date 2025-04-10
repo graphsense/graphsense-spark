@@ -1,18 +1,23 @@
 package org.graphsense.account.eth
 
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.functions.{col, forall, lit}
 import org.graphsense.account.Implicits._
-import org.graphsense.account.models.{Address, AddressRelation, TokenTransfer}
+import org.graphsense.account.models.{
+  AddressId,
+  TokenConfiguration,
+  TokenTransfer,
+  TransactionId
+}
+import org.graphsense.models.ExchangeRates
 import org.graphsense.TestBase
 
+import math.pow
 class TokenTest extends TestBase {
   import spark.implicits._
   spark.sparkContext.setLogLevel("WARN")
 
   private val inputDir = "src/test/resources/account/eth/tokens/"
 
-  private val ds = new TestEthSource(spark, inputDir)
+  new TestEthSource(spark, inputDir)
   private val t = new EthTransformation(spark, 2, 100000, 100)
 
   test("full transform with logs") {
@@ -38,6 +43,114 @@ class TokenTest extends TestBase {
     assertDataFrameEquality(transfers, transfersRef)
 
   }
+
+  test("test USD peg") {
+    val eUSD = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3eb")
+    val tokenConfigs = Seq(
+      TokenConfiguration(
+        "DUSD",
+        eUSD,
+        "erc20",
+        18,
+        pow(10, 18).longValue(),
+        Some("USD")
+      )
+    ).toDS
+    val txH = hexStrToBytes("0x01")
+    val block = 0
+    val fr = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ea")
+    val to = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ea")
+    val tt = Seq(
+      TokenTransfer(block, 0, 0, txH, eUSD, fr, to, 1000000000000000000L)
+    ).toDS
+    val tid = Seq(TransactionId(txH, 1)).toDS
+    val aid = Seq(AddressId(fr, 1)).toDS
+    val er = Seq(ExchangeRates(block, Seq(1450.89f, 1602.56f))).toDS
+    val data = t.computeEncodedTokenTransfers(tt, tokenConfigs, tid, aid, er)
+
+    val delta = 0.0001
+
+    val valEUR = data
+      .select($"fiatValues")
+      .as[Array[Float]]
+      .collect()(0)(0)
+
+    println(valEUR)
+
+    val expectedEUR = 0.90535766
+
+    assert(
+      (valEUR - expectedEUR).abs < delta
+    )
+
+    val valUSD = data
+      .select($"fiatValues")
+      .as[Array[Float]]
+      .collect()(0)(1)
+
+    val expectedUSD = 1.0
+
+    assert(
+      (valUSD - expectedUSD).abs < delta
+    )
+
+  }
+
+  test("test EUR peg") {
+    val eeur = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ea")
+    val tokenConfigs = Seq(
+      TokenConfiguration(
+        "DEUR",
+        eeur,
+        "erc20",
+        18,
+        pow(10, 18).longValue(),
+        Some("EUR")
+      )
+    ).toDS
+    val txH = hexStrToBytes("0x01")
+    val block = 0
+
+    val fr = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ea")
+    val to = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ea")
+    val tt = Seq(
+      TokenTransfer(block, 0, 0, txH, eeur, fr, to, 1000000000000000000L)
+    ).toDS
+    val tid = Seq(TransactionId(txH, 1)).toDS
+    val aid = Seq(AddressId(fr, 1)).toDS
+    val er = Seq(ExchangeRates(block, Seq(1450.89f, 1602.56f))).toDS
+    val data = t.computeEncodedTokenTransfers(tt, tokenConfigs, tid, aid, er)
+
+    val delta = 0.0001
+
+    val valEUR = data
+      .select($"fiatValues")
+      .as[Array[Float]]
+      .collect()(0)(0)
+
+    val expectedEUR = 1.0
+
+    assert(
+      (valEUR - expectedEUR).abs < delta
+    )
+
+    val valUSD = data
+      .select($"fiatValues")
+      .as[Array[Float]]
+      .collect()(0)(1)
+
+    val expectedUSD = 1.1045358
+
+    assert(
+      (valUSD - expectedUSD).abs < delta
+    )
+
+  }
+      tokenTransfers: Dataset[TokenTransfer],
+  tokenConfigurations: Dataset[TokenConfiguration],
+  transactionsIds: Dataset[TransactionId],
+  addressIds: Dataset[AddressId],
+  exchangeRates: Dataset[ExchangeRates]
 
   test("encoded token transfers test") {
     // load raw data
