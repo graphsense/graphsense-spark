@@ -146,7 +146,7 @@ class TokenTest extends TestBase {
     )
 
   }
-  
+
   test("encoded token transfers test") {
     // load raw data
     val blocks = ds.blocks()
