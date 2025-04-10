@@ -146,12 +146,7 @@ class TokenTest extends TestBase {
     )
 
   }
-      tokenTransfers: Dataset[TokenTransfer],
-  tokenConfigurations: Dataset[TokenConfiguration],
-  transactionsIds: Dataset[TransactionId],
-  addressIds: Dataset[AddressId],
-  exchangeRates: Dataset[ExchangeRates]
-
+  
   test("encoded token transfers test") {
     // load raw data
     val blocks = ds.blocks()
