@@ -1,8 +1,12 @@
 package org.graphsense.account.eth
 
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.functions.{col, forall, lit}
 import org.graphsense.account.Implicits._
 import org.graphsense.account.models.{
+  Address,
   AddressId,
+  AddressRelation,
   TokenConfiguration,
   TokenTransfer,
   TransactionId
@@ -17,7 +21,7 @@ class TokenTest extends TestBase {
 
   private val inputDir = "src/test/resources/account/eth/tokens/"
 
-  new TestEthSource(spark, inputDir)
+  private val ds = new TestEthSource(spark, inputDir)
   private val t = new EthTransformation(spark, 2, 100000, 100)
 
   test("full transform with logs") {
