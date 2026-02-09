@@ -25,6 +25,18 @@ Make sure [Java 11][java] and [sbt >= 1.0][scala-sbt] is installed:
     java -version
     sbt about
 
+**Java 17 Support:** Java 17 is supported but not actively tested. When using Java 17, the following JVM flags must be set:
+
+```
+--add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens=java.base/java.nio=ALL-UNNAMED
+--add-opens=java.base/java.lang=ALL-UNNAMED
+--add-opens=java.base/java.util=ALL-UNNAMED
+--add-exports=java.base/sun.misc=ALL-UNNAMED
+```
+
+These flags are already configured in `build.sbt` for local development.
+
 Download, install, and run [Apache Spark][apache-spark] (version >= 3.5.1)
 in `$SPARK_HOME`:
 
