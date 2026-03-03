@@ -80,7 +80,7 @@ Compile, test the implementation
 
 Run the dockerized pipeline on localhost
 
-    make run-docker-{NETWORK}-transform-local
+   make build-docker && make run-docker-{NETWORK}-transform-local
 
 Check the running job using the local Spark UI at http://localhost:4040/jobs. 
 
