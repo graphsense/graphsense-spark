@@ -1,4 +1,4 @@
-FROM openjdk:11
+FROM eclipse-temurin:11-jdk
 
 LABEL org.opencontainers.image.title="graphsense-spark"
 LABEL org.opencontainers.image.maintainer="contact@ikna.io"
@@ -16,7 +16,6 @@ RUN apt-get update && \
     curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | apt-key add && \
     apt-get update && \
     apt-get install -y --no-install-recommends -y python3-pip python3-setuptools python3-wheel sbt && \
-    pip3 install cqlsh && \
     useradd -m -d /home/dockeruser -r -u $UID dockeruser
 
 # install Spark
