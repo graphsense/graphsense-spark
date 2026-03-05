@@ -8,7 +8,7 @@ LABEL org.opencontainers.image.source="https://github.com/graphsense/graphsense-
 
 ARG UID=10000
 
-ARG SPARK_UI_PORT=8080
+ARG SPARK_UI_PORT=4040
 
 RUN apt-get update && \
     echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list && \
