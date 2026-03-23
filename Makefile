@@ -41,7 +41,7 @@ build-fat:
 	sbt assembly
 
 build-docker:
-	docker build . -t graphsense-spark
+	docker build --provenance=false . -t graphsense-spark
 
 run-docker-eth-transform-local: build-docker
 	${RUNTRANSFORM} eth
