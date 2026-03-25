@@ -9,6 +9,8 @@ FOO="${SPARK_BLOCKMGR_PORT:=0}"
 FOO="${SPARK_PARALLELISM:=16}"
 FOO="${SPARK_EXECUTOR_MEMORY:=16g}"
 FOO="${SPARK_DRIVER_MEMORY:=16g}"
+FOO="${SPARK_CASSANDRA_OUTPUT_THROUGHPUT_MB_PER_SEC:=0.2}"
+FOO="${SPARK_CASSANDRA_INPUT_THROUGHPUT_MB_PER_SEC:=0.2}"
 
 # FOO="${TRANSFORM_VERSION:=v1.5.1}"
 FOO="${TRANSFORM_BUCKET_SIZE:=10000}"
@@ -24,6 +26,8 @@ echo -en "Starting Spark job ...\n" \
          "- Spark driver:        $SPARK_DRIVER_HOST:$SPARK_DRIVER_PORT\n" \
          "- Spark local dir:     $SPARK_LOCAL_DIR\n" \
          "- Cassandra host:      $CASSANDRA_HOST\n" \
+         "- Cassandra output MB/s: $SPARK_CASSANDRA_OUTPUT_THROUGHPUT_MB_PER_SEC (0 = no throttling)\n" \
+         "- Cassandra input MB/s:  $SPARK_CASSANDRA_INPUT_THROUGHPUT_MB_PER_SEC (0 = no throttling)\n" \
          "- Executor memory:     $SPARK_EXECUTOR_MEMORY\n" \
          "- Spark parallelism:   $SPARK_PARALLELISM\n" \
          "- Transform Version:   $TRANSFORM_VERSION\n" \
@@ -42,6 +46,8 @@ time "$SPARK_HOME"/bin/spark-submit \
   --conf spark.blockManager.port="$SPARK_BLOCKMGR_PORT" \
   --conf spark.executor.memory="$SPARK_EXECUTOR_MEMORY" \
   --conf spark.cassandra.connection.host="$CASSANDRA_HOST" \
+  --conf spark.cassandra.output.throughput_mb_per_sec="$SPARK_CASSANDRA_OUTPUT_THROUGHPUT_MB_PER_SEC" \
+  --conf spark.cassandra.input.throughput_mb_per_sec="$SPARK_CASSANDRA_INPUT_THROUGHPUT_MB_PER_SEC" \
   --conf spark.sql.extensions=com.datastax.spark.connector.CassandraSparkExtensions \
   --conf spark.local.dir="$SPARK_LOCAL_DIR" \
   --conf spark.default.parallelism=$SPARK_PARALLELISM \
