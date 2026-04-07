@@ -28,9 +28,9 @@ RUN mkdir -p /opt/graphsense && \
     chmod 755 /opt/spark/conf/spark-env.sh
 
 
-ENV SPARK_HOME /opt/spark
-ENV HADOOP_HOME /opt/hadoop
-ENV HADOOP_OPTS "$HADOOP_OPTS -Djava.library.path=$HADOOP_HOME/lib/native"
+ENV SPARK_HOME="/opt/spark"
+ENV HADOOP_HOME="/opt/hadoop"
+ENV HADOOP_OPTS="-Djava.library.path=$HADOOP_HOME/lib/native"
 
 WORKDIR /opt/graphsense
 

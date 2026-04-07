@@ -46,8 +46,8 @@ time "$SPARK_HOME"/bin/spark-submit \
   --conf spark.blockManager.port="$SPARK_BLOCKMGR_PORT" \
   --conf spark.executor.memory="$SPARK_EXECUTOR_MEMORY" \
   --conf spark.cassandra.connection.host="$CASSANDRA_HOST" \
-  --conf spark.cassandra.output.throughput_mb_per_sec="$SPARK_CASSANDRA_OUTPUT_THROUGHPUT_MB_PER_SEC" \
-  --conf spark.cassandra.input.throughput_mb_per_sec="$SPARK_CASSANDRA_INPUT_THROUGHPUT_MB_PER_SEC" \
+  --conf spark.cassandra.output.throughputMBPerSec="$SPARK_CASSANDRA_OUTPUT_THROUGHPUT_MB_PER_SEC" \
+  --conf spark.cassandra.input.throughputMBPerSec="$SPARK_CASSANDRA_INPUT_THROUGHPUT_MB_PER_SEC" \
   --conf spark.sql.extensions=com.datastax.spark.connector.CassandraSparkExtensions \
   --conf spark.local.dir="$SPARK_LOCAL_DIR" \
   --conf spark.default.parallelism=$SPARK_PARALLELISM \
