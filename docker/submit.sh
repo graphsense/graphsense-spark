@@ -11,6 +11,11 @@ FOO="${SPARK_EXECUTOR_MEMORY:=16g}"
 FOO="${SPARK_DRIVER_MEMORY:=16g}"
 FOO="${SPARK_CASSANDRA_OUTPUT_THROUGHPUT_MB_PER_SEC:=0.2}"
 FOO="${SPARK_CASSANDRA_INPUT_THROUGHPUT_MB_PER_SEC:=0.2}"
+FOO="${SPARK_CASSANDRA_CONNECTION_TIMEOUT_MS:=60000}"
+FOO="${SPARK_CASSANDRA_READ_TIMEOUT_MS:=120000}"
+FOO="${SPARK_CASSANDRA_QUERY_RETRY_COUNT:=10}"
+FOO="${SPARK_CASSANDRA_RECONNECTION_DELAY_MAX_MS:=10000}"
+FOO="${SPARK_CASSANDRA_OUTPUT_CONCURRENT_WRITES:=2}"
 
 # FOO="${TRANSFORM_VERSION:=v1.5.1}"
 FOO="${TRANSFORM_BUCKET_SIZE:=10000}"
@@ -28,6 +33,11 @@ echo -en "Starting Spark job ...\n" \
          "- Cassandra host:      $CASSANDRA_HOST\n" \
          "- Cassandra output MB/s: $SPARK_CASSANDRA_OUTPUT_THROUGHPUT_MB_PER_SEC (0 = no throttling)\n" \
          "- Cassandra input MB/s:  $SPARK_CASSANDRA_INPUT_THROUGHPUT_MB_PER_SEC (0 = no throttling)\n" \
+         "- Cassandra conn timeout ms:  $SPARK_CASSANDRA_CONNECTION_TIMEOUT_MS\n" \
+         "- Cassandra read timeout ms:  $SPARK_CASSANDRA_READ_TIMEOUT_MS\n" \
+         "- Cassandra query retries:    $SPARK_CASSANDRA_QUERY_RETRY_COUNT\n" \
+         "- Cassandra reconnect max ms: $SPARK_CASSANDRA_RECONNECTION_DELAY_MAX_MS\n" \
+         "- Cassandra concurrent writes:$SPARK_CASSANDRA_OUTPUT_CONCURRENT_WRITES\n" \
          "- Executor memory:     $SPARK_EXECUTOR_MEMORY\n" \
          "- Spark parallelism:   $SPARK_PARALLELISM\n" \
          "- Transform Version:   $TRANSFORM_VERSION\n" \
@@ -48,6 +58,11 @@ time "$SPARK_HOME"/bin/spark-submit \
   --conf spark.cassandra.connection.host="$CASSANDRA_HOST" \
   --conf spark.cassandra.output.throughputMBPerSec="$SPARK_CASSANDRA_OUTPUT_THROUGHPUT_MB_PER_SEC" \
   --conf spark.cassandra.input.throughputMBPerSec="$SPARK_CASSANDRA_INPUT_THROUGHPUT_MB_PER_SEC" \
+  --conf spark.cassandra.connection.timeoutMS="$SPARK_CASSANDRA_CONNECTION_TIMEOUT_MS" \
+  --conf spark.cassandra.read.timeoutMS="$SPARK_CASSANDRA_READ_TIMEOUT_MS" \
+  --conf spark.cassandra.query.retry.count="$SPARK_CASSANDRA_QUERY_RETRY_COUNT" \
+  --conf spark.cassandra.connection.reconnectionDelayMS.max="$SPARK_CASSANDRA_RECONNECTION_DELAY_MAX_MS" \
+  --conf spark.cassandra.output.concurrent.writes="$SPARK_CASSANDRA_OUTPUT_CONCURRENT_WRITES" \
   --conf spark.sql.extensions=com.datastax.spark.connector.CassandraSparkExtensions \
   --conf spark.local.dir="$SPARK_LOCAL_DIR" \
   --conf spark.default.parallelism=$SPARK_PARALLELISM \
