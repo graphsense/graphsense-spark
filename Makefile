@@ -1,4 +1,4 @@
-RELEASE := 'v25.07.1'
+RELEASE := 'v25.07.2'
 # RELEASESEM := 'v1.6.2'
 
 all: format lint build
@@ -40,8 +40,10 @@ build:
 build-fat:
 	sbt assembly
 
+DOCKER_BUILD_FLAGS := $(shell docker build --help 2>&1 | grep -q -- --provenance && echo --provenance=false)
+
 build-docker:
-	docker build --provenance=false . -t graphsense-spark
+	docker build $(DOCKER_BUILD_FLAGS) . -t graphsense-spark
 
 run-docker-eth-transform-local: build-docker
 	${RUNTRANSFORM} eth

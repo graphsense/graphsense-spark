@@ -3,6 +3,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [25.07.2] 2026-05-12
+### Fixed
+- Docker build failed on current `eclipse-temurin:11-jdk` (Ubuntu 25.10) because `apt-key` has been removed. Switched the SBT repository key handling to `gpg --dearmor` + `signed-by=` in `/etc/apt/keyrings/sbt.gpg`.
+- `make build-docker` failed under Podman, which does not accept `--provenance=false`. The flag is now only passed when the local `docker` binary advertises support for it.
+### Changed
+- Bump Spark 3.5.3 → 3.5.8 (latest patch in the 3.5.x line) and pull the tarball from `dlcdn.apache.org` instead of `archive.apache.org` to avoid the rate-limited archive host.
+- Bump Hadoop 2.7.7 → 2.10.2 (last patch in the 2.x line, wire/API-compatible) and switch its download from `archive.apache.org` to `dlcdn.apache.org` for the same reason.
+
 ## [24.07.0] 2025-06-26
 ### added
 - new supported tokens for eth

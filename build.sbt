@@ -84,8 +84,8 @@ lazy val root = (project in file(".")).
       "joda-time" % "joda-time" % "2.10.10" % Provided,
       "org.web3j" % "core" % "4.8.7" % Provided,
       "org.web3j" % "abi" % "4.8.7" % Provided,
-      "org.apache.spark" %% "spark-sql" % "3.5.3" % Provided,
-      "org.apache.spark" %% "spark-graphx" % "3.5.3" % Provided,
+      "org.apache.spark" %% "spark-sql" % "3.5.8" % Provided,
+      "org.apache.spark" %% "spark-graphx" % "3.5.8" % Provided,
       "graphframes" % "graphframes" % "0.8.3-spark3.5-s_2.12" % Provided),
     javaOptions ++= Seq(
       "-Xms8g",

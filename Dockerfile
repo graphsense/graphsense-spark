@@ -11,19 +11,24 @@ ARG UID=10000
 ARG SPARK_UI_PORT=4040
 
 RUN apt-get update && \
-    echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list && \
-    echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | tee /etc/apt/sources.list.d/sbt_old.list && \
-    curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | apt-key add && \
+    apt-get install -y --no-install-recommends curl ca-certificates gnupg && \
+    install -d -m 0755 /etc/apt/keyrings && \
+    curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" \
+        | gpg --dearmor -o /etc/apt/keyrings/sbt.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/sbt.gpg] https://repo.scala-sbt.org/scalasbt/debian all main" \
+        | tee /etc/apt/sources.list.d/sbt.list && \
+    echo "deb [signed-by=/etc/apt/keyrings/sbt.gpg] https://repo.scala-sbt.org/scalasbt/debian /" \
+        | tee /etc/apt/sources.list.d/sbt_old.list && \
     apt-get update && \
-    apt-get install -y --no-install-recommends -y python3-pip python3-setuptools python3-wheel sbt && \
+    apt-get install -y --no-install-recommends python3-pip python3-setuptools python3-wheel sbt && \
     useradd -m -d /home/dockeruser -r -u $UID dockeruser
 
 # install Spark
 RUN mkdir -p /opt/graphsense && \
-    wget https://archive.apache.org/dist/spark/spark-3.5.3/spark-3.5.3-bin-without-hadoop.tgz -O - | tar -xz -C /opt && \
-    ln -s /opt/spark-3.5.3-bin-without-hadoop /opt/spark && \
-    wget https://archive.apache.org/dist/hadoop/core/hadoop-2.7.7/hadoop-2.7.7.tar.gz -O - | tar -xz -C /opt && \
-    ln -s /opt/hadoop-2.7.7 /opt/hadoop && \
+    wget https://dlcdn.apache.org/spark/spark-3.5.8/spark-3.5.8-bin-without-hadoop.tgz -O - | tar -xz -C /opt && \
+    ln -s /opt/spark-3.5.8-bin-without-hadoop /opt/spark && \
+    wget https://dlcdn.apache.org/hadoop/common/hadoop-2.10.2/hadoop-2.10.2.tar.gz -O - | tar -xz -C /opt && \
+    ln -s /opt/hadoop-2.10.2 /opt/hadoop && \
     echo "#!/usr/bin/env bash\nexport SPARK_DIST_CLASSPATH=$(/opt/hadoop/bin/hadoop classpath)" >> /opt/spark/conf/spark-env.sh && \
     chmod 755 /opt/spark/conf/spark-env.sh
 
