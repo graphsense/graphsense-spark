@@ -21,7 +21,23 @@ FOO="${SPARK_CASSANDRA_OUTPUT_CONCURRENT_WRITES:=2}"
 FOO="${TRANSFORM_BUCKET_SIZE:=10000}"
 FOO="${NETWORK:=ETH}"
 
-FOO="${SPARK_PACKAGES:=com.datastax.spark:spark-cassandra-connector_2.12:3.4.1,org.rogach:scallop_2.12:4.1.0,joda-time:joda-time:2.10.10,org.web3j:core:4.8.7,org.web3j:abi:4.8.7,graphframes:graphframes:0.8.3-spark3.4-s_2.12}"
+FOO="${SPARK_PACKAGES:=com.datastax.spark:spark-cassandra-connector_2.12:3.5.1,org.rogach:scallop_2.12:4.1.0,joda-time:joda-time:2.10.10,org.web3j:core:4.8.7,org.web3j:abi:4.8.7,graphframes:graphframes:0.8.3-spark3.5-s_2.12}"
+
+FOO="${GS_SPARK_WRITER:=cassandra}"
+
+# Write path for the transformed tables, forwarded to the job as CLI arguments.
+# The cassandra-analytics bulk writer (GS_SPARK_WRITER=sidecar) also needs its
+# Spark data source on the classpath; the default Cassandra connector does not.
+# When GS_SPARK_WRITER=sidecar, GS_SPARK_SIDECAR_CONTACT_POINTS and
+# GS_SPARK_SIDECAR_LOCAL_DC are required (GS_SPARK_SIDECAR_CONSISTENCY_LEVEL is
+# optional, defaults to LOCAL_QUORUM).
+GS_SPARK_ARGS="--writer $GS_SPARK_WRITER"
+if [ "$GS_SPARK_WRITER" = "sidecar" ]; then
+  SPARK_PACKAGES="$SPARK_PACKAGES,org.apache.cassandra:cassandra-analytics-core_spark3_2.12:0.3.0"
+  GS_SPARK_ARGS="$GS_SPARK_ARGS --sidecar-contact-points $GS_SPARK_SIDECAR_CONTACT_POINTS"
+  GS_SPARK_ARGS="$GS_SPARK_ARGS --sidecar-local-dc $GS_SPARK_SIDECAR_LOCAL_DC"
+  GS_SPARK_ARGS="$GS_SPARK_ARGS --sidecar-consistency-level ${GS_SPARK_SIDECAR_CONSISTENCY_LEVEL:-LOCAL_QUORUM}"
+fi
 
 FOO="${CASSANDRA_HOST:=localhost}"
 
@@ -31,6 +47,7 @@ echo -en "Starting Spark job ...\n" \
          "- Spark driver:        $SPARK_DRIVER_HOST:$SPARK_DRIVER_PORT\n" \
          "- Spark local dir:     $SPARK_LOCAL_DIR\n" \
          "- Cassandra host:      $CASSANDRA_HOST\n" \
+         "- Writer:              $GS_SPARK_WRITER\n" \
          "- Cassandra output MB/s: $SPARK_CASSANDRA_OUTPUT_THROUGHPUT_MB_PER_SEC (0 = no throttling)\n" \
          "- Cassandra input MB/s:  $SPARK_CASSANDRA_INPUT_THROUGHPUT_MB_PER_SEC (0 = no throttling)\n" \
          "- Cassandra conn timeout ms:  $SPARK_CASSANDRA_CONNECTION_TIMEOUT_MS\n" \
@@ -79,6 +96,7 @@ time "$SPARK_HOME"/bin/spark-submit \
   --network "$NETWORK" \
   --raw-keyspace "$RAW_KEYSPACE" \
   --target-keyspace "$TGT_KEYSPACE" \
+  $GS_SPARK_ARGS \
   # --gs-cache-dir file:///tmp/spark/ \
   # --bucket-size $TRANSFORM_BUCKET_SIZE \
 

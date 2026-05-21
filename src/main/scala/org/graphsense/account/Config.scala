@@ -1,8 +1,11 @@
 package org.graphsense.account.config
 
+import org.graphsense.config.WriterConfig
 import org.rogach.scallop._
 
-class AccountConfig(arguments: Seq[String]) extends ScallopConf(arguments) {
+class AccountConfig(arguments: Seq[String])
+    extends ScallopConf(arguments)
+    with WriterConfig {
   val rawKeyspace: ScallopOption[String] =
     opt[String](
       "raw-keyspace",

@@ -1,8 +1,11 @@
 package org.graphsense.utxo.config
 
+import org.graphsense.config.WriterConfig
 import org.rogach.scallop._
 
-class UtxoConf(arguments: Seq[String]) extends ScallopConf(arguments) {
+class UtxoConf(arguments: Seq[String])
+    extends ScallopConf(arguments)
+    with WriterConfig {
   val network: ScallopOption[String] = opt[String](
     required = true,
     descr = "Cryptocurrency (e.g. BTC, BCH, LTC, ZEC)"

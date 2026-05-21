@@ -1,0 +1,156 @@
+package org.graphsense.storage
+
+import org.apache.cassandra.spark.KryoRegister
+import org.apache.cassandra.spark.bulkwriter.BulkSparkConf
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
+
+/** Writes a transformed table by generating SSTables on the Spark executors and
+  * streaming them into Cassandra through the Cassandra Sidecar, using the
+  * cassandra-analytics bulk-writer data source. This bypasses the CQL
+  * coordinator / commitlog / memtable write path that the default
+  * [[CassandraStorage]] connector write uses.
+  */
+class SidecarBulkWriter(
+    sidecarContactPoints: String,
+    localDc: String,
+    consistencyLevel: String
+) {
+
+  def write(
+      keyspace: String,
+      table: String,
+      df: DataFrame,
+      tableColumns: Seq[String]
+  ): Unit = {
+    SidecarBulkWriter
+      .alignToSchema(df, tableColumns)
+      .write
+      .format("org.apache.cassandra.spark.sparksql.CassandraDataSink")
+      .option("sidecar_contact_points", sidecarContactPoints)
+      .option("keyspace", keyspace)
+      .option("table", table)
+      .option("local_dc", localDc)
+      .option("bulk_writer_cl", consistencyLevel)
+      .option("number_splits", "-1")
+      .option("data_transport", "DIRECT")
+      .mode("append")
+      .save()
+  }
+}
+
+object SidecarBulkWriter {
+
+  private def isSidecar(writer: String): Boolean =
+    writer.equalsIgnoreCase("sidecar")
+
+  /** A SparkConf with the cassandra-analytics bulk-writer setup applied (Kryo
+    * registration and bulk write settings) when `--writer=sidecar` is selected.
+    * Must be passed to the SparkSession builder before the session is created.
+    */
+  def sparkConf(writer: String): SparkConf = {
+    val conf = new SparkConf()
+    if (isSidecar(writer)) {
+      BulkSparkConf.setupSparkConf(conf, true)
+      KryoRegister.setup(conf)
+    }
+    conf
+  }
+
+  /** A [[SidecarBulkWriter]] when `--writer=sidecar`, or None for the default
+    * Cassandra connector write path. Fails when a required sidecar option is
+    * missing.
+    */
+  def forWriter(
+      writer: String,
+      contactPoints: Option[String],
+      localDc: Option[String],
+      consistencyLevel: String
+  ): Option[SidecarBulkWriter] = {
+    if (!isSidecar(writer)) {
+      None
+    } else {
+      def required(value: Option[String], option: String): String =
+        value.getOrElse(
+          throw new IllegalArgumentException(
+            s"$option is required when --writer=sidecar"
+          )
+        )
+      Some(
+        new SidecarBulkWriter(
+          required(contactPoints, "--sidecar-contact-points"),
+          required(localDc, "--sidecar-local-dc"),
+          consistencyLevel
+        )
+      )
+    }
+  }
+
+  /** Project a transformed DataFrame onto the target Cassandra table.
+    *
+    * GraphSense case classes use camelCase field names and, for several tables
+    * (e.g. `address_incoming_relations`, `address_transactions`), carry more
+    * fields than the table has columns -- the Spark Cassandra connector
+    * silently wrote only the table's columns. cassandra-analytics instead
+    * matches DataFrame columns to Cassandra columns by exact name, so this:
+    *   - keeps only the columns present in the target table (dropping extras),
+    *   - renames each to its exact Cassandra column name, matched by the
+    *     connector's convention (equal once lowercased with underscores
+    *     removed) -- this also covers irregular names such as `bech_32_prefix`,
+    *   - renames nested UDT struct fields to snake_case.
+    *
+    * Fails loudly if a table column has no matching DataFrame field.
+    */
+  def alignToSchema(df: DataFrame, tableColumns: Seq[String]): DataFrame = {
+    def normalize(name: String): String =
+      name.toLowerCase.replace("_", "")
+
+    val fieldByNormalizedName =
+      df.schema.fields.map(f => normalize(f.name) -> f.name).toMap
+
+    val projection = tableColumns.map { column =>
+      fieldByNormalizedName.get(normalize(column)) match {
+        case Some(field) => col(field).as(column)
+        case None =>
+          throw new IllegalArgumentException(
+            s"No DataFrame column matches Cassandra column '$column'"
+          )
+      }
+    }
+    renameStructFields(df.select(projection: _*))
+  }
+
+  /** Recursively rename nested struct (UDT) fields to snake_case. Top-level
+    * columns are already exact table column names; snake-casing an already
+    * snake_case name is a no-op, so they are left unchanged.
+    */
+  private def renameStructFields(df: DataFrame): DataFrame = {
+    def snake(name: String): String =
+      name.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase
+
+    def renameType(dataType: DataType): DataType =
+      dataType match {
+        case st: StructType =>
+          StructType(
+            st.map(f =>
+              f.copy(name = snake(f.name), dataType = renameType(f.dataType))
+            )
+          )
+        case ArrayType(elementType, containsNull) =>
+          ArrayType(renameType(elementType), containsNull)
+        case MapType(keyType, valueType, valueContainsNull) =>
+          MapType(keyType, renameType(valueType), valueContainsNull)
+        case other => other
+      }
+
+    val renamedSchema =
+      StructType(
+        df.schema.map(f =>
+          f.copy(name = snake(f.name), dataType = renameType(f.dataType))
+        )
+      )
+    df.sparkSession.createDataFrame(df.rdd, renamedSchema)
+  }
+}

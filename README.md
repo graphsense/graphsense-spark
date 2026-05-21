@@ -86,6 +86,35 @@ Check the running job using the local Spark UI at http://localhost:4040/jobs.
 
 Detailed information about how to submit a job and how to install the necessary infrastructure we point you to the Dockerfile and the submit script in ```docker/submit.sh```.
 
+## Writing transformed data to Cassandra
+
+The transformation job can write its output tables to Cassandra in two ways,
+selected with the `--writer` job argument:
+
+- `cassandra` (default) — the [DataStax Spark Cassandra connector][spark-cassandra-connector].
+  Tables are written through the regular CQL write path (coordinator, commitlog,
+  memtables).
+- `sidecar` — bulk loading via [cassandra-analytics][cassandra-analytics]. Each
+  Spark task generates SSTables and streams them into Cassandra through the
+  [Cassandra Sidecar][cassandra-sidecar], bypassing the CQL write path. This
+  avoids the coordinator and commitlog and causes far less compaction and GC
+  pressure, which makes it the better option for large loads.
+
+The `sidecar` writer requires the Cassandra Sidecar to be running on the cluster
+nodes and takes these additional arguments:
+
+    --writer sidecar
+    --sidecar-contact-points host1,host2,host3   # Sidecar hosts (seed list)
+    --sidecar-local-dc <datacenter>
+    --sidecar-consistency-level LOCAL_QUORUM     # optional, default LOCAL_QUORUM
+
+When run through `docker/submit.sh`, these are taken from the `GS_SPARK_WRITER`,
+`GS_SPARK_SIDECAR_CONTACT_POINTS`, `GS_SPARK_SIDECAR_LOCAL_DC` and
+`GS_SPARK_SIDECAR_CONSISTENCY_LEVEL` environment variables (e.g. via
+`docker run -e`) and forwarded as the arguments above; `submit.sh` also adds the
+`cassandra-analytics` Spark package automatically. The default `cassandra` path
+is unaffected.
+
 ## Contributions
 
 Community contributions e.g. new features and bug fixes are very welcome. For both please create a pull request with the proposed changes. We will review as soon as possible. To avoid frustration and wasted work please contact us to discuss changes before you implement them. This is best done via an issue or our [discussion board](https://github.com/orgs/graphsense/discussions/).
@@ -107,5 +136,8 @@ before committing.
 [dsbulk]: https://github.com/datastax/dsbulk
 [apache-spark]: https://spark.apache.org/downloads.html
 [apache-cassandra]: http://cassandra.apache.org
+[spark-cassandra-connector]: https://github.com/datastax/spark-cassandra-connector
+[cassandra-analytics]: https://github.com/apache/cassandra-analytics
+[cassandra-sidecar]: https://github.com/apache/cassandra-sidecar
 
 

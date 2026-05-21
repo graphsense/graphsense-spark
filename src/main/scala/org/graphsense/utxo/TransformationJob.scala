@@ -16,6 +16,7 @@ object TransformationJob {
     val conf = new UtxoConf(args)
 
     val spark = SparkSession.builder
+      .config(SidecarBulkWriter.sparkConf(conf.writer()))
       .appName("GraphSense Transformation [%s]".format(conf.targetKeyspace()))
       .getOrCreate()
     spark.sparkContext.setLogLevel("WARN")
@@ -34,7 +35,17 @@ object TransformationJob {
 
     import spark.implicits._
 
-    val cassandra = new CassandraStorage(spark)
+    println("Writer:                        " + conf.writer())
+
+    val cassandra = new CassandraStorage(
+      spark,
+      SidecarBulkWriter.forWriter(
+        conf.writer(),
+        conf.sidecarContactPoints.toOption,
+        conf.sidecarLocalDc.toOption,
+        conf.sidecarConsistencyLevel()
+      )
+    )
     val transformation =
       new Transformation(spark, conf.bucketSize(), conf.addressPrefixLength())
 

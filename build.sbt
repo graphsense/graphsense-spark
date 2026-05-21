@@ -86,7 +86,8 @@ lazy val root = (project in file(".")).
       "org.web3j" % "abi" % "4.8.7" % Provided,
       "org.apache.spark" %% "spark-sql" % "3.5.8" % Provided,
       "org.apache.spark" %% "spark-graphx" % "3.5.8" % Provided,
-      "graphframes" % "graphframes" % "0.8.3-spark3.5-s_2.12" % Provided),
+      "graphframes" % "graphframes" % "0.8.3-spark3.5-s_2.12" % Provided,
+      "org.apache.cassandra" % "cassandra-analytics-core_spark3_2.12" % "0.3.0" % Provided),
     javaOptions ++= Seq(
       "-Xms8g",
       "-Xmx8g",

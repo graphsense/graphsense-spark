@@ -5,7 +5,7 @@ import org.graphsense.Job
 import org.graphsense.account.config.AccountConfig
 import org.graphsense.account.eth.{CassandraEthSource, EthereumJob}
 import org.graphsense.account.trx.{CassandraTrxSource, TronJob}
-import org.graphsense.storage.CassandraStorage
+import org.graphsense.storage.{CassandraStorage, SidecarBulkWriter}
 
 object TransformationJob {
 
@@ -15,6 +15,7 @@ object TransformationJob {
     val conf = new AccountConfig(args)
 
     val spark = SparkSession.builder
+      .config(SidecarBulkWriter.sparkConf(conf.writer()))
       .appName("GraphSense Transformation [%s]".format(conf.targetKeyspace()))
       .getOrCreate()
     spark.sparkContext.setLogLevel("WARN")
@@ -39,7 +40,17 @@ object TransformationJob {
         .getOrElse(0)
     )
 
-    val cassandra = new CassandraStorage(spark)
+    println("Writer:                        " + conf.writer())
+
+    val cassandra = new CassandraStorage(
+      spark,
+      SidecarBulkWriter.forWriter(
+        conf.writer(),
+        conf.sidecarContactPoints.toOption,
+        conf.sidecarLocalDc.toOption,
+        conf.sidecarConsistencyLevel()
+      )
+    )
 
     val transform: Job = conf.network() match {
       case "eth" =>

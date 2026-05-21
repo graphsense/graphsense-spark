@@ -3,6 +3,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [25.08.0rc1] 2026-05-21
+### Added
+- Optional Cassandra Sidecar bulk-write path, selected with the `--writer`
+  argument (`cassandra`, default, or `sidecar`). With `--writer sidecar`,
+  transformed tables are written by generating SSTables on the Spark executors
+  and streaming them into Cassandra through the Cassandra Sidecar (via the
+  cassandra-analytics data source), bypassing the CQL coordinator/commitlog
+  write path. The default keeps the Spark Cassandra connector write path
+  unchanged.
+### Fixed
+- `docker/submit.sh` pinned the Spark Cassandra connector (`3.4.1`) and
+  graphframes (`spark3.4`) packages to Spark 3.4 artifacts while the build
+  targets Spark 3.5.
+
 ## [25.07.2] 2026-05-12
 ### Fixed
 - Docker build failed on current `eclipse-temurin:11-jdk` (Ubuntu 25.10) because `apt-key` has been removed. Switched the SBT repository key handling to `gpg --dearmor` + `signed-by=` in `/etc/apt/keyrings/sbt.gpg`.
