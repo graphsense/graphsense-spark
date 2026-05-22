@@ -3,9 +3,23 @@ package org.graphsense.storage
 import org.apache.cassandra.spark.KryoRegister
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
+import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.spark.sql.functions.{
+  col,
+  lit,
+  struct,
+  transform,
+  transform_values,
+  when
+}
+import org.apache.spark.sql.types.{
+  ArrayType,
+  DataType,
+  DecimalType,
+  MapType,
+  StringType,
+  StructType
+}
 
 /** Writes a transformed table by generating SSTables on the Spark executors and
   * streaming them into Cassandra through the Cassandra Sidecar, using the
@@ -99,7 +113,8 @@ object SidecarBulkWriter {
     *   - renames each to its exact Cassandra column name, matched by the
     *     connector's convention (equal once lowercased with underscores
     *     removed) -- this also covers irregular names such as `bech_32_prefix`,
-    *   - renames nested UDT struct fields to snake_case.
+    *   - renames nested UDT struct fields to snake_case,
+    *   - casts varint columns to String (see [[castVarintsToString]]).
     *
     * Fails loudly if a table column has no matching DataFrame field.
     */
@@ -119,7 +134,7 @@ object SidecarBulkWriter {
           )
       }
     }
-    renameStructFields(df.select(projection: _*))
+    castVarintsToString(renameStructFields(df.select(projection: _*)))
   }
 
   /** Recursively rename nested struct (UDT) fields to snake_case. Top-level
@@ -153,4 +168,47 @@ object SidecarBulkWriter {
       )
     df.sparkSession.createDataFrame(df.rdd, renamedSchema)
   }
+
+  /** Cast every varint column -- top-level or nested inside a UDT, Map, or
+    * Array -- to String.
+    *
+    * cassandra-analytics 0.3.0's BigIntegerConverter rejects
+    * java.math.BigDecimal, the JVM type Spark's DecimalType emits at row-read
+    * time, so varint must reach the bulk writer as String; the converter then
+    * parses it back to a BigInteger. No-op for DataFrames without varint.
+    */
+  def castVarintsToString(df: DataFrame): DataFrame = {
+    val projection = df.schema.fields.map(f =>
+      castVarintsExpr(df(f.name), f.dataType).as(f.name)
+    )
+    df.select(projection: _*)
+  }
+
+  // spark-cassandra-connector maps Cassandra `varint` to Spark
+  // DecimalType(38, 0). Regular `decimal` columns carry their actual
+  // precision/scale, so this isolates varint from decimal cleanly.
+  private def isVarintType(dataType: DataType): Boolean =
+    dataType match {
+      case d: DecimalType => d.precision == 38 && d.scale == 0
+      case _              => false
+    }
+
+  // Recursively rebuild `column` so any varint-shaped DecimalType becomes a
+  // String, descending into structs, arrays, and maps.
+  private def castVarintsExpr(column: Column, dataType: DataType): Column =
+    dataType match {
+      case d if isVarintType(d) =>
+        column.cast(StringType)
+      case st: StructType =>
+        val fields = st.fields.map(f =>
+          castVarintsExpr(column.getField(f.name), f.dataType).as(f.name)
+        )
+        when(column.isNull, lit(null)).otherwise(struct(fields: _*))
+      case ArrayType(elementType, _) =>
+        transform(column, x => castVarintsExpr(x, elementType))
+      case MapType(_, valueType, _) =>
+        transform_values(column, (_, v) => castVarintsExpr(v, valueType))
+      case _ =>
+        column
+    }
 }
