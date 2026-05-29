@@ -15,7 +15,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@v1
+      - name: Build slim and fat jars
+        run: sbt package assembly
       - name: Filter CHANGELOG
         run: |
           sed  '1,/## \[/d;/## \[/Q' CHANGELOG.md > CHANGELOG_LATEST.md
@@ -28,4 +37,6 @@ jobs:
               --repo="$GITHUB_REPOSITORY" \
               --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
               -F CHANGELOG_LATEST.md \
-              --generate-notes
+              --generate-notes \
+              target/scala-2.12/graphsense-spark_2.12-*.jar \
+              target/scala-2.12/graphsense-spark-assembly-*.jar

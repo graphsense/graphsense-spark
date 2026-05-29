@@ -76,18 +76,46 @@ lazy val root = (project in file(".")).
       "-Ywarn-unused-import",
       "-Ywarn-value-discard"),
     resolvers += "SparkPackages" at "https://repos.spark-packages.org/",
+    // Scope rationale (matters for `sbt assembly`):
+    //   - The application's runtime deps below are plain (compile) scope so the
+    //     assembly (fat) jar bundles them. This lets a fat-jar consumer run the
+    //     job without passing them via spark-submit --packages, and in
+    //     particular bundles graphframes (which lives on the spark-packages
+    //     repo, not Maven Central) so consumers need no extra resolver.
+    //   - Spark itself (spark-sql, spark-graphx) stays Provided: the cluster
+    //     supplies it and it must NOT be bundled.
+    //   - cassandra-analytics-core (optional Sidecar bulk-write path) stays
+    //     Provided: it is large, only used with --writer sidecar, and is added
+    //     via --packages when needed.
+    // `sbt package` / `sbt publish` never bundle dependencies regardless of
+    // scope, so the slim jar and the existing prod spark-submit flow (slim jar
+    // + --packages) are unchanged by this.
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.12" % Test,
       "com.github.mrpowers" % "spark-fast-tests_2.12" % "1.0.0" % Test,
-      "org.rogach" %% "scallop" % "4.1.0" % Provided,
-      "com.datastax.spark" %% "spark-cassandra-connector" % "3.5.1" % Provided,
-      "joda-time" % "joda-time" % "2.10.10" % Provided,
-      "org.web3j" % "core" % "4.8.7" % Provided,
-      "org.web3j" % "abi" % "4.8.7" % Provided,
+      "org.rogach" %% "scallop" % "4.1.0",
+      "com.datastax.spark" %% "spark-cassandra-connector" % "3.5.1",
+      "joda-time" % "joda-time" % "2.10.10",
+      "org.web3j" % "core" % "4.8.7",
+      "org.web3j" % "abi" % "4.8.7",
       "org.apache.spark" %% "spark-sql" % "3.5.8" % Provided,
       "org.apache.spark" %% "spark-graphx" % "3.5.8" % Provided,
-      "graphframes" % "graphframes" % "0.8.3-spark3.5-s_2.12" % Provided,
+      "graphframes" % "graphframes" % "0.8.3-spark3.5-s_2.12",
       "org.apache.cassandra" % "cassandra-analytics-core_spark3_2.12" % "0.3.0" % Provided),
+    // Fat-jar (assembly) configuration. Scala is provided by the Spark cluster,
+    // so it is excluded to keep the jar smaller and avoid classpath shadowing.
+    assembly / assemblyPackageScala / assembleArtifact := false,
+    assembly / assemblyMergeStrategy := {
+      case PathList("META-INF", "MANIFEST.MF")      => MergeStrategy.discard
+      case PathList("META-INF", "services", _ @ _*) => MergeStrategy.concat
+      case PathList("META-INF", "native", _ @ _*)   => MergeStrategy.first
+      case "reference.conf"                         => MergeStrategy.concat
+      case "application.conf"                        => MergeStrategy.concat
+      case x if x.endsWith("module-info.class")     => MergeStrategy.discard
+      case x =>
+        val previous = (assembly / assemblyMergeStrategy).value
+        previous(x)
+    },
     javaOptions ++= Seq(
       "-Xms8g",
       "-Xmx8g",

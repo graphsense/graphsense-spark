@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [25.08.0rc1] 2026-05-21
+## [v26.06.0] 2026-05-29
 ### Added
 - Optional Cassandra Sidecar bulk-write path, selected with the `--writer`
   argument (`cassandra`, default, or `sidecar`). With `--writer sidecar`,
@@ -12,6 +12,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   cassandra-analytics data source), bypassing the CQL coordinator/commitlog
   write path. The default keeps the Spark Cassandra connector write path
   unchanged.
+- Release workflow now builds and attaches both the slim (`sbt package`) and
+  fat (`sbt assembly`) jars as GitHub Release assets, so consumers can download
+  a versioned jar from a public, token-free URL instead of GitHub Packages.
+### Changed
+- `build.sbt`: application runtime dependencies (scallop, spark-cassandra-connector,
+  joda-time, web3j, graphframes) moved from `Provided` to compile scope so the
+  assembly jar bundles them (graphframes in particular is not on Maven Central).
+  Spark (`spark-sql`, `spark-graphx`) and the optional Cassandra Sidecar
+  `cassandra-analytics-core` remain `Provided`. `sbt package` / `sbt publish`
+  output and the existing spark-submit flow are unchanged.
 ### Fixed
 - `docker/submit.sh` pinned the Spark Cassandra connector (`3.4.1`) and
   graphframes (`spark3.4`) packages to Spark 3.4 artifacts while the build
