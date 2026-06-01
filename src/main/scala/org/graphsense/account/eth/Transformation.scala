@@ -681,7 +681,7 @@ class EthTransformation(
       .groupBy("dstAddressId")
       .agg(
         count("transactionId").cast(IntegerType).as("noIncomingTxsZeroValue"),
-        countDistinct("dstAddressId").cast(IntegerType).as("inDegreeZeroValue")
+        countDistinct("srcAddressId").cast(IntegerType).as("inDegreeZeroValue")
       )
 
     val inStatsToken = encodedTokenTransfers
