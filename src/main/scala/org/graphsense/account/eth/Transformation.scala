@@ -30,7 +30,12 @@ import org.apache.spark.sql.types.{DecimalType, FloatType, IntegerType}
 import org.graphsense.TransformHelpers
 import org.graphsense.account.eth.models._
 import org.graphsense.account.models._
-import org.graphsense.models.{ExchangeRates, ExchangeRatesRaw}
+import org.graphsense.models.{
+  ExchangeRates,
+  ExchangeRatesRaw,
+  TokenExchangeRates,
+  TokenExchangeRatesRaw
+}
 import org.graphsense.Util._
 
 class EthTransformation(
@@ -111,6 +116,41 @@ class EthTransformation(
       .drop("date")
       .sort("blockId")
       .as[ExchangeRates]
+  }
+
+  def computeTokenExchangeRates(
+      blocks: Dataset[Block],
+      tokenExchangeRatesRaw: Dataset[TokenExchangeRatesRaw],
+      tokenTransfers: Dataset[TokenTransfer],
+      tokenConfigurations: Dataset[TokenConfiguration]
+  ): Dataset[TokenExchangeRates] = {
+    val blocksDate = blocks
+      .withColumn(
+        "date",
+        date_format(
+          to_date(from_unixtime(col("timestamp"), "yyyy-MM-dd")),
+          "yyyy-MM-dd"
+        )
+      )
+      .select("blockId", "date")
+
+    val unpeggedAssets = tokenConfigurations
+      .filter(col("pegCurrency").isNull)
+      .select(col("tokenAddress"), col("currencyTicker").as("asset"))
+
+    // only (asset, blockId) pairs that saw transfers, to keep the table
+    // sparse; the serving layer falls back to the nearest earlier block
+    tokenTransfers
+      .join(unpeggedAssets, Seq("tokenAddress"))
+      .select("asset", "blockId")
+      .distinct
+      .join(blocksDate, Seq("blockId"))
+      .join(tokenExchangeRatesRaw, Seq("asset", "date"))
+      .withColumn("fiatValues", map_values(col("fiatValues")))
+      .filter(col("fiatValues").isNotNull)
+      .select("asset", "blockId", "fiatValues")
+      .sort("asset", "blockId")
+      .as[TokenExchangeRates]
   }
 
   def computeBalances(
@@ -327,7 +367,9 @@ class EthTransformation(
       tokenConfigurations: Dataset[TokenConfiguration],
       transactionsIds: Dataset[TransactionId],
       addressIds: Dataset[AddressId],
-      exchangeRates: Dataset[ExchangeRates]
+      exchangeRates: Dataset[ExchangeRates],
+      tokenExchangeRates: Dataset[TokenExchangeRates] =
+        spark.emptyDataset[TokenExchangeRates]
   ): Dataset[EncodedTokenTransfer] = {
     def toFiatCurrency(valueColumn: String, fiatValueColumn: String)(
         df: DataFrame
@@ -335,6 +377,14 @@ class EthTransformation(
       val dfWithStablecoinFactors = df.withColumn(
         fiatValueColumn,
         when(
+          // unpegged token: price from its own per-block rate, zero fiat
+          // values when no rate is known
+          col("pegCurrency").isNull,
+          coalesce(
+            col("tokenFiatValues"),
+            transform(col(fiatValueColumn), (_: Column) => lit(0.0f))
+          )
+        ).when(
           col("pegCurrency") === "USD",
           array(
             element_at(col(fiatValueColumn), 1) / element_at(
@@ -406,8 +456,21 @@ class EthTransformation(
         Seq("tokenAddress"),
         "left"
       )
+      .join(
+        tokenExchangeRates
+          .withColumnRenamed("asset", "currencyTicker")
+          .withColumnRenamed("fiatValues", "tokenFiatValues"),
+        Seq("currencyTicker", "blockId"),
+        "left"
+      )
       .transform(toFiatCurrency("value", "fiatValues"))
-      .drop("decimals", "standard", "pegCurrency", "decimalDivisor")
+      .drop(
+        "decimals",
+        "standard",
+        "pegCurrency",
+        "decimalDivisor",
+        "tokenFiatValues"
+      )
       .withColumnRenamed("currencyTicker", "currency")
       .as[EncodedTokenTransfer]
   }

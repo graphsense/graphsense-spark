@@ -84,6 +84,19 @@ class EthereumJob(
       .filter(col("blockId") <= maxBlockToProcess)
       .persist()
 
+    println("Computing token exchange rates")
+    val tokenExchangeRates =
+      transformation
+        .computeTokenExchangeRates(
+          blocksFiltered,
+          source.tokenExchangeRates(),
+          tokenTransfersFiltered,
+          tokenConfigurations
+        )
+        .persist()
+
+    sink.saveTokenExchangeRates(tokenExchangeRates)
+
     val maxBlock = blocksFiltered
       .select(
         max(col("blockId")).as("maxBlockId"),
@@ -182,7 +195,8 @@ class EthereumJob(
         tokenConfigurations,
         transactionIds,
         addressIds,
-        exchangeRates
+        exchangeRates,
+        tokenExchangeRates
       )
       .persist()
 

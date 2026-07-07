@@ -12,7 +12,7 @@ import org.graphsense.account.models.{
   TokenConfiguration,
   Transaction
 }
-import org.graphsense.models.ExchangeRatesRaw
+import org.graphsense.models.{ExchangeRatesRaw, TokenExchangeRatesRaw}
 
 object TestTokenSet extends TokenSet {
 
@@ -47,6 +47,10 @@ class TestEthSource(spark: SparkSession, inputDir: String)
   }
   def exchangeRates(): Dataset[ExchangeRatesRaw] = {
     readTestData[ExchangeRatesRaw](spark, inputDir + "exchange_rates.json")
+  }
+
+  def tokenExchangeRates(): Dataset[TokenExchangeRatesRaw] = {
+    spark.emptyDataset[TokenExchangeRatesRaw]
   }
 
   def traces(): Dataset[Trace] = {

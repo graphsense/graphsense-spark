@@ -233,7 +233,7 @@ class TronJob(
 
     val (
       exchangeRates,
-      blocks @ _,
+      blocks,
       txs,
       txFees,
       traces,
@@ -434,6 +434,20 @@ class TronJob(
     txs.unpersist(true)
     traces.unpersist(true)
 
+    val tokenExchangeRates = timeJob("Computing token exchange rates") {
+      val rates = transformation
+        .computeTokenExchangeRates(
+          blocks,
+          source.tokenExchangeRates(),
+          tokenTxs,
+          tokenConfigurations
+        )
+        .persist()
+
+      sink.saveTokenExchangeRates(rates)
+      rates
+    }
+
     val encodedTokenTransfers =
       timeJob("Compute encoded token txs") {
         computeCached("encodedTokenTransfers") {
@@ -443,7 +457,8 @@ class TronJob(
               tokenConfigurations,
               transactionIds,
               addressIds,
-              exchangeRates
+              exchangeRates,
+              tokenExchangeRates
             )
         }
       }
@@ -458,6 +473,7 @@ class TronJob(
     printStat("#encoded token Txs", encodedTokenTransfers.count())
 
     exchangeRates.unpersist(true)
+    tokenExchangeRates.unpersist(true)
     transactionIds.unpersist(true)
     tokenTxs.unpersist(true)
 

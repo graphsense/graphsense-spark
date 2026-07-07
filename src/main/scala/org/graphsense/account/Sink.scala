@@ -17,13 +17,14 @@ import org.graphsense.account.models.{
   TransactionIdByTransactionIdGroup,
   TransactionIdByTransactionPrefix
 }
-import org.graphsense.models.ExchangeRates
+import org.graphsense.models.{ExchangeRates, TokenExchangeRates}
 import org.graphsense.storage.CassandraStorage
 
 trait AccountSink {
   def saveTokenConfiguration(tokenConf: Dataset[TokenConfiguration]): Unit
   def saveConfiguration(conf: Dataset[Configuration]): Unit
   def saveExchangeRates(rates: Dataset[ExchangeRates]): Unit
+  def saveTokenExchangeRates(rates: Dataset[TokenExchangeRates]): Unit
   def saveTransactionIdsByGroup(
       ids: Dataset[TransactionIdByTransactionIdGroup]
   ): Unit
@@ -85,6 +86,19 @@ class CassandraAccountSink(store: CassandraStorage, keyspace: String)
 
   def saveExchangeRates(rates: Dataset[ExchangeRates]): Unit = {
     store.store(keyspace, "exchange_rates", rates)
+  }
+
+  def saveTokenExchangeRates(rates: Dataset[TokenExchangeRates]): Unit = {
+    // The table is added by a graphsense-lib schema migration; tolerate
+    // transformed keyspaces that have not been migrated yet.
+    if (store.tableExists(keyspace, "token_exchange_rates")) {
+      store.store(keyspace, "token_exchange_rates", rates)
+    } else {
+      println(
+        s"WARNING: table ${keyspace}.token_exchange_rates does not exist, " +
+          "skipping token exchange rates"
+      )
+    }
   }
 
   override def areTransactionIdsGroupEmpty(): Boolean = {

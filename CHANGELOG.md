@@ -3,6 +3,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v26.07.0] 2026-07-07
+### Added
+- **Unpegged token support for the account model (ETH, TRX), mirroring
+  graphsense-lib's extended token support.** `token_configuration` entries may
+  now have no `peg_currency` (`pegCurrency = None` in the `TokenSet`). Such
+  tokens are priced from per-token exchange rates instead of the native-coin
+  rate: the transform reads the raw `token_exchange_rates(asset, date)` table
+  (populated by the graphsense-lib rates ingest), maps the daily rates to
+  per-block rows for every (asset, block) pair that saw a transfer of an
+  unpegged token, writes them to the transformed
+  `token_exchange_rates(asset, block_id)` table, and uses them to compute the
+  fiat values of encoded token transfers (and therefore of all downstream
+  aggregates: address/relation token values). Unpegged transfers with no
+  fetched rate get zero fiat values, matching the graphsense-lib delta-updater.
+  Keyspaces without the new tables (schema migration not applied yet) keep
+  working: the read falls back to an empty rate set and the write is skipped,
+  each with a warning.
+
 ## [v26.06.0] 2026-05-29
 ### Added
 - Optional Cassandra Sidecar bulk-write path, selected with the `--writer`

@@ -12,7 +12,7 @@ import org.graphsense.account.models.{
   TokenConfiguration,
   Transaction
 }
-import org.graphsense.models.ExchangeRatesRaw
+import org.graphsense.models.{ExchangeRatesRaw, TokenExchangeRatesRaw}
 import org.graphsense.account.trx.models.Trc10
 import org.graphsense.account.trx.models.TxFee
 import org.graphsense.account.models.TokenTransfer
@@ -67,6 +67,10 @@ class TestTrxSource(spark: SparkSession, inputDir: String)
       spark,
       inputDir + "exchange_rates.json"
     )
+  }
+
+  def tokenExchangeRates(): Dataset[TokenExchangeRatesRaw] = {
+    spark.emptyDataset[TokenExchangeRatesRaw]
   }
 
   def traces(): Dataset[Trace] = {

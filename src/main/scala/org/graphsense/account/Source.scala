@@ -9,7 +9,7 @@ import org.graphsense.account.models.{
   TokenTransfer,
   Transaction
 }
-import org.graphsense.models.ExchangeRatesRaw
+import org.graphsense.models.{ExchangeRatesRaw, TokenExchangeRatesRaw}
 import org.graphsense.storage.CassandraStorage
 
 trait AccountSource {
@@ -18,6 +18,7 @@ trait AccountSource {
   def transactions(): Dataset[Transaction]
   def logs(): Dataset[Log]
   def exchangeRates(): Dataset[ExchangeRatesRaw]
+  def tokenExchangeRates(): Dataset[TokenExchangeRatesRaw]
   def tokenTransfers(): Dataset[TokenTransfer]
   def tokenConfigurations(): Dataset[TokenConfiguration]
 
@@ -78,6 +79,20 @@ abstract class CassandraAccountSource(store: CassandraStorage, keyspace: String)
 
   def exchangeRates(): Dataset[ExchangeRatesRaw] = {
     store.load[ExchangeRatesRaw](keyspace, "exchange_rates")
+  }
+
+  def tokenExchangeRates(): Dataset[TokenExchangeRatesRaw] = {
+    // The table is added by a graphsense-lib schema migration; tolerate raw
+    // keyspaces that have not been migrated yet.
+    if (store.tableExists(keyspace, "token_exchange_rates")) {
+      store.load[TokenExchangeRatesRaw](keyspace, "token_exchange_rates")
+    } else {
+      println(
+        s"WARNING: table ${keyspace}.token_exchange_rates does not exist, " +
+          "unpegged tokens will get zero fiat values"
+      )
+      spark.emptyDataset[TokenExchangeRatesRaw]
+    }
   }
 
 }

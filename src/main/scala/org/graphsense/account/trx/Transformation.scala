@@ -17,7 +17,12 @@ import org.apache.spark.sql.types.FloatType
 import org.graphsense.TransformHelpers
 import org.graphsense.account.trx.models._
 import org.graphsense.account.models._
-import org.graphsense.models.{ExchangeRates, ExchangeRatesRaw}
+import org.graphsense.models.{
+  ExchangeRates,
+  ExchangeRatesRaw,
+  TokenExchangeRates,
+  TokenExchangeRatesRaw
+}
 import org.graphsense.account.eth.EthTransformation
 import org.graphsense.Util._
 
@@ -123,6 +128,20 @@ class TrxTransformation(
       exchangeRates: Dataset[ExchangeRatesRaw]
   ): Dataset[ExchangeRates] = {
     ethTransform.computeExchangeRates(blocks, exchangeRates)
+  }
+
+  def computeTokenExchangeRates(
+      blocks: Dataset[Block],
+      tokenExchangeRatesRaw: Dataset[TokenExchangeRatesRaw],
+      tokenTransfers: Dataset[TokenTransfer],
+      tokenConfigurations: Dataset[TokenConfiguration]
+  ): Dataset[TokenExchangeRates] = {
+    ethTransform.computeTokenExchangeRates(
+      blocks,
+      tokenExchangeRatesRaw,
+      tokenTransfers,
+      tokenConfigurations
+    )
   }
 
   def computeBalances(
@@ -453,7 +472,9 @@ class TrxTransformation(
       tokenConfigurations: Dataset[TokenConfiguration],
       transactionsIds: Dataset[TransactionId],
       addressIds: Dataset[AddressId],
-      exchangeRates: Dataset[ExchangeRates]
+      exchangeRates: Dataset[ExchangeRates],
+      tokenExchangeRates: Dataset[TokenExchangeRates] =
+        spark.emptyDataset[TokenExchangeRates]
   ): Dataset[EncodedTokenTransfer] = {
     ethTransform
       .computeEncodedTokenTransfers(
@@ -461,7 +482,8 @@ class TrxTransformation(
         tokenConfigurations,
         transactionsIds,
         addressIds,
-        exchangeRates
+        exchangeRates,
+        tokenExchangeRates
       )
       .filter($"transactionId".isNotNull)
   }

@@ -28,6 +28,17 @@ class CassandraStorage(
     }
   }
 
+  def tableExists(keyspace: String, tableName: String): Boolean = {
+    CassandraConnector(spark.sparkContext).withSessionDo { session =>
+      val result = session.execute(
+        "select table_name from system_schema.tables " +
+          s"where keyspace_name = '${keyspace}' " +
+          s"and table_name = '${tableName}';"
+      )
+      result.one() != null
+    }
+  }
+
   def load[T <: Product: ClassTag: RowReaderFactory: ValidRDDType: Encoder](
       keyspace: String,
       tableName: String,

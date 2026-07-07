@@ -11,7 +11,11 @@ import org.graphsense.account.models.{
   TokenTransfer,
   TransactionId
 }
-import org.graphsense.models.ExchangeRates
+import org.graphsense.models.{
+  ExchangeRates,
+  TokenExchangeRates,
+  TokenExchangeRatesRaw
+}
 import org.graphsense.TestBase
 
 import math.pow
@@ -149,6 +153,133 @@ class TokenTest extends TestBase {
       (valUSD - expectedUSD).abs < delta
     )
 
+  }
+
+  test("test unpegged token with per-token rate") {
+    val dtok = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ec")
+    val tokenConfigs = Seq(
+      TokenConfiguration(
+        "DTOK",
+        dtok,
+        "erc20",
+        18,
+        pow(10, 18).longValue(),
+        None
+      )
+    ).toDS
+    val txH = hexStrToBytes("0x01")
+    val block = 0
+    val fr = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ea")
+    val to = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ea")
+    val tt = Seq(
+      TokenTransfer(block, 0, 0, txH, dtok, fr, to, 2000000000000000000L)
+    ).toDS
+    val tid = Seq(TransactionId(txH, 1)).toDS
+    val aid = Seq(AddressId(fr, 1)).toDS
+    // native exchange rates must not be used for unpegged tokens
+    val er = Seq(ExchangeRates(block, Seq(1450.89f, 1602.56f))).toDS
+    val tokenRates = Seq(
+      TokenExchangeRates("DTOK", block, Seq(2.0f, 2.5f))
+    ).toDS
+    val data =
+      t.computeEncodedTokenTransfers(tt, tokenConfigs, tid, aid, er, tokenRates)
+
+    val delta = 0.0001
+    val fiat = data.select($"fiatValues").as[Array[Float]].collect()(0)
+
+    assert((fiat(0) - 4.0).abs < delta)
+    assert((fiat(1) - 5.0).abs < delta)
+  }
+
+  test("test unpegged token without rate gets zero fiat values") {
+    val dtok = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ec")
+    val tokenConfigs = Seq(
+      TokenConfiguration(
+        "DTOK",
+        dtok,
+        "erc20",
+        18,
+        pow(10, 18).longValue(),
+        None
+      )
+    ).toDS
+    val txH = hexStrToBytes("0x01")
+    val block = 0
+    val fr = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ea")
+    val to = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ea")
+    val tt = Seq(
+      TokenTransfer(block, 0, 0, txH, dtok, fr, to, 2000000000000000000L)
+    ).toDS
+    val tid = Seq(TransactionId(txH, 1)).toDS
+    val aid = Seq(AddressId(fr, 1)).toDS
+    val er = Seq(ExchangeRates(block, Seq(1450.89f, 1602.56f))).toDS
+    // no token exchange rates supplied at all (default empty dataset)
+    val data = t.computeEncodedTokenTransfers(tt, tokenConfigs, tid, aid, er)
+
+    val fiat = data.select($"fiatValues").as[Array[Float]].collect()(0)
+
+    assert(fiat.length === 2)
+    assert(fiat(0) === 0.0f)
+    assert(fiat(1) === 0.0f)
+  }
+
+  test("compute token exchange rates") {
+    val blocks = ds.blocks()
+
+    val dtok = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ec")
+    val pegt = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3eb")
+    val tokenConfigs = Seq(
+      TokenConfiguration(
+        "DTOK",
+        dtok,
+        "erc20",
+        18,
+        pow(10, 18).longValue(),
+        None
+      ),
+      TokenConfiguration(
+        "PEGT",
+        pegt,
+        "erc20",
+        18,
+        pow(10, 18).longValue(),
+        Some("USD")
+      )
+    ).toDS
+
+    val txH = hexStrToBytes("0x01")
+    val fr = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ea")
+    val to = hexStrToBytes("0xbA3f535bbCcCcA2A154b573Ca6c5A49BAAE0a3ea")
+    val transfers = Seq(
+      // unpegged with a rate for the block date (2022-06-21)
+      TokenTransfer(15000000, 0, 0, txH, dtok, fr, to, 1L),
+      // unpegged without a rate for the block date (2015-08-07)
+      TokenTransfer(46147, 0, 1, txH, dtok, fr, to, 1L),
+      // pegged tokens never get per-token rates
+      TokenTransfer(15000000, 0, 2, txH, pegt, fr, to, 1L)
+    ).toDS
+
+    val rawRates = Seq(
+      TokenExchangeRatesRaw(
+        "DTOK",
+        "2022-06-21",
+        Some(Map("EUR" -> 2.0f, "USD" -> 2.2f))
+      ),
+      TokenExchangeRatesRaw(
+        "PEGT",
+        "2022-06-21",
+        Some(Map("EUR" -> 9.0f, "USD" -> 9.9f))
+      )
+    ).toDS
+
+    val rates =
+      t.computeTokenExchangeRates(blocks, rawRates, transfers, tokenConfigs)
+        .collect()
+
+    assert(rates.length === 1)
+    assert(rates(0).asset === "DTOK")
+    assert(rates(0).blockId === 15000000)
+    assert(rates(0).fiatValues === Seq(2.0f, 2.2f))
   }
 
   test("encoded token transfers test") {
