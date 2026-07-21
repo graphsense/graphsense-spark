@@ -3,7 +3,6 @@ package org.graphsense.account.trx
 import org.apache.spark.sql.{Column, DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{
-  broadcast,
   col,
   count,
   lit,
@@ -584,7 +583,10 @@ class TrxTransformation(
         .filter(
           $"transactionId".isNotNull
         ) // there are apparently cases in the full dataset
-        .join(broadcast(exchangeRates), Seq("blockId"), "left")
+        // No broadcast hint: exchangeRates has one row per block and grows
+        // past Spark's hard 8 GiB broadcast cap (~75M TRX blocks = 8.6 GiB).
+        // AQE still converts to a broadcast join at runtime when it fits.
+        .join(exchangeRates, Seq("blockId"), "left")
         .transform(toFiatCurrency("value", "fiatValues"))
     )
   }

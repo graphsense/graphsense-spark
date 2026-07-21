@@ -3,6 +3,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+### Fixed
+- Removed the hard-coded `broadcast(exchangeRates)` join hint from the TRX
+  encoded-transactions step. `exchange_rates` has one row per block, so the
+  broadcast table grows with chain length; TRX (~75M blocks at 3s block time)
+  now builds an 8.6 GiB broadcast relation, exceeding Spark's
+  non-configurable 8 GiB broadcast limit and killing the transform 4+ hours
+  in with `Cannot broadcast the table that is larger than 8.0 GiB`. The
+  explicit hint bypasses `spark.sql.autoBroadcastJoinThreshold`, so no
+  configuration could prevent it. Without the hint the planner picks a
+  sort-merge join, and AQE (enabled in the production properties) still
+  converts back to a broadcast join at runtime whenever the actual rate set
+  is small enough. The identical hint in the ETH transformation is kept:
+  ETH's ~12s block time puts it around ~23M blocks / ~2.5 GiB, decades from
+  the cap. Output is unchanged — this only affects the join strategy.
+
 ## [v26.07.0] 2026-07-07
 ### Added
 - **Unpegged token support for the account model (ETH, TRX), mirroring
