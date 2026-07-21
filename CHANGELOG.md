@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [v26.07.1] 2026-07-21
 ### Fixed
 - Removed the hard-coded `broadcast(exchangeRates)` join hint from the TRX
   encoded-transactions step. `exchange_rates` has one row per block, so the
