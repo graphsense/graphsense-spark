@@ -10,9 +10,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   broadcast table grows with chain length; TRX (~75M blocks at 3s block time)
   now builds an 8.6 GiB broadcast relation, exceeding Spark's
   non-configurable 8 GiB broadcast limit and killing the transform 4+ hours
-  in with `Cannot broadcast the table that is larger than 8.0 GiB`. The
-  explicit hint bypasses `spark.sql.autoBroadcastJoinThreshold`, so no
-  configuration could prevent it. Without the hint the planner picks a
+  in with `Cannot broadcast the table that is larger than 8.0 GiB`. No
+  configuration can prevent it: the explicit hint bypasses
+  `spark.sql.autoBroadcastJoinThreshold`, and `spark.sql.optimizer.disableHints`
+  only strips unresolved `.hint()`-style hints — `functions.broadcast()`
+  injects an already-resolved hint node that survives it (verified on Spark
+  3.5.8). Without the hint the planner picks a
   sort-merge join, and AQE (enabled in the production properties) still
   converts back to a broadcast join at runtime whenever the actual rate set
   is small enough. The identical hint in the ETH transformation is kept:
