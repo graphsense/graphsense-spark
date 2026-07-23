@@ -385,11 +385,19 @@ class EthTransformation(
             transform(col(fiatValueColumn), (_: Column) => lit(0.0f))
           )
         ).when(
+          // pegged token: the peg fixes its own fiat currency exactly; the
+          // other one is derived from the base rates. computeExchangeRates
+          // zero-fills dates missing from raw exchange_rates, so the cross
+          // rate divides 0/0 -> NULL there; coalesce to 0 because Cassandra
+          // rejects null elements inside the fiat_values collection
           col("pegCurrency") === "USD",
           array(
-            element_at(col(fiatValueColumn), 1) / element_at(
-              col(fiatValueColumn),
-              2
+            coalesce(
+              element_at(col(fiatValueColumn), 1) / element_at(
+                col(fiatValueColumn),
+                2
+              ),
+              lit(0.0f)
             ),
             lit(1)
           )
@@ -397,9 +405,12 @@ class EthTransformation(
           col("pegCurrency") === "EUR",
           array(
             lit(1),
-            element_at(col(fiatValueColumn), 2) / element_at(
-              col(fiatValueColumn),
-              1
+            coalesce(
+              element_at(col(fiatValueColumn), 2) / element_at(
+                col(fiatValueColumn),
+                1
+              ),
+              lit(0.0f)
             )
           )
         ).otherwise(col(fiatValueColumn))

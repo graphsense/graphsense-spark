@@ -3,6 +3,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v26.07.2] 2026-07-23
+### Fixed
+- Null-safe the pegged-token fiat conversion (`toFiatCurrency` in the account
+  transformation). `computeExchangeRates` zero-fills dates that are missing
+  from the raw `exchange_rates` table, so the USD/EUR-peg cross rate divides
+  `0/0`, which is NULL in Spark. The null survives per-transfer into the
+  per-(address, token) aggregates: an address whose transfers of a token all
+  fall on such a day gets a `fiat_values` list with a null element inside the
+  `total_tokens_received/spent` map, and the Cassandra (bulk) writer rejects
+  it with `NullPointerException: Collection elements cannot be null` — this
+  killed the 2026-07-22 TRX full transform at the `address` write (one missing
+  rate day, 2022-05-24, was enough). The cross rate is now coalesced to 0: on
+  a day with unknown base rates a pegged transfer keeps its exact peg-currency
+  value and reports 0 for the derived fiat currency, matching the existing
+  "zero fiat values when no rate is known" behavior of unpegged tokens.
+
 ## [v26.07.1] 2026-07-21
 ### Fixed
 - Removed the hard-coded `broadcast(exchangeRates)` join hint from the TRX
