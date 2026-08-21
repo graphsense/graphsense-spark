@@ -1,3 +1,27 @@
+> [!IMPORTANT]
+> **This repository is archived and no longer developed.**
+>
+> The Spark transformation pipeline now lives in the
+> [graphsense-lib](https://github.com/graphsense/graphsense-lib) monorepo, under
+> [`spark/`](https://github.com/graphsense/graphsense-lib/tree/master/spark).
+> It moved there because the Scala pipeline and the Python delta updater must
+> stay in lockstep to be correct — the pipeline is the ground truth for every
+> derived table, so a change to one side that the other cannot reproduce is a
+> divergence that only surfaces at the next full re-run. In one repo CI can
+> exercise both paths together.
+>
+> * **Issues** have been transferred to graphsense-lib and are labelled `spark`.
+> * **Pull requests** should be opened against graphsense-lib, touching `spark/`.
+> * **Releases from v26.08.1 on** are published by graphsense-lib on its
+>   `spark-vYY.MM.P` tags, as both jar assets and the
+>   `ghcr.io/graphsense/graphsense-spark` image.
+> * **Releases up to v26.08.0** stay here. This repository is archived rather
+>   than deleted precisely so those pinned assets keep resolving — pointing
+>   `full_transform_args.repo` at `graphsense/graphsense-spark` with an empty
+>   `release_tag_prefix` still works.
+> * The commit history came across intact: the original SHAs still resolve in
+>   graphsense-lib.
+
 [![sbt test](https://github.com/graphsense/graphsense-spark/actions/workflows/sbt_test.yml/badge.svg)](https://github.com/graphsense/graphsense-spark/actions/workflows/sbt_test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
